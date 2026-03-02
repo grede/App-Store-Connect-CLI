@@ -2056,3 +2056,75 @@ func TestBuildsLatestKeepsScanningAfterAnomalyUntilPaginationExhausted(t *testin
 		t.Fatalf("expected exactly 4 build page requests, got %d", requestCount)
 	}
 }
+
+func TestBuildsLatestFailsOnRepeatedProbePaginationURLAfterAnomaly(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+
+	const repeatedBuildsURL = "https://api.appstoreconnect.apple.com/v1/builds?page=2"
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+
+	requestCount := 0
+	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		requestCount++
+		switch {
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/builds" && req.URL.Query().Get("page") == "":
+			body := `{
+				"data":[{"type":"builds","id":"build-page1-older","attributes":{"version":"10","uploadedDate":"2026-01-01T00:00:00Z"}}],
+				"links":{"next":"` + repeatedBuildsURL + `"}
+			}`
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(body)),
+				Header:     http.Header{"Content-Type": []string{"application/json"}},
+			}, nil
+
+		case req.Method == http.MethodGet && req.URL.String() == repeatedBuildsURL:
+			// Anomaly: page 2 is newer than page 1, but links.next repeats.
+			body := `{
+				"data":[{"type":"builds","id":"build-page2-newer","attributes":{"version":"11","uploadedDate":"2026-02-01T00:00:00Z"}}],
+				"links":{"next":"` + repeatedBuildsURL + `"}
+			}`
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(body)),
+				Header:     http.Header{"Content-Type": []string{"application/json"}},
+			}, nil
+
+		default:
+			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
+			return nil, nil
+		}
+	})
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	var runErr error
+	stdout, _ := captureOutput(t, func() {
+		if err := root.Parse([]string{"builds", "latest", "--app", "100000001"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		runErr = root.Run(context.Background())
+	})
+
+	if runErr == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if !strings.Contains(runErr.Error(), "failed to paginate builds") {
+		t.Fatalf("expected builds pagination context, got %v", runErr)
+	}
+	if !strings.Contains(runErr.Error(), "detected repeated pagination URL") {
+		t.Fatalf("expected repeated pagination URL error, got %v", runErr)
+	}
+	if stdout != "" {
+		t.Fatalf("expected empty stdout, got %q", stdout)
+	}
+	if requestCount != 2 {
+		t.Fatalf("expected exactly 2 build page requests, got %d", requestCount)
+	}
+}

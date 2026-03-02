@@ -405,7 +405,13 @@ func findMostRecentlyUploadedBuild(
 	nextURL := links.Next
 	pagesScanned := 1
 	anomalyDetected := false
+	seenProbeURLs := map[string]struct{}{}
 	for nextURL != "" && pagesScanned < buildsLatestScanPageLimit {
+		if _, seen := seenProbeURLs[nextURL]; seen {
+			return nil, fmt.Errorf("failed to paginate builds: %w: %s", asc.ErrRepeatedPaginationURL, nextURL)
+		}
+		seenProbeURLs[nextURL] = struct{}{}
+
 		nextPage, err := client.GetBuilds(ctx, appID, asc.WithBuildsNextURL(nextURL))
 		if err != nil {
 			if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
