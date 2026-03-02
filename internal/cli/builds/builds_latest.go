@@ -2,6 +2,7 @@ package builds
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"math"
@@ -407,6 +408,12 @@ func findMostRecentlyUploadedBuild(
 	for nextURL != "" && pagesScanned < buildsLatestScanPageLimit {
 		nextPage, err := client.GetBuilds(ctx, appID, asc.WithBuildsNextURL(nextURL))
 		if err != nil {
+			if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+				return nil, fmt.Errorf("failed to paginate builds: page %d: %w", pagesScanned+1, err)
+			}
+			if ctxErr := ctx.Err(); errors.Is(ctxErr, context.Canceled) || errors.Is(ctxErr, context.DeadlineExceeded) {
+				return nil, fmt.Errorf("failed to paginate builds: page %d: %w", pagesScanned+1, ctxErr)
+			}
 			// Probing additional pages is best-effort. If a probe page fails, keep
 			// the best candidate gathered so far instead of failing the command.
 			break

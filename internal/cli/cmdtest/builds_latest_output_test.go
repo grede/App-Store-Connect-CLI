@@ -1746,6 +1746,132 @@ func TestBuildsLatestReturnsFirstPageBestWhenProbePageFails(t *testing.T) {
 	}
 }
 
+func TestBuildsLatestReturnsErrorWhenProbePageTimesOut(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+
+	const secondBuildsURL = "https://api.appstoreconnect.apple.com/v1/builds?page=2"
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+
+	requestCount := 0
+	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		requestCount++
+		switch {
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/builds" && req.URL.Query().Get("page") == "":
+			body := `{
+				"data":[{"type":"builds","id":"build-first-page-best","attributes":{"version":"12","uploadedDate":"2026-03-01T00:00:00Z"}}],
+				"links":{"next":"` + secondBuildsURL + `"}
+			}`
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(body)),
+				Header:     http.Header{"Content-Type": []string{"application/json"}},
+			}, nil
+
+		case req.Method == http.MethodGet && req.URL.String() == secondBuildsURL:
+			return nil, context.DeadlineExceeded
+
+		default:
+			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
+			return nil, nil
+		}
+	})
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	var runErr error
+	stdout, _ := captureOutput(t, func() {
+		if err := root.Parse([]string{"builds", "latest", "--app", "100000001", "--next"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		runErr = root.Run(context.Background())
+	})
+
+	if runErr == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if !strings.Contains(runErr.Error(), "builds latest: failed to paginate builds: page 2") {
+		t.Fatalf("expected pagination timeout error, got %v", runErr)
+	}
+	if !errors.Is(runErr, context.DeadlineExceeded) {
+		t.Fatalf("expected context deadline exceeded cause, got %v", runErr)
+	}
+	if stdout != "" {
+		t.Fatalf("expected empty stdout, got %q", stdout)
+	}
+	if requestCount != 2 {
+		t.Fatalf("expected exactly 2 build page requests, got %d", requestCount)
+	}
+}
+
+func TestBuildsLatestReturnsErrorWhenProbePageIsCanceled(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+
+	const secondBuildsURL = "https://api.appstoreconnect.apple.com/v1/builds?page=2"
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+
+	requestCount := 0
+	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		requestCount++
+		switch {
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/builds" && req.URL.Query().Get("page") == "":
+			body := `{
+				"data":[{"type":"builds","id":"build-first-page-best","attributes":{"version":"12","uploadedDate":"2026-03-01T00:00:00Z"}}],
+				"links":{"next":"` + secondBuildsURL + `"}
+			}`
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(body)),
+				Header:     http.Header{"Content-Type": []string{"application/json"}},
+			}, nil
+
+		case req.Method == http.MethodGet && req.URL.String() == secondBuildsURL:
+			return nil, context.Canceled
+
+		default:
+			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
+			return nil, nil
+		}
+	})
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	var runErr error
+	stdout, _ := captureOutput(t, func() {
+		if err := root.Parse([]string{"builds", "latest", "--app", "100000001"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		runErr = root.Run(context.Background())
+	})
+
+	if runErr == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if !strings.Contains(runErr.Error(), "builds latest: failed to paginate builds: page 2") {
+		t.Fatalf("expected pagination canceled error, got %v", runErr)
+	}
+	if !errors.Is(runErr, context.Canceled) {
+		t.Fatalf("expected context canceled cause, got %v", runErr)
+	}
+	if stdout != "" {
+		t.Fatalf("expected empty stdout, got %q", stdout)
+	}
+	if requestCount != 2 {
+		t.Fatalf("expected exactly 2 build page requests, got %d", requestCount)
+	}
+}
+
 func TestBuildsLatestReturnsBestFetchedCandidateWhenLaterProbeFails(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
