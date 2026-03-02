@@ -62,7 +62,26 @@ https://appstoreconnect.apple.com/access/integrations/api
 ### First command
 
 ```bash
-asc apps list --output table
+asc apps list
+```
+
+### Output defaults (TTY-aware)
+
+`asc` chooses a default `--output` based on where stdout is connected:
+
+- Interactive terminal (TTY): `table`
+- Non-interactive output (pipes/files/CI): `json`
+
+You can still set a global preference:
+
+```bash
+export ASC_DEFAULT_OUTPUT=markdown
+```
+
+And explicit flags always win:
+
+```bash
+asc apps list --output json
 ```
 
 <!-- WALL-OF-APPS:START -->

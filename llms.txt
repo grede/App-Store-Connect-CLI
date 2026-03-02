@@ -111,7 +111,11 @@ Common operational variables:
 - `ASC_DEBUG` (set to `api` for HTTP request/response logs)
 - `ASC_DEFAULT_OUTPUT` (`json`, `table`, `markdown`, `md`)
 
-Explicit `--output` always overrides `ASC_DEFAULT_OUTPUT`.
+Output defaults are TTY-aware when `ASC_DEFAULT_OUTPUT` is unset:
+- interactive terminal (TTY) => `table`
+- non-interactive/piped output => `json`
+
+Explicit `--output` always overrides `ASC_DEFAULT_OUTPUT` and TTY-aware defaults.
 
 ## Development and local validation
 
