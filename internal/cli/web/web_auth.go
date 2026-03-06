@@ -126,9 +126,11 @@ func promptTwoFactorCodeInteractive() (string, error) {
 }
 
 func loginWithOptionalTwoFactor(ctx context.Context, appleID, password, twoFactorCode string) (*webcore.AuthSession, error) {
-	session, err := webLoginFn(ctx, webcore.LoginCredentials{
-		Username: appleID,
-		Password: password,
+	session, err := withWebSpinnerValue("Signing in to Apple web session", func() (*webcore.AuthSession, error) {
+		return webLoginFn(ctx, webcore.LoginCredentials{
+			Username: appleID,
+			Password: password,
+		})
 	})
 	if err == nil {
 		return session, nil
@@ -144,12 +146,40 @@ func loginWithOptionalTwoFactor(ctx context.Context, appleID, password, twoFacto
 				return nil, promptErr
 			}
 		}
-		if err := submitTwoFactorCodeFn(ctx, session, code); err != nil {
+		if err := withWebSpinner("Verifying two-factor code", func() error {
+			return submitTwoFactorCodeFn(ctx, session, code)
+		}); err != nil {
 			return nil, fmt.Errorf("2fa verification failed: %w", err)
 		}
 		return session, nil
 	}
 	return nil, err
+}
+
+func tryResumeWebSession(ctx context.Context, appleID string) (*webcore.AuthSession, bool, error) {
+	var (
+		session *webcore.AuthSession
+		ok      bool
+	)
+	err := withWebSpinner("Checking cached web session", func() error {
+		var err error
+		session, ok, err = tryResumeSessionFn(ctx, appleID)
+		return err
+	})
+	return session, ok, err
+}
+
+func tryResumeLastWebSession(ctx context.Context) (*webcore.AuthSession, bool, error) {
+	var (
+		session *webcore.AuthSession
+		ok      bool
+	)
+	err := withWebSpinner("Checking cached web session", func() error {
+		var err error
+		session, ok, err = tryResumeLastFn(ctx)
+		return err
+	})
+	return session, ok, err
 }
 
 func resolveSession(ctx context.Context, appleID, password, twoFactorCode string) (*webcore.AuthSession, string, error) {
@@ -159,11 +189,11 @@ func resolveSession(ctx context.Context, appleID, password, twoFactorCode string
 	twoFactorCode = strings.TrimSpace(twoFactorCode)
 
 	if appleID != "" {
-		if resumed, ok, err := tryResumeSessionFn(ctx, appleID); err == nil && ok {
+		if resumed, ok, err := tryResumeWebSession(ctx, appleID); err == nil && ok {
 			return resumed, "cache", nil
 		}
 	} else {
-		if resumed, ok, err := tryResumeLastFn(ctx); err == nil && ok {
+		if resumed, ok, err := tryResumeLastWebSession(ctx); err == nil && ok {
 			return resumed, "cache", nil
 		}
 	}
@@ -300,9 +330,9 @@ If --apple-id is not provided, this checks the last cached session.
 				err     error
 			)
 			if trimmedAppleID != "" {
-				session, ok, err = webcore.TryResumeSession(requestCtx, trimmedAppleID)
+				session, ok, err = tryResumeWebSession(requestCtx, trimmedAppleID)
 			} else {
-				session, ok, err = webcore.TryResumeLastSession(requestCtx)
+				session, ok, err = tryResumeLastWebSession(requestCtx)
 			}
 			if err != nil {
 				return fmt.Errorf("web auth status failed: %w", err)

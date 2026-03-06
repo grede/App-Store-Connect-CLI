@@ -5,6 +5,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"strings"
 
 	webcore "github.com/rudrankriyam/App-Store-Connect-CLI/internal/web"
 )
@@ -37,6 +38,9 @@ func resolveWebSessionForCommand(ctx context.Context, flags webSessionFlags) (*w
 func withWebAuthHint(err error, operation string) error {
 	if err == nil {
 		return nil
+	}
+	if strings.HasPrefix(err.Error(), operation+" failed:") {
+		return err
 	}
 	var apiErr *webcore.APIError
 	if errors.As(err, &apiErr) && (apiErr.Status == 401 || apiErr.Status == 403) {
