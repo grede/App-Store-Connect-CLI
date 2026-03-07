@@ -233,6 +233,147 @@ func TestRootCommand_UsageGroupsSubcommands(t *testing.T) {
 	}
 }
 
+func TestRun_InvalidOutputReturnsUsageBeforeAuth(t *testing.T) {
+	resetReportFlags(t)
+
+	tempDir := t.TempDir()
+	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
+	t.Setenv("ASC_PROFILE", "")
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(tempDir, "missing.json"))
+	t.Setenv("ASC_KEY_ID", "")
+	t.Setenv("ASC_ISSUER_ID", "")
+	t.Setenv("ASC_PRIVATE_KEY_PATH", "")
+	t.Setenv("ASC_PRIVATE_KEY", "")
+	t.Setenv("ASC_PRIVATE_KEY_B64", "")
+	t.Setenv("ASC_STRICT_AUTH", "")
+
+	_, stderr := captureCommandOutput(t, func() {
+		code := Run([]string{
+			"devices", "register",
+			"--name", "My Device",
+			"--udid", "UDID",
+			"--platform", "IOS",
+			"--output", "yaml",
+		}, "1.0.0")
+		if code != ExitUsage {
+			t.Fatalf("Run() exit code = %d, want %d", code, ExitUsage)
+		}
+	})
+
+	if !strings.Contains(stderr, "unsupported format: yaml") {
+		t.Fatalf("expected output validation error, got %q", stderr)
+	}
+	if strings.Contains(stderr, "missing authentication") {
+		t.Fatalf("expected output validation before auth resolution, got %q", stderr)
+	}
+}
+
+func TestRun_InvalidPrettyReturnsUsageBeforeAuth(t *testing.T) {
+	resetReportFlags(t)
+
+	tempDir := t.TempDir()
+	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
+	t.Setenv("ASC_PROFILE", "")
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(tempDir, "missing.json"))
+	t.Setenv("ASC_KEY_ID", "")
+	t.Setenv("ASC_ISSUER_ID", "")
+	t.Setenv("ASC_PRIVATE_KEY_PATH", "")
+	t.Setenv("ASC_PRIVATE_KEY", "")
+	t.Setenv("ASC_PRIVATE_KEY_B64", "")
+	t.Setenv("ASC_STRICT_AUTH", "")
+
+	_, stderr := captureCommandOutput(t, func() {
+		code := Run([]string{
+			"devices", "update",
+			"--id", "DEVICE_ID",
+			"--status", "ENABLED",
+			"--output", "table",
+			"--pretty",
+		}, "1.0.0")
+		if code != ExitUsage {
+			t.Fatalf("Run() exit code = %d, want %d", code, ExitUsage)
+		}
+	})
+
+	if !strings.Contains(stderr, "--pretty is only valid with JSON output") {
+		t.Fatalf("expected pretty/output validation error, got %q", stderr)
+	}
+	if strings.Contains(stderr, "missing authentication") {
+		t.Fatalf("expected output validation before auth resolution, got %q", stderr)
+	}
+}
+
+func TestRun_InvalidParentOutputReturnsUsageBeforeLeafExec(t *testing.T) {
+	resetReportFlags(t)
+
+	tempDir := t.TempDir()
+	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
+	t.Setenv("ASC_PROFILE", "")
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(tempDir, "missing.json"))
+	t.Setenv("ASC_KEY_ID", "")
+	t.Setenv("ASC_ISSUER_ID", "")
+	t.Setenv("ASC_PRIVATE_KEY_PATH", "")
+	t.Setenv("ASC_PRIVATE_KEY", "")
+	t.Setenv("ASC_PRIVATE_KEY_B64", "")
+	t.Setenv("ASC_STRICT_AUTH", "")
+
+	_, stderr := captureCommandOutput(t, func() {
+		code := Run([]string{
+			"reviews",
+			"--output", "yaml",
+			"respond",
+			"--review-id", "REVIEW_ID",
+			"--response", "Thanks!",
+		}, "1.0.0")
+		if code != ExitUsage {
+			t.Fatalf("Run() exit code = %d, want %d", code, ExitUsage)
+		}
+	})
+
+	if !strings.Contains(stderr, "unsupported format: yaml") {
+		t.Fatalf("expected output validation error, got %q", stderr)
+	}
+	if strings.Contains(stderr, "missing authentication") {
+		t.Fatalf("expected parent output validation before leaf execution, got %q", stderr)
+	}
+}
+
+func TestRun_InvalidParentPrettyReturnsUsageBeforeLeafExec(t *testing.T) {
+	resetReportFlags(t)
+
+	tempDir := t.TempDir()
+	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
+	t.Setenv("ASC_PROFILE", "")
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(tempDir, "missing.json"))
+	t.Setenv("ASC_KEY_ID", "")
+	t.Setenv("ASC_ISSUER_ID", "")
+	t.Setenv("ASC_PRIVATE_KEY_PATH", "")
+	t.Setenv("ASC_PRIVATE_KEY", "")
+	t.Setenv("ASC_PRIVATE_KEY_B64", "")
+	t.Setenv("ASC_STRICT_AUTH", "")
+
+	_, stderr := captureCommandOutput(t, func() {
+		code := Run([]string{
+			"reviews",
+			"--output", "table",
+			"--pretty",
+			"respond",
+			"--review-id", "REVIEW_ID",
+			"--response", "Thanks!",
+		}, "1.0.0")
+		if code != ExitUsage {
+			t.Fatalf("Run() exit code = %d, want %d", code, ExitUsage)
+		}
+	})
+
+	if !strings.Contains(stderr, "--pretty is only valid with JSON output") {
+		t.Fatalf("expected pretty/output validation error, got %q", stderr)
+	}
+	if strings.Contains(stderr, "missing authentication") {
+		t.Fatalf("expected parent pretty validation before leaf execution, got %q", stderr)
+	}
+}
+
 func TestWriteJUnitReport(t *testing.T) {
 	resetReportFlags(t)
 
