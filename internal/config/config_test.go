@@ -126,6 +126,30 @@ func TestSaveAtOverwritesExistingFile(t *testing.T) {
 	}
 }
 
+func TestSaveAtRestoresSecurePermissionsOnOverwrite(t *testing.T) {
+	tempDir := t.TempDir()
+	path := filepath.Join(tempDir, "config.json")
+
+	if err := SaveAt(path, &Config{KeyID: "OLD_KEY"}); err != nil {
+		t.Fatalf("SaveAt(initial) error: %v", err)
+	}
+	if err := os.Chmod(path, 0o644); err != nil {
+		t.Fatalf("Chmod() error: %v", err)
+	}
+
+	if err := SaveAt(path, &Config{KeyID: "NEW_KEY"}); err != nil {
+		t.Fatalf("SaveAt(updated) error: %v", err)
+	}
+
+	info, err := os.Stat(path)
+	if err != nil {
+		t.Fatalf("Stat() error: %v", err)
+	}
+	if got := info.Mode().Perm(); got != 0o600 {
+		t.Fatalf("expected permissions 0600, got %#o", got)
+	}
+}
+
 func TestSaveAtRejectsSymlinkPath(t *testing.T) {
 	tempDir := t.TempDir()
 	target := filepath.Join(tempDir, "target.json")
