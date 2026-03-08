@@ -134,6 +134,15 @@ func TestDeprecatedHelpShowsCanonicalPathsOnly(t *testing.T) {
 			},
 		},
 		{
+			name:        "beta groups leaf help",
+			args:        []string{"testflight", "beta-groups", "get"},
+			wantUsage:   "asc testflight groups view [flags]",
+			wantWarning: "",
+			wantNotShown: []string{
+				"Get a TestFlight beta group by ID.",
+			},
+		},
+		{
 			name:        "beta testers alias help",
 			args:        []string{"testflight", "beta-testers"},
 			wantUsage:   "asc testflight testers <subcommand> [flags]",
@@ -256,6 +265,29 @@ func TestTestFlightHelpHidesTestFlightApps(t *testing.T) {
 	}
 	if strings.Contains(stderr, "\n  apps ") {
 		t.Fatalf("expected testflight help to hide apps, got %q", stderr)
+	}
+}
+
+func TestUnknownCommandDoesNotSuggestDeprecatedRootCommands(t *testing.T) {
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	var runErr error
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{"feedbak"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		runErr = root.Run(context.Background())
+	})
+
+	if !errors.Is(runErr, flag.ErrHelp) {
+		t.Fatalf("expected ErrHelp, got %v", runErr)
+	}
+	if stdout != "" {
+		t.Fatalf("expected empty stdout, got %q", stdout)
+	}
+	if strings.Contains(stderr, "Did you mean: feedback") || strings.Contains(stderr, "Did you mean: crashes") {
+		t.Fatalf("expected no deprecated root suggestion, got %q", stderr)
 	}
 }
 
@@ -534,6 +566,96 @@ func TestTestFlightReviewViewOutput(t *testing.T) {
 	}
 	if !strings.Contains(stdout, `"id":"detail-1"`) {
 		t.Fatalf("expected detail id in output, got %q", stdout)
+	}
+}
+
+func TestTestFlightFeedbackListOutputHasNoDeprecationWarning(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_APP_ID", "")
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+
+	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/apps/123/betaFeedbackScreenshotSubmissions" {
+			t.Fatalf("expected path /v1/apps/123/betaFeedbackScreenshotSubmissions, got %s", req.URL.Path)
+		}
+		body := `{"data":[{"type":"betaFeedbackScreenshotSubmissions","id":"feedback-1"}],"links":{"next":""}}`
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(strings.NewReader(body)),
+			Header:     http.Header{"Content-Type": []string{"application/json"}},
+		}, nil
+	})
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{"testflight", "feedback", "list", "--app", "123"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("run error: %v", err)
+		}
+	})
+
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+	if !strings.Contains(stdout, `"id":"feedback-1"`) {
+		t.Fatalf("expected feedback list output, got %q", stdout)
+	}
+}
+
+func TestTestFlightCrashesListOutputHasNoDeprecationWarning(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_APP_ID", "")
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+
+	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/apps/123/betaFeedbackCrashSubmissions" {
+			t.Fatalf("expected path /v1/apps/123/betaFeedbackCrashSubmissions, got %s", req.URL.Path)
+		}
+		body := `{"data":[{"type":"betaFeedbackCrashSubmissions","id":"crash-1"}],"links":{"next":""}}`
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(strings.NewReader(body)),
+			Header:     http.Header{"Content-Type": []string{"application/json"}},
+		}, nil
+	})
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{"testflight", "crashes", "list", "--app", "123"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("run error: %v", err)
+		}
+	})
+
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+	if !strings.Contains(stdout, `"id":"crash-1"`) {
+		t.Fatalf("expected crashes list output, got %q", stdout)
 	}
 }
 

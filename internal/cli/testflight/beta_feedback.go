@@ -10,8 +10,6 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
-	crashescmd "github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/crashes"
-	feedbackcmd "github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/feedback"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
@@ -42,20 +40,105 @@ Examples:
 }
 
 func TestFlightFeedbackListCommand() *ffcli.Command {
-	cmd := feedbackcmd.FeedbackCommand()
-	cmd.Name = "list"
-	cmd.ShortUsage = "asc testflight feedback list [flags]"
-	cmd.ShortHelp = "List TestFlight feedback."
-	cmd.LongHelp = `List TestFlight feedback.
+	fs := flag.NewFlagSet("list", flag.ExitOnError)
+
+	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
+	output := shared.BindOutputFlags(fs)
+	includeScreenshots := fs.Bool("include-screenshots", false, "Include screenshot URLs in feedback output")
+	deviceModel := fs.String("device-model", "", "Filter by device model(s), comma-separated")
+	osVersion := fs.String("os-version", "", "Filter by OS version(s), comma-separated")
+	appPlatform := fs.String("app-platform", "", "Filter by app platform(s), comma-separated (IOS, MAC_OS, TV_OS, VISION_OS)")
+	devicePlatform := fs.String("device-platform", "", "Filter by device platform(s), comma-separated (IOS, MAC_OS, TV_OS, VISION_OS)")
+	buildID := fs.String("build", "", "Filter by build ID(s), comma-separated")
+	buildPreRelease := fs.String("build-pre-release-version", "", "Filter by pre-release version ID(s), comma-separated")
+	tester := fs.String("tester", "", "Filter by tester ID(s), comma-separated")
+	sortValue := fs.String("sort", "", "Sort by createdDate or -createdDate")
+	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
+	next := fs.String("next", "", "Fetch next page using a links.next URL")
+	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
+
+	return &ffcli.Command{
+		Name:       "list",
+		ShortUsage: "asc testflight feedback list [flags]",
+		ShortHelp:  "List TestFlight feedback.",
+		LongHelp: `List TestFlight feedback.
 
 Examples:
   asc testflight feedback list --app "123456789"
   asc testflight feedback list --app "123456789" --include-screenshots
   asc testflight feedback list --app "123456789" --device-model "iPhone15,3" --os-version "17.2"
   asc testflight feedback list --next "<links.next>"
-  asc testflight feedback list --app "123456789" --paginate`
-	cmd.UsageFunc = shared.DefaultUsageFunc
-	return cmd
+  asc testflight feedback list --app "123456789" --paginate`,
+		FlagSet:   fs,
+		UsageFunc: shared.DefaultUsageFunc,
+		Exec: func(ctx context.Context, args []string) error {
+			if *limit != 0 && (*limit < 1 || *limit > 200) {
+				return fmt.Errorf("testflight feedback list: --limit must be between 1 and 200")
+			}
+			if err := shared.ValidateNextURL(*next); err != nil {
+				return fmt.Errorf("testflight feedback list: %w", err)
+			}
+			if err := shared.ValidateSort(*sortValue, "createdDate", "-createdDate"); err != nil {
+				return fmt.Errorf("testflight feedback list: %w", err)
+			}
+
+			resolvedAppID := shared.ResolveAppID(*appID)
+			if resolvedAppID == "" && strings.TrimSpace(*next) == "" {
+				fmt.Fprintf(os.Stderr, "Error: --app is required (or set ASC_APP_ID)\n\n")
+				return flag.ErrHelp
+			}
+
+			client, err := shared.GetASCClient()
+			if err != nil {
+				return fmt.Errorf("testflight feedback list: %w", err)
+			}
+
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			defer cancel()
+
+			opts := []asc.FeedbackOption{
+				asc.WithFeedbackDeviceModels(shared.SplitCSV(*deviceModel)),
+				asc.WithFeedbackOSVersions(shared.SplitCSV(*osVersion)),
+				asc.WithFeedbackAppPlatforms(shared.SplitCSVUpper(*appPlatform)),
+				asc.WithFeedbackDevicePlatforms(shared.SplitCSVUpper(*devicePlatform)),
+				asc.WithFeedbackBuildIDs(shared.SplitCSV(*buildID)),
+				asc.WithFeedbackBuildPreReleaseVersionIDs(shared.SplitCSV(*buildPreRelease)),
+				asc.WithFeedbackTesterIDs(shared.SplitCSV(*tester)),
+				asc.WithFeedbackLimit(*limit),
+				asc.WithFeedbackNextURL(*next),
+			}
+			if strings.TrimSpace(*sortValue) != "" {
+				opts = append(opts, asc.WithFeedbackSort(*sortValue))
+			}
+			if *includeScreenshots {
+				opts = append(opts, asc.WithFeedbackIncludeScreenshots())
+			}
+
+			if *paginate {
+				paginateOpts := append(opts, asc.WithFeedbackLimit(200))
+				firstPage, err := client.GetFeedback(requestCtx, resolvedAppID, paginateOpts...)
+				if err != nil {
+					return fmt.Errorf("testflight feedback list: failed to fetch: %w", err)
+				}
+
+				feedback, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+					return client.GetFeedback(ctx, resolvedAppID, asc.WithFeedbackNextURL(nextURL))
+				})
+				if err != nil {
+					return fmt.Errorf("testflight feedback list: %w", err)
+				}
+
+				return shared.PrintOutput(feedback, *output.Output, *output.Pretty)
+			}
+
+			feedback, err := client.GetFeedback(requestCtx, resolvedAppID, opts...)
+			if err != nil {
+				return fmt.Errorf("testflight feedback list: failed to fetch: %w", err)
+			}
+
+			return shared.PrintOutput(feedback, *output.Output, *output.Pretty)
+		},
+	}
 }
 
 func TestFlightFeedbackViewCommand() *ffcli.Command {
@@ -147,19 +230,107 @@ Examples:
 }
 
 func TestFlightCrashesListCommand() *ffcli.Command {
-	cmd := crashescmd.CrashesCommand()
-	cmd.Name = "list"
-	cmd.ShortUsage = "asc testflight crashes list [flags]"
-	cmd.ShortHelp = "List TestFlight crash submissions."
-	cmd.LongHelp = `List TestFlight crash submissions.
+	fs := flag.NewFlagSet("list", flag.ExitOnError)
+
+	appID := fs.String("app", "", "App Store Connect app ID, bundle ID, or exact app name (or ASC_APP_ID env)")
+	output := shared.BindOutputFlags(fs)
+	deviceModel := fs.String("device-model", "", "Filter by device model(s), comma-separated")
+	osVersion := fs.String("os-version", "", "Filter by OS version(s), comma-separated")
+	appPlatform := fs.String("app-platform", "", "Filter by app platform(s), comma-separated (IOS, MAC_OS, TV_OS, VISION_OS)")
+	devicePlatform := fs.String("device-platform", "", "Filter by device platform(s), comma-separated (IOS, MAC_OS, TV_OS, VISION_OS)")
+	buildID := fs.String("build", "", "Filter by build ID(s), comma-separated")
+	buildPreRelease := fs.String("build-pre-release-version", "", "Filter by pre-release version ID(s), comma-separated")
+	tester := fs.String("tester", "", "Filter by tester ID(s), comma-separated")
+	sortValue := fs.String("sort", "", "Sort by createdDate or -createdDate")
+	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
+	next := fs.String("next", "", "Fetch next page using a links.next URL")
+	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
+
+	return &ffcli.Command{
+		Name:       "list",
+		ShortUsage: "asc testflight crashes list [flags]",
+		ShortHelp:  "List TestFlight crash submissions.",
+		LongHelp: `List TestFlight crash submissions.
 
 Examples:
   asc testflight crashes list --app "123456789"
   asc testflight crashes list --app "123456789" --device-model "iPhone15,3" --os-version "17.2"
   asc testflight crashes list --next "<links.next>"
-  asc testflight crashes list --app "123456789" --paginate`
-	cmd.UsageFunc = shared.DefaultUsageFunc
-	return cmd
+  asc testflight crashes list --app "123456789" --paginate`,
+		FlagSet:   fs,
+		UsageFunc: shared.DefaultUsageFunc,
+		Exec: func(ctx context.Context, args []string) error {
+			if *limit != 0 && (*limit < 1 || *limit > 200) {
+				return fmt.Errorf("testflight crashes list: --limit must be between 1 and 200")
+			}
+			if err := shared.ValidateNextURL(*next); err != nil {
+				return fmt.Errorf("testflight crashes list: %w", err)
+			}
+			if err := shared.ValidateSort(*sortValue, "createdDate", "-createdDate"); err != nil {
+				return fmt.Errorf("testflight crashes list: %w", err)
+			}
+
+			resolvedAppID := shared.ResolveAppID(*appID)
+			if resolvedAppID == "" && strings.TrimSpace(*next) == "" {
+				fmt.Fprintf(os.Stderr, "Error: --app is required (or set ASC_APP_ID)\n\n")
+				return flag.ErrHelp
+			}
+
+			client, err := shared.GetASCClient()
+			if err != nil {
+				return fmt.Errorf("testflight crashes list: %w", err)
+			}
+
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			defer cancel()
+
+			if resolvedAppID != "" && strings.TrimSpace(*next) == "" {
+				resolvedAppID, err = shared.ResolveAppIDWithLookup(requestCtx, client, resolvedAppID)
+				if err != nil {
+					return fmt.Errorf("testflight crashes list: %w", err)
+				}
+			}
+
+			opts := []asc.CrashOption{
+				asc.WithCrashDeviceModels(shared.SplitCSV(*deviceModel)),
+				asc.WithCrashOSVersions(shared.SplitCSV(*osVersion)),
+				asc.WithCrashAppPlatforms(shared.SplitCSVUpper(*appPlatform)),
+				asc.WithCrashDevicePlatforms(shared.SplitCSVUpper(*devicePlatform)),
+				asc.WithCrashBuildIDs(shared.SplitCSV(*buildID)),
+				asc.WithCrashBuildPreReleaseVersionIDs(shared.SplitCSV(*buildPreRelease)),
+				asc.WithCrashTesterIDs(shared.SplitCSV(*tester)),
+				asc.WithCrashLimit(*limit),
+				asc.WithCrashNextURL(*next),
+			}
+			if strings.TrimSpace(*sortValue) != "" {
+				opts = append(opts, asc.WithCrashSort(*sortValue))
+			}
+
+			if *paginate {
+				paginateOpts := append(opts, asc.WithCrashLimit(200))
+				firstPage, err := client.GetCrashes(requestCtx, resolvedAppID, paginateOpts...)
+				if err != nil {
+					return fmt.Errorf("testflight crashes list: failed to fetch: %w", err)
+				}
+
+				crashes, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+					return client.GetCrashes(ctx, resolvedAppID, asc.WithCrashNextURL(nextURL))
+				})
+				if err != nil {
+					return fmt.Errorf("testflight crashes list: %w", err)
+				}
+
+				return shared.PrintOutput(crashes, *output.Output, *output.Pretty)
+			}
+
+			crashes, err := client.GetCrashes(requestCtx, resolvedAppID, opts...)
+			if err != nil {
+				return fmt.Errorf("testflight crashes list: failed to fetch: %w", err)
+			}
+
+			return shared.PrintOutput(crashes, *output.Output, *output.Pretty)
+		},
+	}
 }
 
 func TestFlightCrashesViewCommand() *ffcli.Command {

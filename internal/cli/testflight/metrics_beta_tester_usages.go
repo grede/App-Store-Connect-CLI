@@ -38,12 +38,14 @@ func TestFlightMetricsAppTestersCommand() *ffcli.Command {
 	cmd.ShortHelp = "Fetch TestFlight app tester usage metrics."
 	cmd.LongHelp = `Fetch TestFlight app tester usage metrics.
 
-Requires either --group-by or --filter-tester (or both).
-
 Examples:
   asc testflight metrics app-testers --app "APP_ID"
   asc testflight metrics app-testers --app "APP_ID" --period "P30D"
   asc testflight metrics app-testers --app "APP_ID" --filter-tester "TESTER_ID"`
+	if groupByFlag := cmd.FlagSet.Lookup("group-by"); groupByFlag != nil {
+		groupByFlag.Usage = "Group results by dimension (testers)"
+		groupByFlag.DefValue = "testers"
+	}
 	cmd.UsageFunc = shared.DefaultUsageFunc
 	return cmd
 }
@@ -90,7 +92,7 @@ func TestFlightMetricsBetaTesterUsagesCommand() *ffcli.Command {
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
 	period := fs.String("period", "", "Reporting period: "+strings.Join(betaTesterUsagePeriodList(), ", "))
-	groupBy := fs.String("group-by", "betaTesters", "Group results by dimension (betaTesters)")
+	groupBy := fs.String("group-by", "testers", "Group results by dimension (testers)")
 	filterTester := fs.String("filter-tester", "", "Filter by beta tester ID")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
@@ -145,7 +147,7 @@ Examples:
 				asc.WithBetaTesterUsagesLimit(*limit),
 				asc.WithBetaTesterUsagesNextURL(*next),
 				asc.WithBetaTesterUsagesPeriod(periodValue),
-				asc.WithBetaTesterUsagesGroupBy(*groupBy),
+				asc.WithBetaTesterUsagesGroupBy(normalizeBetaTesterUsageGroupBy(*groupBy)),
 				asc.WithBetaTesterUsagesFilterBetaTesters(*filterTester),
 			}
 
@@ -171,6 +173,15 @@ Examples:
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
+	}
+}
+
+func normalizeBetaTesterUsageGroupBy(value string) string {
+	switch strings.TrimSpace(value) {
+	case "", "testers", "betaTesters":
+		return "betaTesters"
+	default:
+		return strings.TrimSpace(value)
 	}
 }
 

@@ -93,10 +93,13 @@ func collectCommandPathReplacements(cmd *ffcli.Command, oldRootPath, newRootPath
 
 	var walk func(current *ffcli.Command, oldPath, newPath string)
 	walk = func(current *ffcli.Command, oldPath, newPath string) {
-		replacements = append(replacements,
-			textReplacement{old: oldPath, new: newPath},
-			textReplacement{old: strings.TrimPrefix(oldPath, "asc testflight "), new: strings.TrimPrefix(newPath, "asc testflight ")},
-		)
+		replacements = append(replacements, textReplacement{old: oldPath, new: newPath})
+		if strings.HasPrefix(oldPath, "asc testflight ") && strings.HasPrefix(newPath, "asc testflight ") {
+			replacements = append(replacements, textReplacement{
+				old: strings.TrimPrefix(oldPath, "asc testflight "),
+				new: strings.TrimPrefix(newPath, "asc testflight "),
+			})
+		}
 
 		for _, sub := range current.Subcommands {
 			oldChildName := sub.Name
@@ -217,6 +220,34 @@ func deprecatedAliasCommand(cmd *ffcli.Command, shortUsage, shortHelp, longHelp 
 	cmd.LongHelp = longHelp
 	cmd.UsageFunc = shared.DeprecatedUsageFunc
 	return hideTestFlightCommand(cmd)
+}
+
+func markCommandTreeDeprecated(cmd *ffcli.Command) {
+	if cmd == nil {
+		return
+	}
+
+	usage := strings.TrimSpace(cmd.ShortUsage)
+	if usage == "" {
+		usage = strings.TrimSpace(cmd.Name)
+	}
+	if usage != "" {
+		cmd.ShortHelp = fmt.Sprintf("DEPRECATED: use `%s`.", usage)
+		cmd.LongHelp = fmt.Sprintf("DEPRECATED: use `%s`.", usage)
+	}
+
+	for _, sub := range cmd.Subcommands {
+		markCommandTreeDeprecated(sub)
+	}
+}
+
+func markDeprecatedSubcommands(cmd *ffcli.Command) {
+	if cmd == nil {
+		return
+	}
+	for _, sub := range cmd.Subcommands {
+		markCommandTreeDeprecated(sub)
+	}
 }
 
 func RemovedTestFlightAppsCommand() *ffcli.Command {
@@ -345,16 +376,20 @@ func TestFlightAgreementsCommand() *ffcli.Command {
 		},
 	)
 	cmd.UsageFunc = testflightVisibleUsageFunc
-	if len(cmd.Subcommands) >= 3 {
-		cmd.Subcommands[0].ShortHelp = "List agreements."
-		cmd.Subcommands[1].ShortHelp = "View an agreement by ID or app."
-		cmd.Subcommands[1].LongHelp = `View an agreement by ID or app.
+	if listCmd := findSubcommand(cmd, "list"); listCmd != nil {
+		listCmd.ShortHelp = "List agreements."
+	}
+	if viewCmd := findSubcommand(cmd, "view"); viewCmd != nil {
+		viewCmd.ShortHelp = "View an agreement by ID or app."
+		viewCmd.LongHelp = `View an agreement by ID or app.
 
 Examples:
   asc testflight agreements view --id "AGREEMENT_ID"
   asc testflight agreements view --app "APP_ID"`
-		cmd.Subcommands[2].ShortHelp = "Edit an agreement."
-		cmd.Subcommands[2].LongHelp = `Edit an agreement.
+	}
+	if editCmd := findSubcommand(cmd, "edit"); editCmd != nil {
+		editCmd.ShortHelp = "Edit an agreement."
+		editCmd.LongHelp = `Edit an agreement.
 
 Examples:
   asc testflight agreements edit --id "AGREEMENT_ID" --agreement-text "Updated terms"`
@@ -592,6 +627,7 @@ func DeprecatedBetaGroupsAliasCommand() *ffcli.Command {
 		"DEPRECATED: use `asc testflight groups ...`.",
 	)
 	setUsageFuncRecursively(cmd, shared.DeprecatedUsageFunc)
+	markDeprecatedSubcommands(cmd)
 	return cmd
 }
 
@@ -612,6 +648,7 @@ func DeprecatedBetaTestersAliasCommand() *ffcli.Command {
 		"DEPRECATED: use `asc testflight testers ...`.",
 	)
 	setUsageFuncRecursively(cmd, shared.DeprecatedUsageFunc)
+	markDeprecatedSubcommands(cmd)
 	return cmd
 }
 
@@ -632,6 +669,7 @@ func DeprecatedBetaLicenseAgreementsAliasCommand() *ffcli.Command {
 		"DEPRECATED: use `asc testflight agreements ...`.",
 	)
 	setUsageFuncRecursively(cmd, shared.DeprecatedUsageFunc)
+	markDeprecatedSubcommands(cmd)
 	return cmd
 }
 
@@ -651,6 +689,7 @@ func DeprecatedBetaNotificationsAliasCommand() *ffcli.Command {
 		"DEPRECATED: use `asc testflight notifications send --build BUILD_ID`.",
 	)
 	setUsageFuncRecursively(cmd, shared.DeprecatedUsageFunc)
+	markDeprecatedSubcommands(cmd)
 	return cmd
 }
 
@@ -670,5 +709,6 @@ func DeprecatedTestFlightSyncAliasCommand() *ffcli.Command {
 		"DEPRECATED: use `asc testflight config export --app APP_ID --output ./testflight.yaml`.",
 	)
 	setUsageFuncRecursively(cmd, shared.DeprecatedUsageFunc)
+	markDeprecatedSubcommands(cmd)
 	return cmd
 }
