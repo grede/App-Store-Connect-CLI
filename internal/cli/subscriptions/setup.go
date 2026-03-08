@@ -310,13 +310,12 @@ func executeSubscriptionsSetup(ctx context.Context, opts subscriptionsSetupOptio
 		return result, fmt.Errorf("subscriptions setup: %w", err)
 	}
 
-	requestCtx, cancel := shared.ContextWithTimeout(ctx)
-	defer cancel()
-
 	if strings.TrimSpace(opts.GroupID) == "" {
-		groupResp, err := client.CreateSubscriptionGroup(requestCtx, opts.AppID, asc.SubscriptionGroupCreateAttributes{
+		groupCtx, groupCancel := shared.ContextWithTimeout(ctx)
+		groupResp, err := client.CreateSubscriptionGroup(groupCtx, opts.AppID, asc.SubscriptionGroupCreateAttributes{
 			ReferenceName: opts.GroupReferenceName,
 		})
+		groupCancel()
 		if err != nil {
 			result.Status = "error"
 			result.Error = err.Error()
@@ -355,7 +354,9 @@ func executeSubscriptionsSetup(ctx context.Context, opts subscriptionsSetupOptio
 		subAttrs.FamilySharable = &val
 	}
 
-	subResp, err := client.CreateSubscription(requestCtx, result.GroupID, subAttrs)
+	subCtx, subCancel := shared.ContextWithTimeout(ctx)
+	subResp, err := client.CreateSubscription(subCtx, result.GroupID, subAttrs)
+	subCancel()
 	if err != nil {
 		result.Status = "error"
 		result.Error = err.Error()
@@ -382,11 +383,13 @@ func executeSubscriptionsSetup(ctx context.Context, opts subscriptionsSetupOptio
 			Message: "no localization flags provided",
 		})
 	} else {
-		locResp, err := client.CreateSubscriptionLocalization(requestCtx, result.SubscriptionID, asc.SubscriptionLocalizationCreateAttributes{
+		locCtx, locCancel := shared.ContextWithTimeout(ctx)
+		locResp, err := client.CreateSubscriptionLocalization(locCtx, result.SubscriptionID, asc.SubscriptionLocalizationCreateAttributes{
 			Name:        opts.DisplayName,
 			Locale:      opts.Locale,
 			Description: opts.Description,
 		})
+		locCancel()
 		if err != nil {
 			result.Status = "error"
 			result.Error = err.Error()
@@ -420,7 +423,9 @@ func executeSubscriptionsSetup(ctx context.Context, opts subscriptionsSetupOptio
 			},
 		)
 	} else {
-		resolvedPricePointID, err := resolveExpectedSubscriptionSetupPricePoint(requestCtx, client, result.SubscriptionID, opts)
+		pricePointCtx, pricePointCancel := shared.ContextWithTimeout(ctx)
+		resolvedPricePointID, err := resolveExpectedSubscriptionSetupPricePoint(pricePointCtx, client, result.SubscriptionID, opts)
+		pricePointCancel()
 		if err != nil {
 			result.Status = "error"
 			result.Error = err.Error()
@@ -439,9 +444,11 @@ func executeSubscriptionsSetup(ctx context.Context, opts subscriptionsSetupOptio
 			ID:     result.ResolvedPricePointID,
 		})
 
-		_, err = client.SetSubscriptionInitialPrice(requestCtx, result.SubscriptionID, result.ResolvedPricePointID, opts.PriceTerritory, asc.SubscriptionPriceCreateAttributes{
+		priceCtx, priceCancel := shared.ContextWithTimeout(ctx)
+		_, err = client.SetSubscriptionInitialPrice(priceCtx, result.SubscriptionID, result.ResolvedPricePointID, opts.PriceTerritory, asc.SubscriptionPriceCreateAttributes{
 			StartDate: opts.StartDate,
 		})
+		priceCancel()
 		if err != nil {
 			result.Status = "error"
 			result.Error = err.Error()
@@ -467,9 +474,11 @@ func executeSubscriptionsSetup(ctx context.Context, opts subscriptionsSetupOptio
 			Message: "no availability flags provided",
 		})
 	} else {
-		availabilityResp, err := client.CreateSubscriptionAvailability(requestCtx, result.SubscriptionID, opts.Territories, asc.SubscriptionAvailabilityAttributes{
+		availabilityCtx, availabilityCancel := shared.ContextWithTimeout(ctx)
+		availabilityResp, err := client.CreateSubscriptionAvailability(availabilityCtx, result.SubscriptionID, opts.Territories, asc.SubscriptionAvailabilityAttributes{
 			AvailableInNewTerritories: opts.AvailableInNewTerritories,
 		})
+		availabilityCancel()
 		if err != nil {
 			result.Status = "error"
 			result.Error = err.Error()
@@ -499,7 +508,7 @@ func executeSubscriptionsSetup(ctx context.Context, opts subscriptionsSetupOptio
 		return result, nil
 	}
 
-	verification, verifyStep, err := verifySubscriptionsSetupState(requestCtx, client, result, opts)
+	verification, verifyStep, err := verifySubscriptionsSetupState(ctx, client, result, opts)
 	if err != nil {
 		result.Status = "error"
 		result.Error = err.Error()
@@ -517,7 +526,9 @@ func executeSubscriptionsSetup(ctx context.Context, opts subscriptionsSetupOptio
 func verifySubscriptionsSetupState(ctx context.Context, client *asc.Client, result subscriptionsSetupResult, opts subscriptionsSetupOptions) (*subscriptionsSetupVerification, subscriptionsSetupStepResult, error) {
 	verification := &subscriptionsSetupVerification{Status: "verified"}
 
-	groupResp, err := client.GetSubscriptionGroup(ctx, result.GroupID)
+	groupCtx, groupCancel := shared.ContextWithTimeout(ctx)
+	groupResp, err := client.GetSubscriptionGroup(groupCtx, result.GroupID)
+	groupCancel()
 	if err != nil {
 		verification.Status = "failed"
 		return verification, subscriptionsSetupStepResult{Name: subscriptionsSetupStepVerifyState, Status: "failed", Message: err.Error()}, fmt.Errorf("fetch created group: %w", err)
@@ -529,7 +540,9 @@ func verifySubscriptionsSetupState(ctx context.Context, client *asc.Client, resu
 		return verification, subscriptionsSetupStepResult{Name: subscriptionsSetupStepVerifyState, Status: "failed", Message: fmt.Sprintf("group reference mismatch: got %q", groupResp.Data.Attributes.ReferenceName)}, fmt.Errorf("group reference mismatch: got %q want %q", groupResp.Data.Attributes.ReferenceName, opts.GroupReferenceName)
 	}
 
-	subResp, err := client.GetSubscription(ctx, result.SubscriptionID)
+	subCtx, subCancel := shared.ContextWithTimeout(ctx)
+	subResp, err := client.GetSubscription(subCtx, result.SubscriptionID)
+	subCancel()
 	if err != nil {
 		verification.Status = "failed"
 		return verification, subscriptionsSetupStepResult{Name: subscriptionsSetupStepVerifyState, Status: "failed", Message: err.Error()}, fmt.Errorf("fetch created subscription: %w", err)
@@ -557,7 +570,9 @@ func verifySubscriptionsSetupState(ctx context.Context, client *asc.Client, resu
 	verification.SubscriptionExists = true
 
 	if opts.hasLocalization() {
-		locResp, err := client.GetSubscriptionLocalizations(ctx, result.SubscriptionID, asc.WithSubscriptionLocalizationsLimit(200))
+		locCtx, locCancel := shared.ContextWithTimeout(ctx)
+		locResp, err := client.GetSubscriptionLocalizations(locCtx, result.SubscriptionID, asc.WithSubscriptionLocalizationsLimit(200))
+		locCancel()
 		if err != nil {
 			verification.Status = "failed"
 			return verification, subscriptionsSetupStepResult{Name: subscriptionsSetupStepVerifyState, Status: "failed", Message: err.Error()}, fmt.Errorf("fetch created localization: %w", err)
@@ -581,7 +596,9 @@ func verifySubscriptionsSetupState(ctx context.Context, client *asc.Client, resu
 	}
 
 	if opts.hasPricing(opts.StartDate) {
-		expectedPrice, err := resolveExpectedSubscriptionSetupVerificationPrice(ctx, client, result.SubscriptionID, opts)
+		pricePointCtx, pricePointCancel := shared.ContextWithTimeout(ctx)
+		expectedPrice, err := resolveExpectedSubscriptionSetupVerificationPrice(pricePointCtx, client, result.SubscriptionID, opts)
+		pricePointCancel()
 		if err != nil {
 			verification.Status = "failed"
 			return verification, subscriptionsSetupStepResult{Name: subscriptionsSetupStepVerifyState, Status: "failed", Message: err.Error()}, err
@@ -609,7 +626,9 @@ func verifySubscriptionsSetupState(ctx context.Context, client *asc.Client, resu
 	}
 
 	if opts.hasAvailability() {
-		availabilityResp, err := client.GetSubscriptionAvailabilityForSubscription(ctx, result.SubscriptionID)
+		availabilityCtx, availabilityCancel := shared.ContextWithTimeout(ctx)
+		availabilityResp, err := client.GetSubscriptionAvailabilityForSubscription(availabilityCtx, result.SubscriptionID)
+		availabilityCancel()
 		if err != nil {
 			verification.Status = "failed"
 			return verification, subscriptionsSetupStepResult{Name: subscriptionsSetupStepVerifyState, Status: "failed", Message: err.Error()}, fmt.Errorf("fetch created availability: %w", err)
@@ -623,7 +642,9 @@ func verifySubscriptionsSetupState(ctx context.Context, client *asc.Client, resu
 			verification.Status = "failed"
 			return verification, subscriptionsSetupStepResult{Name: subscriptionsSetupStepVerifyState, Status: "failed", Message: "available-in-new-territories mismatch"}, fmt.Errorf("available-in-new-territories mismatch")
 		}
-		territoriesResp, err := client.GetSubscriptionAvailabilityAvailableTerritories(ctx, resultID, asc.WithSubscriptionAvailabilityTerritoriesLimit(200))
+		territoriesCtx, territoriesCancel := shared.ContextWithTimeout(ctx)
+		territoriesResp, err := client.GetSubscriptionAvailabilityAvailableTerritories(territoriesCtx, resultID, asc.WithSubscriptionAvailabilityTerritoriesLimit(200))
+		territoriesCancel()
 		if err != nil {
 			verification.Status = "failed"
 			return verification, subscriptionsSetupStepResult{Name: subscriptionsSetupStepVerifyState, Status: "failed", Message: err.Error()}, fmt.Errorf("fetch availability territories: %w", err)
