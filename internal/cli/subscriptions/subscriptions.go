@@ -27,6 +27,7 @@ Examples:
   asc subscriptions groups list --app "APP_ID"
   asc subscriptions list --group-id "GROUP_ID"
   asc subscriptions create --group-id "GROUP_ID" --reference-name "Monthly" --product-id "com.example.sub.monthly"
+  asc subscriptions setup --app "APP_ID" --group-reference-name "Pro" --reference-name "Pro Monthly" --product-id "com.example.pro.monthly" --subscription-period ONE_MONTH --locale "en-US" --display-name "Pro Monthly" --price "3.99" --price-territory "USA" --territories "USA"
   asc subscriptions pricing summary --app "APP_ID"
   asc subscriptions pricing prices set --subscription-id "SUB_ID" --price-point "PRICE_POINT_ID"
   asc subscriptions pricing availability set --subscription-id "SUB_ID" --territories "USA,CAN"
@@ -41,6 +42,7 @@ Examples:
 			SubscriptionsGroupsCommand(),
 			SubscriptionsListCommand(),
 			SubscriptionsCreateCommand(),
+			SubscriptionsSetupCommand(),
 			SubscriptionsGetCommand(),
 			SubscriptionsUpdateCommand(),
 			SubscriptionsDeleteCommand(),
