@@ -107,9 +107,6 @@ asc <subcommand> [flags]
 - `iap` - Manage in-app purchases in App Store Connect.
 - `app-events` - Manage App Store in-app events.
 - `subscriptions` - Manage subscription groups and subscriptions.
-- `offer-codes` - Manage subscription offer codes.
-- `win-back-offers` - Manage win-back offers for subscriptions.
-- `promoted-purchases` - Manage promoted purchases for subscriptions and in-app purchases.
 
 ### Signing
 

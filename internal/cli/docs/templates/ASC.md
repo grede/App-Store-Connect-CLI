@@ -131,8 +131,6 @@ Use `asc <command> --help` for subcommands and flags.
 - `certificates` - Manage signing certificates.
 - `pass-type-ids` - Manage pass type IDs.
 - `profiles` - Manage provisioning profiles.
-- `offer-codes` - Manage subscription offer codes.
-- `win-back-offers` - Manage win-back offers for subscriptions.
 - `users` - Manage users and invitations in App Store Connect.
 - `actors` - Lookup actors (users, API keys) by ID.
 - `devices` - Manage devices in App Store Connect.
@@ -172,7 +170,6 @@ Use `asc <command> --help` for subcommands and flags.
 - `age-rating` - Manage App Store age rating declarations.
 - `accessibility` - Manage accessibility declarations.
 - `encryption` - Manage app encryption declarations and documents.
-- `promoted-purchases` - Manage promoted purchases for subscriptions and in-app purchases.
 - `migrate` - Migrate metadata from/to fastlane format.
 - `validate` - Run pre-submission metadata and asset validation checks.
 - `notify` - Send notifications to external services.
