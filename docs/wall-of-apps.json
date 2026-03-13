@@ -117,6 +117,13 @@
     "platform": ["iOS", "macOS"]
   },
   {
+    "app": "Constellation: Mind Atlas",
+    "link": "https://apps.apple.com/us/app/constellation-mind-atlas/id6756132557?uo=4",
+    "creator": "valzevul",
+    "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/5d/39/50/5d3950a0-3c8d-f420-ab62-877c5b05e48f/AppIcon.lsr/512x512bb.jpg",
+    "platform": ["visionOS"]
+  },
+  {
     "app": "Contact Sheet",
     "link": "https://apps.apple.com/us/app/contact-sheet-generator/id6744368077",
     "creator": "sambitcreate",
