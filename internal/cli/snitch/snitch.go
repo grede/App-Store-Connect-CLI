@@ -400,6 +400,9 @@ func printPreview(entry LogEntry, dryRun bool) {
 		fmt.Fprintln(os.Stderr, "--- Preview only: rerun with --confirm to create issue ---")
 	}
 	fmt.Fprintf(os.Stderr, "Title: %s\n", issueTitle(entry))
+	if labels := issueLabels(entry); len(labels) > 0 {
+		fmt.Fprintf(os.Stderr, "Labels: %s\n", strings.Join(labels, ", "))
+	}
 	fmt.Fprintf(os.Stderr, "Body:\n%s\n", issueBody(entry))
 }
 
@@ -477,6 +480,9 @@ func formatLocalEntries(entries []LogEntry) string {
 		}
 		if entry.Actual != "" {
 			fmt.Fprintf(&b, "Actual:\n%s\n", entry.Actual)
+		}
+		if len(entry.Labels) > 0 {
+			fmt.Fprintf(&b, "Labels: %s\n", strings.Join(entry.Labels, ", "))
 		}
 		if i < len(entries)-1 {
 			b.WriteString("\n")
