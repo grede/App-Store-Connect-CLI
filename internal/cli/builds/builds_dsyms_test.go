@@ -1,6 +1,7 @@
 package builds
 
 import (
+	"strings"
 	"testing"
 )
 
@@ -137,5 +138,19 @@ func TestResolveBuildOptions_RequiresInput(t *testing.T) {
 	_, err := ResolveBuild(t.Context(), nil, ResolveBuildOptions{})
 	if err == nil {
 		t.Fatal("expected error for empty options")
+	}
+}
+
+func TestResolveBuildOptions_RejectsConflictingSelectors(t *testing.T) {
+	_, err := ResolveBuild(t.Context(), nil, ResolveBuildOptions{
+		AppID:       "app-1",
+		Latest:      true,
+		BuildNumber: "42",
+	})
+	if err == nil {
+		t.Fatal("expected error for --latest + --build-number")
+	}
+	if !strings.Contains(err.Error(), "mutually exclusive") {
+		t.Errorf("expected mutually exclusive error, got: %s", err.Error())
 	}
 }

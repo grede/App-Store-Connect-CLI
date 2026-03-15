@@ -33,6 +33,13 @@ func ResolveBuild(ctx context.Context, client *asc.Client, opts ResolveBuildOpti
 	}
 
 	appID := strings.TrimSpace(opts.AppID)
+	buildNumber := strings.TrimSpace(opts.BuildNumber)
+
+	// Reject conflicting selectors early, before any API calls.
+	if opts.Latest && buildNumber != "" {
+		return nil, fmt.Errorf("--latest and --build-number are mutually exclusive")
+	}
+
 	if appID == "" {
 		return nil, fmt.Errorf("--app is required when --build is not provided (or set ASC_APP_ID)")
 	}
@@ -44,7 +51,6 @@ func ResolveBuild(ctx context.Context, client *asc.Client, opts ResolveBuildOpti
 
 	platform := strings.TrimSpace(opts.Platform)
 	version := strings.TrimSpace(opts.Version)
-	buildNumber := strings.TrimSpace(opts.BuildNumber)
 
 	// Latest mode: find the most recently uploaded build.
 	if opts.Latest {

@@ -8,7 +8,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
 
@@ -17,10 +16,10 @@ import (
 )
 
 // dsymHTTPClient is the HTTP client used for dSYM downloads.
+// No client-level timeout — the request context (from ContextWithTimeout /
+// ASC_TIMEOUT) controls cancellation so the CLI timeout contract is honored.
 // Tests can replace this via SetDSYMHTTPClient.
-var dsymHTTPClient = &http.Client{
-	Timeout: 5 * time.Minute,
-}
+var dsymHTTPClient = &http.Client{}
 
 // DSYMDownloadResult is the structured output for dSYM downloads.
 type DSYMDownloadResult struct {
@@ -177,7 +176,7 @@ Examples:
 
 				fmt.Fprintf(os.Stderr, "Downloading dSYM for %s...\n", displayBundleID(bundle.BundleID, i))
 
-				size, err := downloadDSYM(*bundle.DSYMURL, filePath)
+				size, err := downloadDSYM(requestCtx, *bundle.DSYMURL, filePath)
 				if err != nil {
 					return fmt.Errorf("builds dsyms: failed to download %s: %w", fileName, err)
 				}
@@ -240,8 +239,13 @@ func displayBundleID(bundleID string, index int) string {
 	return fmt.Sprintf("bundle %d", index)
 }
 
-func downloadDSYM(url, destPath string) (int64, error) {
-	resp, err := dsymHTTPClient.Get(url)
+func downloadDSYM(ctx context.Context, rawURL, destPath string) (int64, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
+	if err != nil {
+		return 0, fmt.Errorf("download failed: %w", err)
+	}
+
+	resp, err := dsymHTTPClient.Do(req)
 	if err != nil {
 		return 0, fmt.Errorf("download failed: %w", err)
 	}
