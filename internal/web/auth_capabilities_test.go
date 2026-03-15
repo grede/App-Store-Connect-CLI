@@ -11,25 +11,25 @@ import (
 
 func TestClientDoIrisV1RequestUsesIntegrationsHeaders(t *testing.T) {
 	var (
-		gotPath   string
-		gotAccept string
-		gotCSRF   string
-		gotOrigin string
+		gotPath    string
+		gotAccept  string
+		gotCSRF    string
+		gotOrigin  string
 		gotReferer string
 	)
 	client := &Client{
 		httpClient: &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
-		gotPath = r.URL.Path + "?" + r.URL.RawQuery
-		gotAccept = r.Header.Get("Accept")
-		gotCSRF = r.Header.Get("X-CSRF-ITC")
-		gotOrigin = r.Header.Get("Origin")
-		gotReferer = r.Header.Get("Referer")
-		return &http.Response{
-			StatusCode: http.StatusOK,
-			Header:     http.Header{"Content-Type": []string{"application/json"}},
-			Body:       io.NopCloser(strings.NewReader(`{"data":[]}`)),
-		}, nil
-	})},
+			gotPath = r.URL.Path + "?" + r.URL.RawQuery
+			gotAccept = r.Header.Get("Accept")
+			gotCSRF = r.Header.Get("X-CSRF-ITC")
+			gotOrigin = r.Header.Get("Origin")
+			gotReferer = r.Header.Get("Referer")
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Header:     http.Header{"Content-Type": []string{"application/json"}},
+				Body:       io.NopCloser(strings.NewReader(`{"data":[]}`)),
+			}, nil
+		})},
 	}
 
 	if _, err := client.doIrisV1Request(context.Background(), http.MethodGet, "/apiKeys?limit=2000", nil); err != nil {
@@ -61,15 +61,15 @@ func TestClientDoOlympusRequestUsesOlympusHeaders(t *testing.T) {
 	)
 	client := &Client{
 		httpClient: &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
-		gotPath = r.URL.Path
-		gotRequested = r.Header.Get("X-Requested-With")
-		gotAccept = r.Header.Get("Accept")
-		return &http.Response{
-			StatusCode: http.StatusOK,
-			Header:     http.Header{"Content-Type": []string{"application/json"}},
-			Body:       io.NopCloser(strings.NewReader(`{"data":[]}`)),
-		}, nil
-	})},
+			gotPath = r.URL.Path
+			gotRequested = r.Header.Get("X-Requested-With")
+			gotAccept = r.Header.Get("Accept")
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Header:     http.Header{"Content-Type": []string{"application/json"}},
+				Body:       io.NopCloser(strings.NewReader(`{"data":[]}`)),
+			}, nil
+		})},
 	}
 
 	if _, err := client.doOlympusRequest(context.Background(), http.MethodGet, "/actors/actor-1", nil); err != nil {

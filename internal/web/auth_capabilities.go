@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	integrationsAPIRefererURL           = appStoreBaseURL + "/access/integrations/api"
+	integrationsAPIRefererURL            = appStoreBaseURL + "/access/integrations/api"
 	integrationsIndividualKeysRefererURL = appStoreBaseURL + "/access/integrations/api/individual-keys"
 )
 
@@ -113,14 +113,14 @@ func (c *Client) listTeamKeys(ctx context.Context) ([]teamAPIKey, error) {
 		Data []struct {
 			ID         string `json:"id"`
 			Attributes struct {
-				LastUsed     string   `json:"lastUsed"`
-				Roles        []string `json:"roles"`
-				Nickname     string   `json:"nickname"`
-				RevokingDate string   `json:"revokingDate"`
-				AllAppsVisible bool   `json:"allAppsVisible"`
-				CanDownload  bool     `json:"canDownload"`
-				IsActive     bool     `json:"isActive"`
-				KeyType      string   `json:"keyType"`
+				LastUsed       string   `json:"lastUsed"`
+				Roles          []string `json:"roles"`
+				Nickname       string   `json:"nickname"`
+				RevokingDate   string   `json:"revokingDate"`
+				AllAppsVisible bool     `json:"allAppsVisible"`
+				CanDownload    bool     `json:"canDownload"`
+				IsActive       bool     `json:"isActive"`
+				KeyType        string   `json:"keyType"`
 			} `json:"attributes"`
 			Relationships struct {
 				CreatedBy struct {

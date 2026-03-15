@@ -3,8 +3,8 @@ package cmdtest
 import (
 	"context"
 	"encoding/json"
-	"strings"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	cmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
