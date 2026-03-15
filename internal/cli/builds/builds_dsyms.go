@@ -83,14 +83,7 @@ Examples:
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedBuildID := strings.TrimSpace(*buildID)
-			resolvedAppID := ""
-			if trimmedBuildID == "" {
-				resolvedAppID = shared.ResolveAppID(*appID)
-			}
-
-			if trimmedBuildID == "" && resolvedAppID == "" {
-				return shared.UsageError("--build or --app is required (or set ASC_APP_ID)")
-			}
+			resolvedAppID := shared.ResolveAppID(*appID)
 
 			dirValue := strings.TrimSpace(*outputDir)
 			if dirValue == "" {
