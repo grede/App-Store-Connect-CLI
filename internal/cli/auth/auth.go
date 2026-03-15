@@ -56,6 +56,7 @@ Set ASC_BYPASS_KEYCHAIN to 1/true/yes/on to bypass keychain.`,
 			AuthLogoutCommand(),
 			AuthDoctorCommand(),
 			AuthStatusCommand(),
+			AuthIssuerIDCommand(),
 			AuthTokenCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {
@@ -888,6 +889,62 @@ func authStatusEnvironmentNote(profile string, bypassKeychain, envProvided, envC
 func boolPointer(value bool) *bool {
 	result := value
 	return &result
+}
+
+// AuthIssuerIDCommand prints the active App Store Connect issuer ID.
+func AuthIssuerIDCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("auth issuer-id", flag.ExitOnError)
+
+	name := fs.String("name", "", "Profile name (uses default profile if omitted)")
+	output := shared.BindOutputFlagsWithAllowed(fs, "output", "text", "Output format: text (raw issuer ID), json", "text", "json")
+
+	return &ffcli.Command{
+		Name:       "issuer-id",
+		ShortUsage: "asc auth issuer-id [flags]",
+		ShortHelp:  "Print the active App Store Connect issuer ID.",
+		LongHelp: `Print the active App Store Connect issuer ID.
+
+This reads the issuer ID from the currently resolved authentication credentials
+without making a network request.
+
+Examples:
+  asc auth issuer-id
+  asc auth issuer-id --name "MyKey"
+  asc auth issuer-id --output json`,
+		FlagSet:   fs,
+		UsageFunc: shared.DefaultUsageFunc,
+		Exec: func(ctx context.Context, args []string) error {
+			if len(args) > 0 {
+				return shared.UsageErrorf("unexpected argument(s): %s", strings.Join(args, " "))
+			}
+			trimmedName := strings.TrimSpace(*name)
+			if trimmedName == "" && *name != "" {
+				return shared.UsageError("--name cannot be blank")
+			}
+			normalizedOutput, err := shared.ValidateOutputFormatAllowed(*output.Output, *output.Pretty, "text", "json")
+			if err != nil {
+				return shared.UsageError(err.Error())
+			}
+
+			cred, err := shared.ResolveAuthCredentials(trimmedName)
+			if err != nil {
+				return fmt.Errorf("auth issuer-id: %w", err)
+			}
+
+			if normalizedOutput == "json" {
+				return shared.PrintOutput(struct {
+					IssuerID string `json:"issuerId"`
+					Profile  string `json:"profile,omitempty"`
+				}{
+					IssuerID: cred.IssuerID,
+					Profile:  cred.Profile,
+				}, "json", *output.Pretty)
+			}
+
+			fmt.Print(cred.IssuerID)
+			return nil
+		},
+	}
 }
 
 // AuthTokenCommand prints a signed JWT for direct API calls.
