@@ -3,6 +3,7 @@ package web
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -11,6 +12,11 @@ import (
 const (
 	integrationsAPIRefererURL           = appStoreBaseURL + "/access/integrations/api"
 	integrationsIndividualKeysRefererURL = appStoreBaseURL + "/access/integrations/api/individual-keys"
+)
+
+var (
+	ErrAPIKeyNotFound        = errors.New("api key not found")
+	ErrAPIKeyRolesUnresolved = errors.New("api key roles could not be resolved")
 )
 
 func integrationsHeaders(referer string) http.Header {
@@ -60,6 +66,20 @@ type teamAPIKey struct {
 	LastUsed    string
 	GeneratedBy *keyActor
 	RevokedBy   *keyActor
+}
+
+type APIKeyRoleLookup struct {
+	KeyID       string    `json:"keyId"`
+	Name        string    `json:"name,omitempty"`
+	Kind        string    `json:"kind"`
+	Roles       []string  `json:"roles"`
+	RoleSource  string    `json:"roleSource"`
+	Active      bool      `json:"active"`
+	KeyType     string    `json:"keyType,omitempty"`
+	LastUsed    string    `json:"lastUsed,omitempty"`
+	Lookup      string    `json:"lookup"`
+	GeneratedBy *keyActor `json:"generatedBy,omitempty"`
+	RevokedBy   *keyActor `json:"revokedBy,omitempty"`
 }
 
 func fullName(first, last string) string {
@@ -140,4 +160,35 @@ func (c *Client) listTeamKeys(ctx context.Context) ([]teamAPIKey, error) {
 		keys = append(keys, key)
 	}
 	return keys, nil
+}
+
+func (c *Client) LookupAPIKeyRoles(ctx context.Context, keyID string) (*APIKeyRoleLookup, error) {
+	keyID = strings.TrimSpace(keyID)
+	if keyID == "" {
+		return nil, fmt.Errorf("key id is required")
+	}
+
+	keys, err := c.listTeamKeys(ctx)
+	if err != nil {
+		return nil, err
+	}
+	for _, item := range keys {
+		if item.KeyID != keyID {
+			continue
+		}
+		return &APIKeyRoleLookup{
+			KeyID:       item.KeyID,
+			Name:        item.Name,
+			Kind:        "team",
+			Roles:       append([]string(nil), item.Roles...),
+			RoleSource:  "key",
+			Active:      item.Active,
+			KeyType:     item.KeyType,
+			LastUsed:    item.LastUsed,
+			Lookup:      "team_keys",
+			GeneratedBy: item.GeneratedBy,
+			RevokedBy:   item.RevokedBy,
+		}, nil
+	}
+	return nil, fmt.Errorf("%w: %s", ErrAPIKeyNotFound, keyID)
 }

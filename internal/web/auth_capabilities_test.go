@@ -2,6 +2,7 @@ package web
 
 import (
 	"context"
+	"errors"
 	"io"
 	"net/http"
 	"strings"
@@ -153,5 +154,65 @@ func TestClientListTeamKeysParsesRolesAndActors(t *testing.T) {
 	}
 	if keys[1].RevokedBy == nil || keys[1].RevokedBy.Name != "Jane Admin" {
 		t.Fatalf("unexpected revokedBy: %#v", keys[1].RevokedBy)
+	}
+}
+
+func TestClientLookupAPIKeyRolesReturnsTeamMatch(t *testing.T) {
+	client := &Client{
+		httpClient: &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Header:     http.Header{"Content-Type": []string{"application/json"}},
+				Body: io.NopCloser(strings.NewReader(`{
+					"data":[
+						{
+							"id":"39MX87M9Y4",
+							"attributes":{
+								"lastUsed":"2026-03-15T11:48:57.844-07:00",
+								"roles":["APP_MANAGER"],
+								"nickname":"asc_cli",
+								"isActive":true,
+								"keyType":"PUBLIC_API"
+							},
+							"relationships":{
+								"createdBy":{"data":{"id":"user-1"}},
+								"revokedBy":{"data":null}
+							}
+						}
+					],
+					"included":[
+						{"type":"users","id":"user-1","attributes":{"firstName":"Mithilesh","lastName":"Chellappan"}}
+					]
+				}`)),
+			}, nil
+		})},
+	}
+
+	got, err := client.LookupAPIKeyRoles(context.Background(), "39MX87M9Y4")
+	if err != nil {
+		t.Fatalf("LookupAPIKeyRoles() error: %v", err)
+	}
+	if got.Kind != "team" || got.Lookup != "team_keys" || got.RoleSource != "key" {
+		t.Fatalf("unexpected lookup metadata: %#v", got)
+	}
+	if len(got.Roles) != 1 || got.Roles[0] != "APP_MANAGER" {
+		t.Fatalf("unexpected roles: %#v", got.Roles)
+	}
+}
+
+func TestClientLookupAPIKeyRolesReturnsNotFound(t *testing.T) {
+	client := &Client{
+		httpClient: &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Header:     http.Header{"Content-Type": []string{"application/json"}},
+				Body:       io.NopCloser(strings.NewReader(`{"data":[],"included":[]}`)),
+			}, nil
+		})},
+	}
+
+	_, err := client.LookupAPIKeyRoles(context.Background(), "missing")
+	if !errors.Is(err, ErrAPIKeyNotFound) {
+		t.Fatalf("expected ErrAPIKeyNotFound, got %v", err)
 	}
 }
