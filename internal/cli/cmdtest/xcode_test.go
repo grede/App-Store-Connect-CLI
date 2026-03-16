@@ -31,9 +31,16 @@ func TestXcodeCommandExists(t *testing.T) {
 	if findSubcommand(root, "xcode", "version", "view") == nil {
 		t.Fatal("expected xcode version view command")
 	}
+	viewCmd := findSubcommand(root, "xcode", "version", "view")
+	if viewCmd.FlagSet.Lookup("project") == nil {
+		t.Fatal("expected xcode version view to expose --project")
+	}
 	editCmd := findSubcommand(root, "xcode", "version", "edit")
 	if editCmd == nil {
 		t.Fatal("expected xcode version edit command")
+	}
+	if editCmd.FlagSet.Lookup("project") == nil {
+		t.Fatal("expected xcode version edit to expose --project")
 	}
 	if editCmd.FlagSet.Lookup("target") != nil {
 		t.Fatal("expected xcode version edit to omit --target")
@@ -41,6 +48,9 @@ func TestXcodeCommandExists(t *testing.T) {
 	bumpCmd := findSubcommand(root, "xcode", "version", "bump")
 	if bumpCmd == nil {
 		t.Fatal("expected xcode version bump command")
+	}
+	if bumpCmd.FlagSet.Lookup("project") == nil {
+		t.Fatal("expected xcode version bump to expose --project")
 	}
 	if bumpCmd.FlagSet.Lookup("target") == nil {
 		t.Fatal("expected xcode version bump to expose --target")

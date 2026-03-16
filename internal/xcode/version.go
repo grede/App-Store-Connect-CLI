@@ -77,6 +77,17 @@ type BumpVersionResult struct {
 	ProjectDir string `json:"projectDir"`
 }
 
+func resolvedProjectDir(projectDir string) string {
+	trimmed := strings.TrimSpace(projectDir)
+	if trimmed == "" {
+		return "."
+	}
+	if strings.HasSuffix(trimmed, ".xcodeproj") {
+		return filepath.Dir(trimmed)
+	}
+	return trimmed
+}
+
 // GetVersion reads the current marketing version and build number.
 func GetVersion(ctx context.Context, projectDir, target string) (*VersionInfo, error) {
 	if err := requireMacOS(); err != nil {
@@ -124,7 +135,7 @@ func GetVersion(ctx context.Context, projectDir, target string) (*VersionInfo, e
 	return &VersionInfo{
 		Version:     parsedVersion,
 		BuildNumber: parsedBuild,
-		ProjectDir:  projectDir,
+		ProjectDir:  resolvedProjectDir(projectDir),
 		Target:      target,
 		Modern:      modern,
 	}, nil
@@ -142,7 +153,7 @@ func SetVersion(ctx context.Context, opts SetVersionOptions) (*SetVersionResult,
 		return nil, fmt.Errorf("--target is only supported by xcode version view; edit updates the whole project")
 	}
 
-	result := &SetVersionResult{ProjectDir: opts.ProjectDir}
+	result := &SetVersionResult{ProjectDir: resolvedProjectDir(opts.ProjectDir)}
 
 	versionOutput, err := runAgvtool(ctx, opts.ProjectDir, "what-marketing-version", "-terse1")
 	if err != nil {
@@ -196,7 +207,7 @@ func BumpVersion(ctx context.Context, opts BumpVersionOptions) (*BumpVersionResu
 
 	result := &BumpVersionResult{
 		BumpType:   string(opts.BumpType),
-		ProjectDir: opts.ProjectDir,
+		ProjectDir: resolvedProjectDir(opts.ProjectDir),
 	}
 
 	if opts.BumpType == BumpBuild {
@@ -261,7 +272,7 @@ func requireAgvtool() error {
 
 func runAgvtool(ctx context.Context, projectDir string, args ...string) (string, error) {
 	cmd := commandContextFn(ctx, "agvtool", args...)
-	cmd.Dir = projectDir
+	cmd.Dir = resolvedProjectDir(projectDir)
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
@@ -291,7 +302,7 @@ func readBuildSettings(ctx context.Context, projectDir, target string) (map[stri
 		args = append(args, "-target", t)
 	}
 	cmd := commandContextFn(ctx, "xcodebuild", args...)
-	cmd.Dir = projectDir
+	cmd.Dir = resolvedProjectDir(projectDir)
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
@@ -353,10 +364,25 @@ func buildSettingsTargetNames(output string) []string {
 	return targets
 }
 
-// findXcodeproj finds the .xcodeproj directory in a project dir.
+// findXcodeproj resolves an explicit .xcodeproj path or finds one in a project dir.
 // Returns an error if zero or multiple .xcodeproj directories are found.
 func findXcodeproj(projectDir string) (string, error) {
-	entries, err := os.ReadDir(projectDir)
+	trimmedDir := strings.TrimSpace(projectDir)
+	if trimmedDir == "" {
+		trimmedDir = "."
+	}
+	if strings.HasSuffix(trimmedDir, ".xcodeproj") {
+		info, err := os.Stat(trimmedDir)
+		if err != nil {
+			return "", fmt.Errorf("failed to read Xcode project %s: %w", trimmedDir, err)
+		}
+		if !info.IsDir() {
+			return "", fmt.Errorf("%s is not an .xcodeproj directory", trimmedDir)
+		}
+		return trimmedDir, nil
+	}
+
+	entries, err := os.ReadDir(trimmedDir)
 	if err != nil {
 		return "", fmt.Errorf("failed to read project directory: %w", err)
 	}
@@ -368,11 +394,11 @@ func findXcodeproj(projectDir string) (string, error) {
 	}
 	switch len(matches) {
 	case 0:
-		return "", fmt.Errorf("no .xcodeproj found in %s", projectDir)
+		return "", fmt.Errorf("no .xcodeproj found in %s", trimmedDir)
 	case 1:
-		return filepath.Join(projectDir, matches[0]), nil
+		return filepath.Join(trimmedDir, matches[0]), nil
 	default:
-		return "", fmt.Errorf("multiple .xcodeproj found in %s (%s); use a more specific --project-dir", projectDir, strings.Join(matches, ", "))
+		return "", fmt.Errorf("multiple .xcodeproj found in %s (%s); use --project to pick one", trimmedDir, strings.Join(matches, ", "))
 	}
 }
 

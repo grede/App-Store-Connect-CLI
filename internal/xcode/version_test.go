@@ -197,6 +197,41 @@ Build settings for action build and target Extension:
 	}
 }
 
+func TestFindXcodeprojAcceptsExplicitProjectPath(t *testing.T) {
+	tempDir := t.TempDir()
+	appProject := filepath.Join(tempDir, "App.xcodeproj")
+	podsProject := filepath.Join(tempDir, "Pods.xcodeproj")
+	if err := os.MkdirAll(appProject, 0o755); err != nil {
+		t.Fatalf("mkdir app project: %v", err)
+	}
+	if err := os.MkdirAll(podsProject, 0o755); err != nil {
+		t.Fatalf("mkdir pods project: %v", err)
+	}
+
+	got, err := findXcodeproj(appProject)
+	if err != nil {
+		t.Fatalf("expected explicit project path to succeed, got %v", err)
+	}
+	if got != appProject {
+		t.Fatalf("expected %q, got %q", appProject, got)
+	}
+}
+
+func TestFindXcodeprojMultipleProjectsSuggestsProjectFlag(t *testing.T) {
+	tempDir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(tempDir, "App.xcodeproj"), 0o755); err != nil {
+		t.Fatalf("mkdir app project: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Join(tempDir, "Pods.xcodeproj"), 0o755); err != nil {
+		t.Fatalf("mkdir pods project: %v", err)
+	}
+
+	_, err := findXcodeproj(tempDir)
+	if err == nil || !strings.Contains(err.Error(), "use --project to pick one") {
+		t.Fatalf("expected actionable multiple project error, got %v", err)
+	}
+}
+
 func TestSetVersionRejectsTargetedWrites(t *testing.T) {
 	prevOS := runtimeGOOS
 	prevLookPath := lookPathFn

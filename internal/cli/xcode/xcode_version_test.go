@@ -38,6 +38,42 @@ func TestXcodeVersionViewCommandOutputsResult(t *testing.T) {
 	}
 }
 
+func TestXcodeVersionViewCommandSupportsProjectFlag(t *testing.T) {
+	originalRunGetVersion := runGetVersion
+	t.Cleanup(func() {
+		runGetVersion = originalRunGetVersion
+	})
+
+	runGetVersion = func(ctx context.Context, projectDir, target string) (*localxcode.VersionInfo, error) {
+		if projectDir != "./MyApp/App.xcodeproj" {
+			t.Fatalf("expected explicit project path, got %q", projectDir)
+		}
+		return &localxcode.VersionInfo{
+			Version:     "1.2.3",
+			BuildNumber: "42",
+			ProjectDir:  "./MyApp",
+			Target:      target,
+			Modern:      true,
+		}, nil
+	}
+
+	stdout, stderr, err := runXcodeVersionCommand(t, []string{
+		"view",
+		"--project", "./MyApp/App.xcodeproj",
+		"--target", "App",
+		"--output", "json",
+	})
+	if err != nil {
+		t.Fatalf("view run error: %v", err)
+	}
+	if stderr != "" {
+		t.Fatalf("expected view stderr to be empty, got %q", stderr)
+	}
+	if stdout == "" {
+		t.Fatal("expected JSON output from view command")
+	}
+}
+
 func TestXcodeVersionEditCommandOutputsResult(t *testing.T) {
 	originalRunSetVersion := runSetVersion
 	t.Cleanup(func() {
@@ -64,6 +100,40 @@ func TestXcodeVersionEditCommandOutputsResult(t *testing.T) {
 	}
 }
 
+func TestXcodeVersionEditCommandSupportsProjectFlag(t *testing.T) {
+	originalRunSetVersion := runSetVersion
+	t.Cleanup(func() {
+		runSetVersion = originalRunSetVersion
+	})
+
+	runSetVersion = func(ctx context.Context, opts localxcode.SetVersionOptions) (*localxcode.SetVersionResult, error) {
+		if opts.ProjectDir != "./MyApp/App.xcodeproj" {
+			t.Fatalf("expected explicit project path, got %q", opts.ProjectDir)
+		}
+		return &localxcode.SetVersionResult{
+			Version:     opts.Version,
+			BuildNumber: opts.BuildNumber,
+			ProjectDir:  "./MyApp",
+		}, nil
+	}
+
+	stdout, stderr, err := runXcodeVersionCommand(t, []string{
+		"edit",
+		"--project", "./MyApp/App.xcodeproj",
+		"--version", "1.3.0",
+		"--output", "json",
+	})
+	if err != nil {
+		t.Fatalf("edit run error: %v", err)
+	}
+	if stderr != "" {
+		t.Fatalf("expected edit stderr to be empty, got %q", stderr)
+	}
+	if stdout == "" {
+		t.Fatal("expected JSON output from edit command")
+	}
+}
+
 func TestXcodeVersionBumpCommandSupportsTargetFlag(t *testing.T) {
 	originalRunBumpVersion := runBumpVersion
 	t.Cleanup(func() {
@@ -71,6 +141,9 @@ func TestXcodeVersionBumpCommandSupportsTargetFlag(t *testing.T) {
 	})
 
 	runBumpVersion = func(ctx context.Context, opts localxcode.BumpVersionOptions) (*localxcode.BumpVersionResult, error) {
+		if opts.ProjectDir != "./MyApp/App.xcodeproj" {
+			t.Fatalf("expected explicit project path, got %q", opts.ProjectDir)
+		}
 		if opts.Target != "Extension" {
 			t.Fatalf("expected bump target Extension, got %q", opts.Target)
 		}
@@ -84,7 +157,7 @@ func TestXcodeVersionBumpCommandSupportsTargetFlag(t *testing.T) {
 
 	stdout, stderr, err := runXcodeVersionCommand(t, []string{
 		"bump",
-		"--project-dir", "./MyApp",
+		"--project", "./MyApp/App.xcodeproj",
 		"--target", "Extension",
 		"--type", "patch",
 		"--output", "json",
@@ -103,6 +176,18 @@ func TestXcodeVersionBumpCommandSupportsTargetFlag(t *testing.T) {
 func TestXcodeVersionEditCommandOmitsTargetFlag(t *testing.T) {
 	if xcodeVersionEditCommand().FlagSet.Lookup("target") != nil {
 		t.Fatal("expected edit command to omit --target")
+	}
+}
+
+func TestXcodeVersionCommandsExposeProjectFlag(t *testing.T) {
+	if xcodeVersionViewCommand().FlagSet.Lookup("project") == nil {
+		t.Fatal("expected view command to expose --project")
+	}
+	if xcodeVersionEditCommand().FlagSet.Lookup("project") == nil {
+		t.Fatal("expected edit command to expose --project")
+	}
+	if xcodeVersionBumpCommand().FlagSet.Lookup("project") == nil {
+		t.Fatal("expected bump command to expose --project")
 	}
 }
 
