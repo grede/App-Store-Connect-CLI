@@ -20,16 +20,17 @@ import (
 const webPasswordEnv = "ASC_WEB_PASSWORD"
 
 var (
-	promptTwoFactorCodeFn           = promptTwoFactorCodeInteractive
-	promptPasswordFn                = promptPasswordInteractive
-	webLoginFn                      = webcore.Login
-	submitTwoFactorCodeFn           = webcore.SubmitTwoFactorCode
-	termReadPasswordFn              = term.ReadPassword
-	termIsTerminalFn                = term.IsTerminal
-	tryResumeSessionFn              = webcore.TryResumeSession
-	tryResumeLastFn                 = webcore.TryResumeLastSession
-	resolveSessionFn                = resolveSession
-	sessionExpiredWriter  io.Writer = os.Stderr
+	promptTwoFactorCodeFn                 = promptTwoFactorCodeInteractive
+	promptPasswordFn                      = promptPasswordInteractive
+	webLoginFn                            = webcore.Login
+	prepareTwoFactorChallengeFn           = webcore.PrepareTwoFactorChallenge
+	submitTwoFactorCodeFn                 = webcore.SubmitTwoFactorCode
+	termReadPasswordFn                    = term.ReadPassword
+	termIsTerminalFn                      = term.IsTerminal
+	tryResumeSessionFn                    = webcore.TryResumeSession
+	tryResumeLastFn                       = webcore.TryResumeLastSession
+	resolveSessionFn                      = resolveSession
+	sessionExpiredWriter        io.Writer = os.Stderr
 )
 
 type webAuthStatus struct {
@@ -146,6 +147,14 @@ func loginWithOptionalTwoFactor(ctx context.Context, appleID, password, twoFacto
 
 	var tfaErr *webcore.TwoFactorRequiredError
 	if session != nil && errors.As(err, &tfaErr) {
+		challenge, prepErr := prepareTwoFactorChallengeFn(ctx, session)
+		if prepErr != nil {
+			return nil, fmt.Errorf("2fa challenge setup failed: %w", prepErr)
+		}
+		if challenge != nil && challenge.Method == "phone" && challenge.Destination != "" {
+			_, _ = fmt.Fprintf(os.Stderr, "Verification code sent to %s.\n", challenge.Destination)
+		}
+
 		code := strings.TrimSpace(twoFactorCode)
 		if code == "" {
 			var promptErr error

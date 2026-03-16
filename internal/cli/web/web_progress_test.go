@@ -86,15 +86,20 @@ func TestLoginWithOptionalTwoFactorUsesProgressLabels(t *testing.T) {
 
 	origPrompt := promptTwoFactorCodeFn
 	origLogin := webLoginFn
+	origPrepare := prepareTwoFactorChallengeFn
 	origSubmit := submitTwoFactorCodeFn
 	t.Cleanup(func() {
 		promptTwoFactorCodeFn = origPrompt
 		webLoginFn = origLogin
+		prepareTwoFactorChallengeFn = origPrepare
 		submitTwoFactorCodeFn = origSubmit
 	})
 
 	webLoginFn = func(ctx context.Context, creds webcore.LoginCredentials) (*webcore.AuthSession, error) {
 		return &webcore.AuthSession{}, &webcore.TwoFactorRequiredError{}
+	}
+	prepareTwoFactorChallengeFn = func(ctx context.Context, session *webcore.AuthSession) (*webcore.TwoFactorChallenge, error) {
+		return &webcore.TwoFactorChallenge{Method: "trusted-device"}, nil
 	}
 	promptTwoFactorCodeFn = func() (string, error) {
 		return "654321", nil

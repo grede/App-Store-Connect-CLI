@@ -348,11 +348,30 @@ Examples:
 				if err != nil {
 					var tfaErr *iris.TwoFactorRequiredError
 					if session != nil && errors.As(err, &tfaErr) {
+						challenge, prepErr := iris.PrepareTwoFactorChallenge(session)
+						if prepErr != nil {
+							return fmt.Errorf("apps create: failed to prepare 2FA challenge: %w", prepErr)
+						}
+
+						twoFactorHelp := "Enter the verification code from your trusted device or SMS"
+						if challenge != nil {
+							switch challenge.Method {
+							case "phone":
+								if challenge.Destination != "" {
+									twoFactorHelp = fmt.Sprintf("Enter the verification code sent to %s", challenge.Destination)
+								} else {
+									twoFactorHelp = "Enter the verification code sent to your trusted phone"
+								}
+							case "trusted-device":
+								twoFactorHelp = "Enter the verification code from your trusted device"
+							}
+						}
+
 						codeValue := strings.TrimSpace(*twoFactorCode)
 						if codeValue == "" {
 							if err := survey.AskOne(&survey.Input{
 								Message: "2FA code:",
-								Help:    "Enter the verification code from your trusted device or SMS",
+								Help:    twoFactorHelp,
 							}, &codeValue, survey.WithValidator(func(ans interface{}) error {
 								s, _ := ans.(string)
 								s = strings.TrimSpace(s)

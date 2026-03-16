@@ -180,20 +180,30 @@ func TestReadTwoFactorCodeFromTerminalFD(t *testing.T) {
 func TestLoginWithOptionalTwoFactorPromptsWhenCodeMissing(t *testing.T) {
 	origPrompt := promptTwoFactorCodeFn
 	origLogin := webLoginFn
+	origPrepare := prepareTwoFactorChallengeFn
 	origSubmit := submitTwoFactorCodeFn
 	t.Cleanup(func() {
 		promptTwoFactorCodeFn = origPrompt
 		webLoginFn = origLogin
+		prepareTwoFactorChallengeFn = origPrepare
 		submitTwoFactorCodeFn = origSubmit
 	})
 
 	var prompted bool
+	var prepared bool
 	var submittedCode string
 
 	webLoginFn = func(ctx context.Context, creds webcore.LoginCredentials) (*webcore.AuthSession, error) {
 		return &webcore.AuthSession{}, &webcore.TwoFactorRequiredError{}
 	}
+	prepareTwoFactorChallengeFn = func(ctx context.Context, session *webcore.AuthSession) (*webcore.TwoFactorChallenge, error) {
+		prepared = true
+		return &webcore.TwoFactorChallenge{Method: "trusted-device"}, nil
+	}
 	promptTwoFactorCodeFn = func() (string, error) {
+		if !prepared {
+			t.Fatal("expected 2fa challenge to be prepared before prompting")
+		}
 		prompted = true
 		return "654321", nil
 	}
@@ -209,6 +219,9 @@ func TestLoginWithOptionalTwoFactorPromptsWhenCodeMissing(t *testing.T) {
 	if session == nil {
 		t.Fatal("expected non-nil session")
 	}
+	if !prepared {
+		t.Fatal("expected 2fa challenge to be prepared")
+	}
 	if !prompted {
 		t.Fatal("expected interactive prompt for missing 2fa code")
 	}
@@ -220,15 +233,20 @@ func TestLoginWithOptionalTwoFactorPromptsWhenCodeMissing(t *testing.T) {
 func TestLoginWithOptionalTwoFactorReturnsPromptError(t *testing.T) {
 	origPrompt := promptTwoFactorCodeFn
 	origLogin := webLoginFn
+	origPrepare := prepareTwoFactorChallengeFn
 	origSubmit := submitTwoFactorCodeFn
 	t.Cleanup(func() {
 		promptTwoFactorCodeFn = origPrompt
 		webLoginFn = origLogin
+		prepareTwoFactorChallengeFn = origPrepare
 		submitTwoFactorCodeFn = origSubmit
 	})
 
 	webLoginFn = func(ctx context.Context, creds webcore.LoginCredentials) (*webcore.AuthSession, error) {
 		return &webcore.AuthSession{}, &webcore.TwoFactorRequiredError{}
+	}
+	prepareTwoFactorChallengeFn = func(ctx context.Context, session *webcore.AuthSession) (*webcore.TwoFactorChallenge, error) {
+		return &webcore.TwoFactorChallenge{Method: "trusted-device"}, nil
 	}
 	promptTwoFactorCodeFn = func() (string, error) {
 		return "", errors.New("2fa required: re-run with --two-factor-code")

@@ -86,6 +86,13 @@ type AuthSession struct {
 	ServiceKey       string
 	AppleIDSessionID string
 	SCNT             string
+
+	// Prepared 2FA delivery state so callers can request code delivery before prompting.
+	twoFactorMethod        string
+	twoFactorPhoneID       int
+	twoFactorPhoneMode     string
+	twoFactorDestination   string
+	twoFactorCodeRequested bool
 }
 
 // LoginCredentials holds the credentials for login
@@ -106,6 +113,17 @@ type TwoFactorRequiredError struct {
 func (e *TwoFactorRequiredError) Error() string {
 	return "2FA required"
 }
+
+type TwoFactorChallenge struct {
+	Method      string
+	Destination string
+	Requested   bool
+}
+
+const (
+	twoFactorMethodTrustedDevice = "trusted-device"
+	twoFactorMethodPhone         = "phone"
+)
 
 // signinInitResponse represents the response from auth/signin/init
 type signinInitResponse struct {
@@ -716,6 +734,7 @@ func getSessionInfo(client *http.Client) (*SessionInfo, error) {
 }
 
 type authOptionsResponse struct {
+	NoTrustedDevices    bool                     `json:"noTrustedDevices"`
 	TrustedDevices      []map[string]interface{} `json:"trustedDevices"`
 	TrustedPhoneNumbers []struct {
 		ID                 int    `json:"id"`
@@ -739,49 +758,6 @@ func (e *twoFAVerificationFailedError) Error() string {
 		return fmt.Sprintf("%s 2FA failed (status %d, codes=%v)", e.Kind, e.Status, codes)
 	}
 	return fmt.Sprintf("%s 2FA failed (status %d)", e.Kind, e.Status)
-}
-
-// SubmitTwoFactorCode completes Apple 2FA for an existing SRP session.
-//
-// This is used when Login() returns a non-nil session with a *TwoFactorRequiredError.
-func SubmitTwoFactorCode(session *AuthSession, code string) error {
-	if session == nil || session.Client == nil {
-		return fmt.Errorf("session is required")
-	}
-	code = strings.TrimSpace(code)
-	if code == "" {
-		return fmt.Errorf("2FA code is required")
-	}
-	if session.ServiceKey == "" || session.AppleIDSessionID == "" || session.SCNT == "" {
-		return fmt.Errorf("session is missing 2FA continuation state")
-	}
-
-	// Fetch auth options to decide which verification endpoint to use.
-	opts, err := getAuthOptions(session)
-	if err != nil {
-		return err
-	}
-
-	// Apple commonly shows "Enter the verification code sent to your Apple devices."
-	// even when it doesn't enumerate trusted devices. Try the trusted-device endpoint first.
-	if err := submitTrustedDeviceCode(session, code); err == nil {
-		return finalizeTwoFactor(session)
-	}
-
-	// Fallback to phone flow if present (SMS/voice).
-	if len(opts.TrustedPhoneNumbers) > 0 {
-		phone := opts.TrustedPhoneNumbers[0]
-		mode := strings.TrimSpace(phone.PushMode)
-		if mode == "" {
-			mode = "sms"
-		}
-		if err := submitPhoneCode(session, code, phone.ID, mode); err != nil {
-			return err
-		}
-		return finalizeTwoFactor(session)
-	}
-
-	return fmt.Errorf("2FA failed: no supported verification method found")
 }
 
 func appleSessionHeaders(session *AuthSession) http.Header {
@@ -822,6 +798,130 @@ func getAuthOptions(session *AuthSession) (*authOptionsResponse, error) {
 		return nil, fmt.Errorf("failed to parse auth options: %w", err)
 	}
 	return &result, nil
+}
+
+func requestPhoneCode(session *AuthSession, phoneID int, mode string) error {
+	payload := map[string]interface{}{
+		"phoneNumber": map[string]int{"id": phoneID},
+		"mode":        mode,
+	}
+	body, _ := json.Marshal(payload)
+
+	req, err := http.NewRequest("PUT", authServiceURL+"/verify/phone", bytes.NewReader(body))
+	if err != nil {
+		return err
+	}
+	for key, values := range appleSessionHeaders(session) {
+		for _, value := range values {
+			req.Header.Add(key, value)
+		}
+	}
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("Content-Type", "application/json")
+	setModifiedCookieHeader(session.Client, req)
+
+	resp, err := session.Client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	respBody, _ := io.ReadAll(resp.Body)
+
+	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
+		return nil
+	}
+	return &twoFAVerificationFailedError{Kind: "phone-request", Status: resp.StatusCode, Body: respBody}
+}
+
+func PrepareTwoFactorChallenge(session *AuthSession) (*TwoFactorChallenge, error) {
+	if session == nil || session.Client == nil {
+		return nil, fmt.Errorf("session is required")
+	}
+	if session.ServiceKey == "" || session.AppleIDSessionID == "" || session.SCNT == "" {
+		return nil, fmt.Errorf("session is missing 2FA continuation state")
+	}
+	if session.twoFactorMethod != "" {
+		return &TwoFactorChallenge{
+			Method:      session.twoFactorMethod,
+			Destination: session.twoFactorDestination,
+			Requested:   session.twoFactorCodeRequested,
+		}, nil
+	}
+
+	opts, err := getAuthOptions(session)
+	if err != nil {
+		return nil, err
+	}
+
+	if opts.NoTrustedDevices {
+		if len(opts.TrustedPhoneNumbers) == 0 {
+			return nil, fmt.Errorf("2FA failed: no trusted phone numbers available")
+		}
+		phone := opts.TrustedPhoneNumbers[0]
+		mode := strings.TrimSpace(phone.PushMode)
+		if mode == "" {
+			mode = "sms"
+		}
+
+		session.twoFactorMethod = twoFactorMethodPhone
+		session.twoFactorPhoneID = phone.ID
+		session.twoFactorPhoneMode = mode
+		session.twoFactorDestination = strings.TrimSpace(phone.NumberWithDialCode)
+		session.twoFactorCodeRequested = false
+
+		if len(opts.TrustedPhoneNumbers) > 1 {
+			if err := requestPhoneCode(session, phone.ID, mode); err != nil {
+				return nil, err
+			}
+			session.twoFactorCodeRequested = true
+		}
+
+		return &TwoFactorChallenge{
+			Method:      session.twoFactorMethod,
+			Destination: session.twoFactorDestination,
+			Requested:   session.twoFactorCodeRequested,
+		}, nil
+	}
+
+	session.twoFactorMethod = twoFactorMethodTrustedDevice
+	session.twoFactorCodeRequested = false
+	return &TwoFactorChallenge{Method: session.twoFactorMethod}, nil
+}
+
+// SubmitTwoFactorCode completes Apple 2FA for an existing SRP session.
+//
+// This is used when Login() returns a non-nil session with a *TwoFactorRequiredError.
+func SubmitTwoFactorCode(session *AuthSession, code string) error {
+	if session == nil || session.Client == nil {
+		return fmt.Errorf("session is required")
+	}
+	code = strings.TrimSpace(code)
+	if code == "" {
+		return fmt.Errorf("2FA code is required")
+	}
+	if session.ServiceKey == "" || session.AppleIDSessionID == "" || session.SCNT == "" {
+		return fmt.Errorf("session is missing 2FA continuation state")
+	}
+
+	challenge, err := PrepareTwoFactorChallenge(session)
+	if err != nil {
+		return err
+	}
+
+	switch challenge.Method {
+	case twoFactorMethodPhone:
+		if err := submitPhoneCode(session, code, session.twoFactorPhoneID, session.twoFactorPhoneMode); err != nil {
+			return err
+		}
+		return finalizeTwoFactor(session)
+	case twoFactorMethodTrustedDevice:
+		if err := submitTrustedDeviceCode(session, code); err != nil {
+			return err
+		}
+		return finalizeTwoFactor(session)
+	default:
+		return fmt.Errorf("2FA failed: unsupported verification method %q", challenge.Method)
+	}
 }
 
 func submitTrustedDeviceCode(session *AuthSession, code string) error {
