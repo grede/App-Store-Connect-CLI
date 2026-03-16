@@ -107,6 +107,22 @@ func TestResolveBackendSelectionDefaultsToFileWithKeychainFallback(t *testing.T)
 	}
 }
 
+func TestResolveBackendSelectionKeychainFallsBackToFile(t *testing.T) {
+	t.Setenv(webSessionCacheEnabledEnv, "1")
+	t.Setenv(webSessionBackendEnv, "keychain")
+
+	selection := resolveBackendSelection()
+	if selection.backend != sessionBackendKeychain {
+		t.Fatalf("expected keychain backend %v, got %v", sessionBackendKeychain, selection.backend)
+	}
+	if !selection.fallbackFile {
+		t.Fatal("expected keychain backend to fall back to file")
+	}
+	if selection.fallbackKeychain {
+		t.Fatal("did not expect keychain backend to fall back to keychain")
+	}
+}
+
 func TestPersistSessionDefaultBackendWritesFileWithoutKeychain(t *testing.T) {
 	kr := withArraySessionKeyring(t)
 	t.Setenv(webSessionCacheEnabledEnv, "1")
@@ -213,6 +229,78 @@ func TestTryResumeSessionDefaultBackendFallsBackToKeychainAndPersistsFile(t *tes
 		t.Fatalf("readSessionFromFile error: %v", err)
 	} else if !ok {
 		t.Fatal("expected keychain fallback resume to repersist into file cache")
+	}
+}
+
+func TestTryResumeSessionKeychainBackendFallsBackToFileAndPersistsKeychain(t *testing.T) {
+	withArraySessionKeyring(t)
+	withSessionInfoStub(t)
+	t.Setenv(webSessionCacheEnabledEnv, "1")
+	t.Setenv(webSessionBackendEnv, "keychain")
+	t.Setenv(webSessionCacheDirEnv, filepath.Join(t.TempDir(), "web-cache"))
+
+	jar, err := cookiejar.New(nil)
+	if err != nil {
+		t.Fatalf("cookiejar.New error: %v", err)
+	}
+	targetURL, _ := url.Parse("https://appstoreconnect.apple.com/")
+	jar.SetCookies(targetURL, []*http.Cookie{
+		{Name: "myacinfo", Value: "file-token", Path: "/", Expires: time.Now().Add(24 * time.Hour)},
+	})
+
+	key := webSessionCacheKey("user@example.com")
+	if err := writeSessionToFile(key, serializeCookieJar(jar)); err != nil {
+		t.Fatalf("writeSessionToFile error: %v", err)
+	}
+
+	resumed, ok, err := TryResumeSession(context.Background(), "user@example.com")
+	if err != nil {
+		t.Fatalf("TryResumeSession error: %v", err)
+	}
+	if !ok || resumed == nil {
+		t.Fatal("expected resumed file-backed session")
+	}
+
+	if _, ok, err := readSessionFromKeychain(key); err != nil {
+		t.Fatalf("readSessionFromKeychain error: %v", err)
+	} else if !ok {
+		t.Fatal("expected file fallback resume to repersist into keychain")
+	}
+}
+
+func TestTryResumeLastSessionKeychainBackendFallsBackToFileAndPersistsKeychain(t *testing.T) {
+	withArraySessionKeyring(t)
+	withSessionInfoStub(t)
+	t.Setenv(webSessionCacheEnabledEnv, "1")
+	t.Setenv(webSessionBackendEnv, "keychain")
+	t.Setenv(webSessionCacheDirEnv, filepath.Join(t.TempDir(), "web-cache"))
+
+	jar, err := cookiejar.New(nil)
+	if err != nil {
+		t.Fatalf("cookiejar.New error: %v", err)
+	}
+	targetURL, _ := url.Parse("https://appstoreconnect.apple.com/")
+	jar.SetCookies(targetURL, []*http.Cookie{
+		{Name: "myacinfo", Value: "file-token", Path: "/", Expires: time.Now().Add(24 * time.Hour)},
+	})
+
+	key := webSessionCacheKey("user@example.com")
+	if err := writeSessionToFile(key, serializeCookieJar(jar)); err != nil {
+		t.Fatalf("writeSessionToFile error: %v", err)
+	}
+
+	resumed, ok, err := TryResumeLastSession(context.Background())
+	if err != nil {
+		t.Fatalf("TryResumeLastSession error: %v", err)
+	}
+	if !ok || resumed == nil {
+		t.Fatal("expected resumed last session from file fallback")
+	}
+
+	if _, ok, err := readSessionFromKeychain(key); err != nil {
+		t.Fatalf("readSessionFromKeychain error: %v", err)
+	} else if !ok {
+		t.Fatal("expected last-session file fallback to repersist into keychain")
 	}
 }
 

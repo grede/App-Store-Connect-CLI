@@ -124,7 +124,9 @@ func resolveBackendSelection() backendSelection {
 	case "file":
 		return backendSelection{backend: sessionBackendFile}
 	case "keychain":
-		return backendSelection{backend: sessionBackendKeychain}
+		// Allow explicit keychain mode to import sessions from the file cache
+		// so users can switch back after running on the default file-backed mode.
+		return backendSelection{backend: sessionBackendKeychain, fallbackFile: true}
 	case "", "auto":
 		// Default to file-backed web sessions so successful logins can be reused
 		// without recurring per-binary keychain approval prompts.
@@ -790,6 +792,9 @@ func readSessionBySelection(selection backendSelection, key string) (persistedSe
 			}
 			return persistedSession{}, false, err
 		}
+		if !ok && selection.fallbackFile {
+			return readSessionFromFile(key)
+		}
 		return sess, ok, nil
 	case sessionBackendFile:
 		sess, ok, err := readSessionFromFile(key)
@@ -841,6 +846,13 @@ func readLastSessionBySelection(selection backendSelection) (persistedSession, b
 				return readSessionFromFile(key)
 			}
 			return persistedSession{}, false, err
+		}
+		if !ok && selection.fallbackFile {
+			key, ok, err := readLastKeyFromFile()
+			if err != nil || !ok {
+				return persistedSession{}, false, err
+			}
+			return readSessionFromFile(key)
 		}
 		return sess, ok, nil
 	case sessionBackendFile:
