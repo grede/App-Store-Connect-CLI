@@ -1,6 +1,9 @@
 package reference
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestLoad(t *testing.T) {
 	v, err := Load()
@@ -101,5 +104,22 @@ func TestResolveUnknownRole(t *testing.T) {
 	}
 	if len(view.RoleDetails) != 1 || view.RoleDetails[0].Code != "APP_MANAGER" {
 		t.Fatalf("unexpected role details: %#v", view.RoleDetails)
+	}
+}
+
+func TestValidateRejectsUnknownCapabilityReferences(t *testing.T) {
+	err := validateSnapshot(&Snapshot{
+		Groups: []CapabilityGroup{
+			{ID: "known"},
+		},
+		Roles: []Role{
+			{Code: "ADMIN", Capabilities: []string{"known", "missing"}},
+		},
+	})
+	if err == nil {
+		t.Fatal("expected validation error")
+	}
+	if !strings.Contains(err.Error(), "missing") {
+		t.Fatalf("expected missing capability id in error, got %v", err)
 	}
 }
