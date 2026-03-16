@@ -622,7 +622,8 @@ func readLegacyIrisSessionFromFile(key string) (persistedSession, bool, error) {
 	}
 	var sess persistedSession
 	if err := json.Unmarshal(raw, &sess); err != nil {
-		return persistedSession{}, false, fmt.Errorf("failed to decode legacy iris session cache: %w", err)
+		_ = deleteLegacyIrisSessionFromFile(key)
+		return persistedSession{}, false, nil
 	}
 	if sess.Version != webSessionCacheVersion {
 		return persistedSession{}, false, nil
@@ -647,7 +648,8 @@ func readLegacyIrisLastKeyFromFile() (string, bool, error) {
 	}
 	var last persistedLastSession
 	if err := json.Unmarshal(raw, &last); err != nil {
-		return "", false, err
+		_ = deleteLegacyIrisLastKeyFromFile()
+		return "", false, nil
 	}
 	if last.Version != webSessionCacheVersion || strings.TrimSpace(last.Key) == "" {
 		return "", false, nil

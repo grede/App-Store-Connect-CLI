@@ -1257,6 +1257,37 @@ func TestTryResumeSessionMigratesLegacyIrisFileCacheKeepsUnrelatedLastMarker(t *
 	}
 }
 
+func TestTryResumeSessionTreatsMalformedLegacyIrisFileCacheAsMiss(t *testing.T) {
+	webDir := filepath.Join(t.TempDir(), "web-cache")
+	legacyDir := filepath.Join(t.TempDir(), "iris-cache")
+	t.Setenv(webSessionBackendEnv, "file")
+	t.Setenv(webSessionCacheEnabledEnv, "1")
+	t.Setenv(webSessionCacheDirEnv, webDir)
+	t.Setenv(legacyIrisSessionCacheEnabledEnv, "1")
+	t.Setenv(legacyIrisSessionCacheDirEnv, legacyDir)
+
+	if err := os.MkdirAll(legacyDir, 0o700); err != nil {
+		t.Fatalf("mkdir legacy dir: %v", err)
+	}
+
+	key := webSessionCacheKey("user@example.com")
+	sessionPath := filepath.Join(legacyDir, "session-"+key+".json")
+	if err := os.WriteFile(sessionPath, []byte(`not-json`), 0o600); err != nil {
+		t.Fatalf("write malformed legacy iris session: %v", err)
+	}
+
+	resumed, ok, err := TryResumeSession(context.Background(), "user@example.com")
+	if err != nil {
+		t.Fatalf("TryResumeSession error: %v", err)
+	}
+	if ok || resumed != nil {
+		t.Fatalf("expected malformed legacy iris session to behave like cache miss, got ok=%v resumed=%v", ok, resumed)
+	}
+	if _, err := os.Stat(sessionPath); !os.IsNotExist(err) {
+		t.Fatalf("expected malformed legacy iris session removed, stat err=%v", err)
+	}
+}
+
 func TestTryResumeLastSessionMigratesLegacyIrisLastFileCache(t *testing.T) {
 	withSessionInfoStub(t)
 	webDir := filepath.Join(t.TempDir(), "web-cache")
@@ -1317,6 +1348,36 @@ func TestTryResumeLastSessionMigratesLegacyIrisLastFileCache(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(legacyDir, "last.json")); !os.IsNotExist(err) {
 		t.Fatalf("expected legacy iris last-session marker to be removed after migration, stat err=%v", err)
+	}
+}
+
+func TestTryResumeLastSessionTreatsMalformedLegacyIrisLastMarkerAsMiss(t *testing.T) {
+	webDir := filepath.Join(t.TempDir(), "web-cache")
+	legacyDir := filepath.Join(t.TempDir(), "iris-cache")
+	t.Setenv(webSessionBackendEnv, "file")
+	t.Setenv(webSessionCacheEnabledEnv, "1")
+	t.Setenv(webSessionCacheDirEnv, webDir)
+	t.Setenv(legacyIrisSessionCacheEnabledEnv, "1")
+	t.Setenv(legacyIrisSessionCacheDirEnv, legacyDir)
+
+	if err := os.MkdirAll(legacyDir, 0o700); err != nil {
+		t.Fatalf("mkdir legacy dir: %v", err)
+	}
+
+	lastPath := filepath.Join(legacyDir, "last.json")
+	if err := os.WriteFile(lastPath, []byte(`not-json`), 0o600); err != nil {
+		t.Fatalf("write malformed legacy iris last marker: %v", err)
+	}
+
+	resumed, ok, err := TryResumeLastSession(context.Background())
+	if err != nil {
+		t.Fatalf("TryResumeLastSession error: %v", err)
+	}
+	if ok || resumed != nil {
+		t.Fatalf("expected malformed legacy iris last marker to behave like cache miss, got ok=%v resumed=%v", ok, resumed)
+	}
+	if _, err := os.Stat(lastPath); !os.IsNotExist(err) {
+		t.Fatalf("expected malformed legacy iris last marker removed, stat err=%v", err)
 	}
 }
 
