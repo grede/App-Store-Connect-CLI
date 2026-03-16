@@ -9,7 +9,9 @@ body:
       value: |
         Thanks for taking the time to suggest an improvement.
 
-        If this is a question or support request, consider using Discussions (if enabled) or include enough detail below.
+        If this is a question, install issue, auth setup problem, or workflow support request,
+        please use GitHub Discussions instead:
+        https://github.com/rudrankriyam/App-Store-Connect-CLI/discussions
 
   - type: textarea
     id: problem
@@ -40,4 +42,3 @@ body:
     attributes:
       label: Additional context
       description: Links to Apple docs, related API endpoints, or prior art are helpful.
-

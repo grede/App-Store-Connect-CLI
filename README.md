@@ -21,6 +21,8 @@ Automate iOS, macOS, tvOS, and visionOS release workflows from your terminal, ID
 - [asc skills](#asc-skills)
 - [Sponsors](#sponsors)
 - [Quick Start](#quick-start)
+- [Troubleshooting](#troubleshooting)
+- [Support](#support)
 - [Wall of Apps](#wall-of-apps)
 - [Common Workflows](#common-workflows)
 - [Commands and Reference](#commands-and-reference)
@@ -45,7 +47,14 @@ https://github.com/rudrankriyam/app-store-connect-cli-skills
 
 ## Quick Start
 
-### Install
+If you want to confirm the binary works before configuring authentication:
+
+```bash
+asc version
+asc --help
+```
+
+### 1. Install
 
 ```bash
 # Homebrew (recommended)
@@ -57,23 +66,43 @@ curl -fsSL https://asccli.sh/install | bash
 
 For source builds and contributor setup, see [CONTRIBUTING.md](CONTRIBUTING.md).
 
-### Authenticate
+### 2. Authenticate
 
 ```bash
 asc auth login \
   --name "MyApp" \
   --key-id "ABC123" \
   --issuer-id "DEF456" \
-  --private-key /path/to/AuthKey.p8
+  --private-key /path/to/AuthKey.p8 \
+  --network
 ```
 
 Generate API keys at:
 https://appstoreconnect.apple.com/access/integrations/api
 
-### First command
+If you are running in CI, a headless shell, or a machine where keychain access is not available, use config-backed auth instead:
 
 ```bash
-asc apps list
+asc auth login \
+  --bypass-keychain \
+  --name "MyCIKey" \
+  --key-id "ABC123" \
+  --issuer-id "DEF456" \
+  --private-key /path/to/AuthKey.p8
+```
+
+### 3. Validate auth
+
+```bash
+asc auth status --validate
+asc auth doctor
+```
+
+### 4. First command
+
+```bash
+asc apps list --output table
+asc apps list --output json --pretty
 ```
 
 ### Output defaults (TTY-aware)
@@ -94,6 +123,36 @@ And explicit flags always win:
 ```bash
 asc apps list --output json
 ```
+
+## Troubleshooting
+
+### Homebrew
+
+- Refresh Homebrew first: `brew update && brew upgrade asc`
+- Check which binary you are running: `which asc`
+- Confirm the installed version: `asc version`
+- If Homebrew is behind the latest GitHub release, use the install script from `https://asccli.sh/install`
+
+### Authentication
+
+- Validate the active profile: `asc auth status --validate`
+- Run the auth health check: `asc auth doctor`
+- If keychain access is blocked, retry with `ASC_BYPASS_KEYCHAIN=1` or re-run `asc auth login --bypass-keychain`
+- Use `asc auth login --local --bypass-keychain ...` when you want repo-local credentials in `./.asc/config.json`
+
+### Output
+
+- `asc` defaults to `table` in an interactive terminal and `json` in pipes, files, and CI
+- Use an explicit format when scripting or sharing repro steps: `--output json`, `--output table`, or `--output markdown`
+- Use `--pretty` with JSON when you want readable output in terminals or bug reports
+- Set a personal default with `ASC_DEFAULT_OUTPUT`, but remember `--output` always wins
+
+## Support
+
+- Use [GitHub Discussions](https://github.com/rudrankriyam/App-Store-Connect-CLI/discussions) for install help, authentication setup, workflow advice, and "how do I...?" questions
+- Use [GitHub Issues](https://github.com/rudrankriyam/App-Store-Connect-CLI/issues) for reproducible bugs and concrete feature requests
+- See [SUPPORT.md](SUPPORT.md) for the support policy and bug-report checklist
+- Before filing an auth or API bug, retry with `ASC_BYPASS_KEYCHAIN=1`; if it is safe to do so, include redacted output from `ASC_DEBUG=api asc ...` or `asc --api-debug ...`
 
 ## Wall of Apps
 
