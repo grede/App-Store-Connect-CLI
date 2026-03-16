@@ -2,6 +2,8 @@ package cmdtest
 
 import (
 	"context"
+	"errors"
+	"flag"
 	"io"
 	"net/http"
 	"strings"
@@ -184,14 +186,14 @@ func TestPreOrdersListRejectsInvalidLimit(t *testing.T) {
 	if runErr == nil {
 		t.Fatal("expected error, got nil")
 	}
-	if !strings.Contains(runErr.Error(), "pre-orders list: --limit must be between 1 and 200") {
-		t.Fatalf("expected invalid limit error, got %v", runErr)
+	if !errors.Is(runErr, flag.ErrHelp) {
+		t.Fatalf("expected flag.ErrHelp, got %v", runErr)
 	}
 	if stdout != "" {
 		t.Fatalf("expected empty stdout, got %q", stdout)
 	}
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
+	if !strings.Contains(stderr, "Error: pre-orders list: --limit must be between 1 and 200") {
+		t.Fatalf("expected invalid limit usage error, got %q", stderr)
 	}
 }
 
@@ -213,13 +215,13 @@ func TestPreOrdersListRejectsInvalidNextURL(t *testing.T) {
 	if runErr == nil {
 		t.Fatal("expected error, got nil")
 	}
-	if !strings.Contains(runErr.Error(), "pre-orders list: --next must be an App Store Connect URL") {
-		t.Fatalf("expected invalid next url error, got %v", runErr)
+	if !errors.Is(runErr, flag.ErrHelp) {
+		t.Fatalf("expected flag.ErrHelp, got %v", runErr)
 	}
 	if stdout != "" {
 		t.Fatalf("expected empty stdout, got %q", stdout)
 	}
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
+	if !strings.Contains(stderr, "Error: pre-orders list: --next must be an App Store Connect URL") {
+		t.Fatalf("expected invalid next url usage error, got %q", stderr)
 	}
 }

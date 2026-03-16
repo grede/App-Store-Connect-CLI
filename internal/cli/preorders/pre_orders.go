@@ -2,6 +2,7 @@ package preorders
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -90,7 +91,7 @@ Examples:
 
 // PreOrdersListCommand returns the list subcommand.
 func PreOrdersListCommand() *ffcli.Command {
-	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
+	cmd := shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
 		FlagSetName: "pre-orders list",
 		Name:        "list",
 		ShortUsage:  "asc pre-orders list --availability AVAILABILITY_ID [--limit N] [--next URL] [--paginate]",
@@ -117,6 +118,26 @@ Examples:
 			return client.GetTerritoryAvailabilities(ctx, availabilityID, opts...)
 		},
 	})
+
+	originalExec := cmd.Exec
+	cmd.Exec = func(ctx context.Context, args []string) error {
+		err := originalExec(ctx, args)
+		if err == nil || errors.Is(err, flag.ErrHelp) {
+			return err
+		}
+		if isPreOrdersListUsageError(err) {
+			return shared.UsageError(err.Error())
+		}
+		return err
+	}
+
+	return cmd
+}
+
+func isPreOrdersListUsageError(err error) bool {
+	message := err.Error()
+	return strings.HasPrefix(message, "pre-orders list: --limit must be between 1 and ") ||
+		strings.HasPrefix(message, "pre-orders list: --next ")
 }
 
 // PreOrdersEnableCommand returns the enable subcommand.
