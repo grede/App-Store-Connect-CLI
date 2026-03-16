@@ -411,6 +411,9 @@ func (c *Client) LookupAPIKeyRoles(ctx context.Context, keyID string) (*APIKeyRo
 
 	individualKeys, err := c.listIndividualKeys(ctx)
 	if err != nil {
+		if shouldFallbackToIndividualKeys(err) {
+			return nil, fmt.Errorf("%w: %s", ErrAPIKeyNotVisible, keyID)
+		}
 		return nil, err
 	}
 	for _, item := range individualKeys {

@@ -305,6 +305,40 @@ func TestClientLookupAPIKeyRolesReturnsTeamListErrorWhenFallbackMisses(t *testin
 	}
 }
 
+func TestClientLookupAPIKeyRolesReturnsNotVisibleWhenIndividualListForbiddenAfterTeamMiss(t *testing.T) {
+	client := &Client{
+		httpClient: &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
+			switch r.URL.Path {
+			case "/iris/v1/apiKeys":
+				return &http.Response{
+					StatusCode: http.StatusOK,
+					Header:     http.Header{"Content-Type": []string{"application/json"}},
+					Body:       io.NopCloser(strings.NewReader(`{"data":[],"included":[]}`)),
+					Request:    r,
+				}, nil
+			case "/iris/v2/apiKeys":
+				return &http.Response{
+					StatusCode: http.StatusForbidden,
+					Header:     http.Header{"Content-Type": []string{"application/json"}},
+					Body:       io.NopCloser(strings.NewReader(`{"errors":[{"status":"403"}]}`)),
+					Request:    r,
+				}, nil
+			default:
+				t.Fatalf("unexpected path: %s", r.URL.Path)
+				return nil, nil
+			}
+		})},
+	}
+
+	_, err := client.LookupAPIKeyRoles(context.Background(), "missing")
+	if !errors.Is(err, ErrAPIKeyNotVisible) {
+		t.Fatalf("expected ErrAPIKeyNotVisible, got %v", err)
+	}
+	if !strings.Contains(err.Error(), "missing") {
+		t.Fatalf("expected key id in error, got %v", err)
+	}
+}
+
 func TestClientListIndividualKeysParsesActors(t *testing.T) {
 	client := &Client{
 		httpClient: &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
