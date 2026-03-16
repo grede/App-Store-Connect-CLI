@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 
@@ -31,6 +32,13 @@ type preflightResult struct {
 	FailCount int           `json:"fail_count"`
 }
 
+func defaultSubmitPreflightOutputFormat() string {
+	if shared.DefaultOutputFormat() == "json" {
+		return "json"
+	}
+	return "text"
+}
+
 // SubmitPreflightCommand returns the "submit preflight" subcommand.
 func SubmitPreflightCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("submit preflight", flag.ExitOnError)
@@ -38,7 +46,7 @@ func SubmitPreflightCommand() *ffcli.Command {
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID)")
 	version := fs.String("version", "", "App Store version string")
 	platform := fs.String("platform", "IOS", "Platform: IOS, MAC_OS, TV_OS, VISION_OS")
-	output := shared.BindOutputFlags(fs)
+	output := shared.BindOutputFlagsWithAllowed(fs, "output", defaultSubmitPreflightOutputFormat(), "Output format: text, json", "text", "json")
 
 	return &ffcli.Command{
 		Name:       "preflight",
@@ -53,6 +61,10 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			if len(args) > 0 {
+				return shared.UsageErrorf("unexpected argument(s): %s", strings.Join(args, " "))
+			}
+
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
@@ -67,6 +79,10 @@ Examples:
 			if err != nil {
 				return shared.UsageError(err.Error())
 			}
+			normalizedOutput, err := shared.ValidateOutputFormatAllowed(*output.Output, *output.Pretty, "text", "json")
+			if err != nil {
+				return shared.UsageError(err.Error())
+			}
 
 			client, err := shared.GetASCClient()
 			if err != nil {
@@ -75,16 +91,15 @@ Examples:
 
 			result := runPreflight(ctx, client, resolvedAppID, strings.TrimSpace(*version), normalizedPlatform)
 
-			outputFormat := *output.Output
-			if outputFormat == "" || outputFormat == "text" {
-				printPreflightText(result)
+			if normalizedOutput == "text" {
+				printPreflightText(os.Stdout, result)
 				if result.FailCount > 0 {
 					return fmt.Errorf("submit preflight: %d issue(s) found", result.FailCount)
 				}
 				return nil
 			}
 
-			if err := shared.PrintOutput(result, outputFormat, *output.Pretty); err != nil {
+			if err := shared.PrintOutput(result, normalizedOutput, *output.Pretty); err != nil {
 				return err
 			}
 			if result.FailCount > 0 {
@@ -108,21 +123,16 @@ func runPreflight(ctx context.Context, client *asc.Client, appID, version, platf
 	versionID, versionCheck := checkVersionExists(ctx, client, appID, version, platform)
 	result.Checks = append(result.Checks, versionCheck)
 
-	if versionID == "" {
-		// Cannot continue without a version ID.
-		tallyCounts(result)
-		return result
+	// 2. Build attached
+	if versionID != "" {
+		result.Checks = append(result.Checks, checkBuildAttached(ctx, client, versionID))
 	}
 
-	// 2. Build attached
-	result.Checks = append(result.Checks, checkBuildAttached(ctx, client, versionID))
-
-	// 3. Age rating (requires appInfoID)
-	appInfoID, appInfoCheck := resolveAppInfoID(ctx, client, appID)
+	appInfoID, appInfoErr := resolveAppInfoID(ctx, client, appID, versionID)
 	if appInfoID != "" {
 		result.Checks = append(result.Checks, checkAgeRating(ctx, client, appInfoID, appID))
 	} else {
-		result.Checks = append(result.Checks, appInfoCheck)
+		result.Checks = append(result.Checks, unresolvedAppInfoCheck("Age rating", appInfoErr))
 	}
 
 	// 4. Content rights
@@ -132,16 +142,14 @@ func runPreflight(ctx context.Context, client *asc.Client, appID, version, platf
 	if appInfoID != "" {
 		result.Checks = append(result.Checks, checkPrimaryCategory(ctx, client, appInfoID, appID))
 	} else {
-		result.Checks = append(result.Checks, checkResult{
-			Name:    "Primary category",
-			Passed:  false,
-			Message: "Could not resolve app info to check primary category",
-		})
+		result.Checks = append(result.Checks, unresolvedAppInfoCheck("Primary category", appInfoErr))
 	}
 
 	// 6 & 7. Localizations + screenshots
-	locChecks := checkLocalizations(ctx, client, versionID, appID)
-	result.Checks = append(result.Checks, locChecks...)
+	if versionID != "" {
+		locChecks := checkLocalizations(ctx, client, versionID, appID, platform)
+		result.Checks = append(result.Checks, locChecks...)
+	}
 
 	tallyCounts(result)
 	return result
@@ -223,37 +231,56 @@ func checkBuildAttached(ctx context.Context, client *asc.Client, versionID strin
 	}
 }
 
-func resolveAppInfoID(ctx context.Context, client *asc.Client, appID string) (string, checkResult) {
+func resolveAppInfoID(ctx context.Context, client *asc.Client, appID, versionID string) (string, error) {
 	infoCtx, cancel := shared.ContextWithTimeout(ctx)
 	defer cancel()
 
+	if strings.TrimSpace(versionID) != "" {
+		appInfoID, err := client.ResolveAppInfoIDForAppStoreVersion(infoCtx, versionID)
+		if err != nil {
+			return "", fmt.Errorf("failed to resolve app info for version %s: %w", versionID, err)
+		}
+		if strings.TrimSpace(appInfoID) == "" {
+			return "", fmt.Errorf("no app info found for version %s", versionID)
+		}
+		return appInfoID, nil
+	}
+
 	infos, err := client.GetAppInfos(infoCtx, appID)
 	if err != nil {
-		return "", checkResult{
-			Name:    "App info",
-			Passed:  false,
-			Message: fmt.Sprintf("Failed to fetch app info: %v", err),
-		}
+		return "", fmt.Errorf("failed to fetch app info: %w", err)
 	}
 	if len(infos.Data) == 0 {
-		return "", checkResult{
-			Name:    "App info",
-			Passed:  false,
-			Message: "No app info records found",
-		}
+		return "", fmt.Errorf("no app info records found")
+	}
+
+	candidates := asc.AppInfoCandidates(infos.Data)
+	if len(candidates) == 1 {
+		return candidates[0].ID, nil
 	}
 
 	// Prefer the app info in PREPARE_FOR_SUBMISSION state — that is the
 	// editable draft the submission will use.
-	candidates := asc.AppInfoCandidates(infos.Data)
 	for _, c := range candidates {
 		if strings.EqualFold(c.State, "PREPARE_FOR_SUBMISSION") {
-			return c.ID, checkResult{}
+			return c.ID, nil
 		}
 	}
 
-	// Fall back to the first app info if none is in the expected state.
-	return infos.Data[0].ID, checkResult{}
+	// Fall back to the first sorted candidate for deterministic app-level checks.
+	return candidates[0].ID, nil
+}
+
+func unresolvedAppInfoCheck(name string, err error) checkResult {
+	msg := "Could not resolve app info for this check"
+	if err != nil {
+		msg = fmt.Sprintf("Could not resolve app info for this check: %v", err)
+	}
+	return checkResult{
+		Name:    name,
+		Passed:  false,
+		Message: msg,
+	}
 }
 
 func checkAgeRating(ctx context.Context, client *asc.Client, appInfoID, appID string) checkResult {
@@ -412,84 +439,92 @@ func checkPrimaryCategory(ctx context.Context, client *asc.Client, appInfoID, ap
 	}
 }
 
-func checkLocalizations(ctx context.Context, client *asc.Client, versionID, appID string) []checkResult {
+func checkLocalizations(ctx context.Context, client *asc.Client, versionID, appID, platform string) []checkResult {
 	locCtx, cancel := shared.ContextWithTimeout(ctx)
 	defer cancel()
 
 	localizations, err := client.GetAppStoreVersionLocalizations(locCtx, versionID, asc.WithAppStoreVersionLocalizationsLimit(200))
 	if err != nil {
-		return []checkResult{{
-			Name:    "Localizations",
-			Passed:  false,
-			Message: fmt.Sprintf("Failed to fetch localizations: %v", err),
-		}}
+		return []checkResult{
+			{
+				Name:    "Localization metadata",
+				Passed:  false,
+				Message: fmt.Sprintf("Failed to fetch localizations: %v", err),
+			},
+			{
+				Name:    "Screenshots",
+				Passed:  false,
+				Message: fmt.Sprintf("Failed to fetch localizations for screenshot checks: %v", err),
+			},
+		}
 	}
 
 	if len(localizations.Data) == 0 {
-		return []checkResult{{
-			Name:    "Localizations",
-			Passed:  false,
-			Message: "No localizations found for this version",
-		}}
-	}
-
-	var checks []checkResult
-
-	// Check description
-	hasDescription := false
-	for _, loc := range localizations.Data {
-		if strings.TrimSpace(loc.Attributes.Description) != "" {
-			hasDescription = true
-			break
+		return []checkResult{
+			{
+				Name:    "Localization metadata",
+				Passed:  false,
+				Message: "No localizations found for this version",
+				Hint:    "asc metadata push --version-id " + versionID,
+			},
+			{
+				Name:    "Screenshots",
+				Passed:  false,
+				Message: "No localizations found for screenshot checks",
+				Hint:    screenshotUploadHint("", platform),
+			},
 		}
 	}
-	if hasDescription {
-		checks = append(checks, checkResult{
-			Name:    "Description",
-			Passed:  true,
-			Message: "Description present",
-		})
+
+	metadataCheck := checkResult{
+		Name:    "Localization metadata",
+		Passed:  false,
+		Message: "Could not determine localization requirements",
+	}
+	updateCtx, updateCancel := shared.ContextWithTimeout(ctx)
+	requireWhatsNew, err := isAppUpdate(updateCtx, client, appID, platform)
+	updateCancel()
+	if err != nil {
+		metadataCheck.Message = fmt.Sprintf("Failed to determine whether whatsNew is required: %v", err)
 	} else {
-		checks = append(checks, checkResult{
-			Name:    "Description",
-			Passed:  false,
-			Message: "No localization has a description",
-			Hint:    "asc metadata push --version-id " + versionID,
+		metadataCheck = checkLocalizationMetadata(localizations.Data, versionID, shared.SubmitReadinessOptions{
+			RequireWhatsNew: requireWhatsNew,
 		})
 	}
 
-	// Check keywords
-	hasKeywords := false
-	for _, loc := range localizations.Data {
-		if strings.TrimSpace(loc.Attributes.Keywords) != "" {
-			hasKeywords = true
-			break
-		}
-	}
-	if hasKeywords {
-		checks = append(checks, checkResult{
-			Name:    "Keywords",
-			Passed:  true,
-			Message: "Keywords present",
-		})
-	} else {
-		checks = append(checks, checkResult{
-			Name:    "Keywords",
-			Passed:  false,
-			Message: "No localization has keywords",
-			Hint:    "asc metadata push --version-id " + versionID,
-		})
-	}
-
-	// Check screenshots — look at the first localization that has screenshot sets.
-	screenshotCheck := checkScreenshots(ctx, client, localizations.Data, appID)
-	checks = append(checks, screenshotCheck)
-
-	return checks
+	screenshotCheck := checkScreenshots(ctx, client, localizations.Data, platform)
+	return []checkResult{metadataCheck, screenshotCheck}
 }
 
-func checkScreenshots(ctx context.Context, client *asc.Client, localizations []asc.Resource[asc.AppStoreVersionLocalizationAttributes], appID string) checkResult {
+func checkLocalizationMetadata(localizations []asc.Resource[asc.AppStoreVersionLocalizationAttributes], versionID string, opts shared.SubmitReadinessOptions) checkResult {
+	issues := shared.SubmitReadinessIssuesByLocaleWithOptions(localizations, opts)
+	if len(issues) == 0 {
+		return checkResult{
+			Name:    "Localization metadata",
+			Passed:  true,
+			Message: "All localizations include required submission metadata",
+		}
+	}
+
+	return checkResult{
+		Name:    "Localization metadata",
+		Passed:  false,
+		Message: "Missing submission metadata: " + formatSubmitReadinessIssues(issues),
+		Hint:    "asc metadata push --version-id " + versionID,
+	}
+}
+
+func formatSubmitReadinessIssues(issues []shared.SubmitReadinessIssue) string {
+	parts := make([]string, 0, len(issues))
+	for _, issue := range issues {
+		parts = append(parts, fmt.Sprintf("%s (%s)", issue.Locale, strings.Join(issue.MissingFields, ", ")))
+	}
+	return strings.Join(parts, "; ")
+}
+
+func checkScreenshots(ctx context.Context, client *asc.Client, localizations []asc.Resource[asc.AppStoreVersionLocalizationAttributes], platform string) checkResult {
 	var fetchErrors []string
+	successfulInspections := 0
 	for _, loc := range localizations {
 		locID := loc.ID
 
@@ -501,6 +536,7 @@ func checkScreenshots(ctx context.Context, client *asc.Client, localizations []a
 			fetchErrors = append(fetchErrors, fmt.Sprintf("%s: %v", loc.Attributes.Locale, err))
 			continue
 		}
+		successfulInspections++
 
 		if len(sets.Data) > 0 {
 			return checkResult{
@@ -511,12 +547,18 @@ func checkScreenshots(ctx context.Context, client *asc.Client, localizations []a
 		}
 	}
 
-	// If every localization failed to fetch, report the errors.
-	if len(fetchErrors) > 0 && len(fetchErrors) == len(localizations) {
+	if len(fetchErrors) > 0 {
+		if successfulInspections == 0 {
+			return checkResult{
+				Name:    "Screenshots",
+				Passed:  false,
+				Message: fmt.Sprintf("Failed to fetch screenshots for all localizations: %s", strings.Join(fetchErrors, "; ")),
+			}
+		}
 		return checkResult{
 			Name:    "Screenshots",
 			Passed:  false,
-			Message: fmt.Sprintf("Failed to fetch screenshots for all localizations: %s", strings.Join(fetchErrors, "; ")),
+			Message: fmt.Sprintf("Could not fully verify screenshots because some localizations failed to load: %s", strings.Join(fetchErrors, "; ")),
 		}
 	}
 
@@ -524,46 +566,56 @@ func checkScreenshots(ctx context.Context, client *asc.Client, localizations []a
 	if len(localizations) > 0 {
 		locID = localizations[0].ID
 	}
-	hint := "asc screenshots upload --version-localization LOC_ID --path ./screenshots --device-type APPLE_TV"
-	if locID != "" {
-		hint = fmt.Sprintf("asc screenshots upload --version-localization %s --path ./screenshots --device-type APPLE_TV", locID)
-	}
-
-	msg := "No screenshots uploaded"
-	if len(fetchErrors) > 0 {
-		msg = fmt.Sprintf("No screenshots uploaded (some locales failed: %s)", strings.Join(fetchErrors, "; "))
-	}
+	hint := screenshotUploadHint(locID, platform)
 
 	return checkResult{
 		Name:    "Screenshots",
 		Passed:  false,
-		Message: msg,
+		Message: "No screenshots uploaded",
 		Hint:    hint,
 	}
 }
 
+func screenshotUploadHint(localizationID, platform string) string {
+	deviceType := "DEVICE_TYPE"
+	switch strings.TrimSpace(platform) {
+	case "IOS":
+		deviceType = "IPHONE_65"
+	case "MAC_OS":
+		deviceType = "DESKTOP"
+	case "TV_OS":
+		deviceType = "APPLE_TV"
+	case "VISION_OS":
+		deviceType = "APPLE_VISION_PRO"
+	}
+	if strings.TrimSpace(localizationID) == "" {
+		return fmt.Sprintf("asc screenshots upload --version-localization LOC_ID --path ./screenshots --device-type %s", deviceType)
+	}
+	return fmt.Sprintf("asc screenshots upload --version-localization %s --path ./screenshots --device-type %s", localizationID, deviceType)
+}
+
 // --- Text output ---
 
-func printPreflightText(result *preflightResult) {
+func printPreflightText(w io.Writer, result *preflightResult) {
 	header := fmt.Sprintf("Preflight check for app %s v%s (%s)", result.AppID, result.Version, result.Platform)
-	fmt.Fprintln(os.Stderr, header)
-	fmt.Fprintln(os.Stderr, strings.Repeat("\u2500", len(header)))
+	fmt.Fprintln(w, header)
+	fmt.Fprintln(w, strings.Repeat("\u2500", len(header)))
 
 	for _, c := range result.Checks {
 		if c.Passed {
-			fmt.Fprintf(os.Stderr, "\u2713 %s\n", c.Message)
+			fmt.Fprintf(w, "\u2713 %s\n", c.Message)
 		} else {
-			fmt.Fprintf(os.Stderr, "\u2717 %s\n", c.Message)
+			fmt.Fprintf(w, "\u2717 %s\n", c.Message)
 			if c.Hint != "" {
-				fmt.Fprintf(os.Stderr, "  Hint: %s\n", c.Hint)
+				fmt.Fprintf(w, "  Hint: %s\n", c.Hint)
 			}
 		}
 	}
 
-	fmt.Fprintln(os.Stderr)
+	fmt.Fprintln(w)
 	if result.FailCount == 0 {
-		fmt.Fprintln(os.Stderr, "Result: All checks passed. Ready to submit.")
+		fmt.Fprintln(w, "Result: All checks passed. Ready to submit.")
 	} else {
-		fmt.Fprintf(os.Stderr, "Result: %d issue(s) found. Fix them before submitting.\n", result.FailCount)
+		fmt.Fprintf(w, "Result: %d issue(s) found. Fix them before submitting.\n", result.FailCount)
 	}
 }

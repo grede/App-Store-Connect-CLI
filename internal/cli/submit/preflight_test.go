@@ -1,12 +1,14 @@
 package submit
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"flag"
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"strings"
 	"testing"
 
@@ -68,6 +70,28 @@ func TestSubmitPreflightCommand_Shape(t *testing.T) {
 	}
 	if cmd.FlagSet == nil {
 		t.Fatal("expected FlagSet to be set")
+	}
+}
+
+func TestSubmitPreflightCommand_RejectsUnsupportedOutput(t *testing.T) {
+	cmd := SubmitPreflightCommand()
+	if err := cmd.FlagSet.Parse([]string{"--app", "123", "--version", "1.0", "--output", "table"}); err != nil {
+		t.Fatalf("failed to parse flags: %v", err)
+	}
+
+	var runErr error
+	_, stderr := capturePreflightCommandOutput(t, func() {
+		runErr = cmd.Exec(context.Background(), nil)
+	})
+	err := runErr
+	if err == nil {
+		t.Fatal("expected error for unsupported output")
+	}
+	if !errors.Is(err, flag.ErrHelp) {
+		t.Fatalf("expected usage error, got %v", err)
+	}
+	if !strings.Contains(stderr, "unsupported format: table") {
+		t.Fatalf("expected unsupported format message on stderr, got %q", stderr)
 	}
 }
 
@@ -148,6 +172,38 @@ func TestAgeRatingMissingFields_AllMissing(t *testing.T) {
 	}
 }
 
+func TestResolveAppInfoID_UsesVersionScopedResolution(t *testing.T) {
+	client := newSubmitTestClient(t, submitRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+		switch {
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-1":
+			return submitJSONResponse(http.StatusOK, `{
+				"data": {
+					"type": "appStoreVersions",
+					"id": "version-1",
+					"attributes": {"appStoreState": "PREPARE_FOR_SUBMISSION"},
+					"relationships": {"app": {"data": {"type": "apps", "id": "app-1"}}}
+				}
+			}`)
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/appInfos":
+			return submitJSONResponse(http.StatusOK, `{
+				"data": [
+					{"type": "appInfos", "id": "info-z", "attributes": {"appStoreState": "PREPARE_FOR_SUBMISSION"}},
+					{"type": "appInfos", "id": "info-a", "attributes": {"appStoreState": "READY_FOR_SALE"}}
+				]
+			}`)
+		}
+		return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.Path)
+	}))
+
+	appInfoID, err := resolveAppInfoID(context.Background(), client, "app-1", "version-1")
+	if err != nil {
+		t.Fatalf("expected version-scoped app info resolution to succeed, got %v", err)
+	}
+	if appInfoID != "info-z" {
+		t.Fatalf("expected PREPARE_FOR_SUBMISSION app info, got %q", appInfoID)
+	}
+}
+
 func TestCheckVersionExists_NotFound(t *testing.T) {
 	client := newSubmitTestClient(t, submitRoundTripFunc(func(req *http.Request) (*http.Response, error) {
 		if req.Method == http.MethodGet && strings.Contains(req.URL.Path, "/appStoreVersions") {
@@ -165,6 +221,45 @@ func TestCheckVersionExists_NotFound(t *testing.T) {
 	}
 	if check.Hint == "" {
 		t.Fatal("expected hint to be set")
+	}
+}
+
+func TestRunPreflight_VersionFailureStillRunsAppLevelChecks(t *testing.T) {
+	client := newSubmitTestClient(t, submitRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+		path := req.URL.Path
+
+		switch {
+		case req.Method == http.MethodGet && strings.Contains(path, "/appStoreVersions") && strings.Contains(path, "/apps/"):
+			return submitJSONResponse(http.StatusOK, `{"data":[]}`)
+		case req.Method == http.MethodGet && strings.HasSuffix(path, "/appInfos"):
+			return submitJSONResponse(http.StatusOK, `{"data":[{"type":"appInfos","id":"info-1","attributes":{"appStoreState":"PREPARE_FOR_SUBMISSION"}}]}`)
+		case req.Method == http.MethodGet && strings.HasSuffix(path, "/ageRatingDeclaration"):
+			return submitJSONResponse(http.StatusNotFound, `{"errors":[{"status":"404","code":"NOT_FOUND","title":"Not Found"}]}`)
+		case req.Method == http.MethodGet && path == "/v1/apps/app-1":
+			return submitJSONResponse(http.StatusOK, `{"data":{"type":"apps","id":"app-1","attributes":{"name":"Test","bundleId":"com.test","sku":"test"}}}`)
+		case req.Method == http.MethodGet && strings.HasSuffix(path, "/primaryCategory"):
+			return submitJSONResponse(http.StatusNotFound, `{"errors":[{"status":"404","code":"NOT_FOUND","title":"Not Found"}]}`)
+		}
+
+		return nil, fmt.Errorf("unexpected request: %s %s", req.Method, path)
+	}))
+
+	result := runPreflight(context.Background(), client, "app-1", "9.9", "IOS")
+	checksByName := make(map[string]checkResult, len(result.Checks))
+	for _, check := range result.Checks {
+		checksByName[check.Name] = check
+	}
+
+	for _, name := range []string{"Version exists", "Age rating", "Content rights", "Primary category"} {
+		if _, ok := checksByName[name]; !ok {
+			t.Fatalf("expected %q check to run even when version lookup fails", name)
+		}
+	}
+	if _, ok := checksByName["Build attached"]; ok {
+		t.Fatal("did not expect build check without a resolved version")
+	}
+	if result.FailCount != 4 {
+		t.Fatalf("expected four app/version failures, got %d", result.FailCount)
 	}
 }
 
@@ -230,6 +325,86 @@ func TestCheckContentRights_Set(t *testing.T) {
 	}
 }
 
+func TestCheckLocalizationMetadata_UsesSubmitReadinessRulesPerLocale(t *testing.T) {
+	check := checkLocalizationMetadata([]asc.Resource[asc.AppStoreVersionLocalizationAttributes]{
+		{
+			ID: "loc-en",
+			Attributes: asc.AppStoreVersionLocalizationAttributes{
+				Locale:      "en-US",
+				Description: "Ready",
+				Keywords:    "one,two",
+				SupportURL:  "https://example.com/support",
+			},
+		},
+		{
+			ID: "loc-fr",
+			Attributes: asc.AppStoreVersionLocalizationAttributes{
+				Locale:      "fr-FR",
+				Description: "Pret",
+				Keywords:    "un,deux",
+			},
+		},
+	}, "version-1", shared.SubmitReadinessOptions{})
+
+	if check.Passed {
+		t.Fatal("expected localization metadata check to fail")
+	}
+	if !strings.Contains(check.Message, "fr-FR (supportUrl)") {
+		t.Fatalf("expected missing supportUrl to be reported, got %q", check.Message)
+	}
+	if check.Hint != "asc metadata push --version-id version-1" {
+		t.Fatalf("expected metadata push hint, got %q", check.Hint)
+	}
+}
+
+func TestCheckScreenshots_PartialFetchErrorsAreReported(t *testing.T) {
+	localizations := []asc.Resource[asc.AppStoreVersionLocalizationAttributes]{
+		{ID: "loc-1", Attributes: asc.AppStoreVersionLocalizationAttributes{Locale: "en-US"}},
+		{ID: "loc-2", Attributes: asc.AppStoreVersionLocalizationAttributes{Locale: "fr-FR"}},
+	}
+	client := newSubmitTestClient(t, submitRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+		switch req.URL.Path {
+		case "/v1/appStoreVersionLocalizations/loc-1/appScreenshotSets":
+			return submitJSONResponse(http.StatusBadGateway, `{"errors":[{"status":"502","code":"BAD_GATEWAY","title":"Bad Gateway"}]}`)
+		case "/v1/appStoreVersionLocalizations/loc-2/appScreenshotSets":
+			return submitJSONResponse(http.StatusOK, `{"data":[]}`)
+		}
+		return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.Path)
+	}))
+
+	check := checkScreenshots(context.Background(), client, localizations, "IOS")
+	if check.Passed {
+		t.Fatal("expected screenshot check to fail")
+	}
+	if !strings.Contains(check.Message, "Could not fully verify screenshots") {
+		t.Fatalf("expected fetch error message, got %q", check.Message)
+	}
+	if check.Hint != "" {
+		t.Fatalf("expected no upload hint when screenshot verification is incomplete, got %q", check.Hint)
+	}
+}
+
+func TestScreenshotUploadHint_UsesPlatformDefaults(t *testing.T) {
+	tests := []struct {
+		platform string
+		want     string
+	}{
+		{platform: "IOS", want: "IPHONE_65"},
+		{platform: "MAC_OS", want: "DESKTOP"},
+		{platform: "TV_OS", want: "APPLE_TV"},
+		{platform: "VISION_OS", want: "APPLE_VISION_PRO"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.platform, func(t *testing.T) {
+			hint := screenshotUploadHint("loc-1", tt.platform)
+			if !strings.Contains(hint, tt.want) {
+				t.Fatalf("expected %q device type in hint, got %q", tt.want, hint)
+			}
+		})
+	}
+}
+
 func TestRunPreflight_AllPass(t *testing.T) {
 	setupSubmitAuth(t)
 
@@ -247,13 +422,24 @@ func TestRunPreflight_AllPass(t *testing.T) {
 				}]
 			}`)
 
+		// Version details for app-info resolution
+		case req.Method == http.MethodGet && path == "/v1/appStoreVersions/version-1":
+			return submitJSONResponse(http.StatusOK, `{
+				"data": {
+					"type": "appStoreVersions",
+					"id": "version-1",
+					"attributes": {"appStoreState": "PREPARE_FOR_SUBMISSION", "platform": "IOS", "versionString": "1.0"},
+					"relationships": {"app": {"data": {"type": "apps", "id": "app-1"}}}
+				}
+			}`)
+
 		// Build attached
 		case req.Method == http.MethodGet && strings.HasSuffix(path, "/build"):
 			return submitJSONResponse(http.StatusOK, `{"data":{"type":"builds","id":"build-1","attributes":{"version":"1"}}}`)
 
 		// App infos
 		case req.Method == http.MethodGet && strings.HasSuffix(path, "/appInfos"):
-			return submitJSONResponse(http.StatusOK, `{"data":[{"type":"appInfos","id":"info-1","attributes":{}}]}`)
+			return submitJSONResponse(http.StatusOK, `{"data":[{"type":"appInfos","id":"info-1","attributes":{"appStoreState":"PREPARE_FOR_SUBMISSION"}}]}`)
 
 		// Age rating
 		case req.Method == http.MethodGet && strings.HasSuffix(path, "/ageRatingDeclaration"):
@@ -280,7 +466,13 @@ func TestRunPreflight_AllPass(t *testing.T) {
 				"data": [{
 					"type": "appStoreVersionLocalizations",
 					"id": "loc-1",
-					"attributes": {"locale": "en-US", "description": "A great app", "keywords": "test,app"}
+					"attributes": {
+						"locale": "en-US",
+						"description": "A great app",
+						"keywords": "test,app",
+						"supportUrl": "https://example.com/support",
+						"whatsNew": "Bug fixes"
+					}
 				}]
 			}`)
 
@@ -316,7 +508,8 @@ func TestRunPreflight_AllPass(t *testing.T) {
 
 func TestPreflightTextOutput(t *testing.T) {
 	// Ensure printPreflightText doesn't panic with various result shapes.
-	printPreflightText(&preflightResult{
+	var buf bytes.Buffer
+	printPreflightText(&buf, &preflightResult{
 		AppID:    "123",
 		Version:  "1.0",
 		Platform: "IOS",
@@ -327,6 +520,9 @@ func TestPreflightTextOutput(t *testing.T) {
 		PassCount: 1,
 		FailCount: 1,
 	})
+	if !strings.Contains(buf.String(), "Preflight check for app 123 v1.0 (IOS)") {
+		t.Fatalf("expected header in text output, got %q", buf.String())
+	}
 }
 
 func TestSubmitPreflightCommand_JSONOutput(t *testing.T) {
@@ -338,9 +534,17 @@ func TestSubmitPreflightCommand_JSONOutput(t *testing.T) {
 	})
 
 	http.DefaultTransport = submitRoundTripFunc(func(req *http.Request) (*http.Response, error) {
-		// Version resolve returns empty — version not found
-		if req.Method == http.MethodGet && strings.Contains(req.URL.Path, "/appStoreVersions") {
+		switch {
+		case req.Method == http.MethodGet && strings.Contains(req.URL.Path, "/appStoreVersions"):
 			return submitJSONResponse(http.StatusOK, `{"data":[]}`)
+		case req.Method == http.MethodGet && strings.HasSuffix(req.URL.Path, "/appInfos"):
+			return submitJSONResponse(http.StatusOK, `{"data":[{"type":"appInfos","id":"info-1","attributes":{"appStoreState":"PREPARE_FOR_SUBMISSION"}}]}`)
+		case req.Method == http.MethodGet && strings.HasSuffix(req.URL.Path, "/ageRatingDeclaration"):
+			return submitJSONResponse(http.StatusNotFound, `{"errors":[{"status":"404","code":"NOT_FOUND","title":"Not Found"}]}`)
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/123":
+			return submitJSONResponse(http.StatusOK, `{"data":{"type":"apps","id":"123","attributes":{"name":"Test","bundleId":"com.test","sku":"test"}}}`)
+		case req.Method == http.MethodGet && strings.HasSuffix(req.URL.Path, "/primaryCategory"):
+			return submitJSONResponse(http.StatusNotFound, `{"errors":[{"status":"404","code":"NOT_FOUND","title":"Not Found"}]}`)
 		}
 		return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.Path)
 	})
@@ -360,7 +564,101 @@ func TestSubmitPreflightCommand_JSONOutput(t *testing.T) {
 	}
 }
 
+func TestSubmitPreflightCommand_TextOutput(t *testing.T) {
+	setupSubmitAuth(t)
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+
+	http.DefaultTransport = submitRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+		switch {
+		case req.Method == http.MethodGet && strings.Contains(req.URL.Path, "/appStoreVersions"):
+			return submitJSONResponse(http.StatusOK, `{"data":[]}`)
+		case req.Method == http.MethodGet && strings.HasSuffix(req.URL.Path, "/appInfos"):
+			return submitJSONResponse(http.StatusOK, `{"data":[{"type":"appInfos","id":"info-1","attributes":{"appStoreState":"PREPARE_FOR_SUBMISSION"}}]}`)
+		case req.Method == http.MethodGet && strings.HasSuffix(req.URL.Path, "/ageRatingDeclaration"):
+			return submitJSONResponse(http.StatusNotFound, `{"errors":[{"status":"404","code":"NOT_FOUND","title":"Not Found"}]}`)
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/123":
+			return submitJSONResponse(http.StatusOK, `{"data":{"type":"apps","id":"123","attributes":{"name":"Test","bundleId":"com.test","sku":"test"}}}`)
+		case req.Method == http.MethodGet && strings.HasSuffix(req.URL.Path, "/primaryCategory"):
+			return submitJSONResponse(http.StatusNotFound, `{"errors":[{"status":"404","code":"NOT_FOUND","title":"Not Found"}]}`)
+		}
+		return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.Path)
+	})
+
+	cmd := SubmitPreflightCommand()
+	cmd.FlagSet.SetOutput(io.Discard)
+	if err := cmd.FlagSet.Parse([]string{"--app", "123", "--version", "1.0", "--output", "text"}); err != nil {
+		t.Fatalf("failed to parse flags: %v", err)
+	}
+
+	var runErr error
+	stdout, _ := capturePreflightCommandOutput(t, func() {
+		runErr = cmd.Exec(context.Background(), nil)
+	})
+	if runErr == nil {
+		t.Fatal("expected error when version not found")
+	}
+	if !strings.Contains(runErr.Error(), "issue(s) found") {
+		t.Fatalf("expected preflight failure error, got: %v", runErr)
+	}
+	if !strings.Contains(stdout, "Preflight check for app 123 v1.0 (IOS)") {
+		t.Fatalf("expected text output header, got %q", stdout)
+	}
+}
+
 // --- Helpers ---
+
+func capturePreflightCommandOutput(t *testing.T, fn func()) (string, string) {
+	t.Helper()
+
+	oldStdout := os.Stdout
+	oldStderr := os.Stderr
+
+	stdoutR, stdoutW, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("stdout pipe error: %v", err)
+	}
+	stderrR, stderrW, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("stderr pipe error: %v", err)
+	}
+
+	os.Stdout = stdoutW
+	os.Stderr = stderrW
+
+	stdoutCh := make(chan string, 1)
+	stderrCh := make(chan string, 1)
+
+	go func() {
+		var buf bytes.Buffer
+		_, _ = io.Copy(&buf, stdoutR)
+		_ = stdoutR.Close()
+		stdoutCh <- buf.String()
+	}()
+	go func() {
+		var buf bytes.Buffer
+		_, _ = io.Copy(&buf, stderrR)
+		_ = stderrR.Close()
+		stderrCh <- buf.String()
+	}()
+
+	defer func() {
+		os.Stdout = oldStdout
+		os.Stderr = oldStderr
+		_ = stdoutW.Close()
+		_ = stderrW.Close()
+	}()
+
+	fn()
+
+	_ = stdoutW.Close()
+	_ = stderrW.Close()
+
+	return <-stdoutCh, <-stderrCh
+}
 
 func newAgeRatingAllSet(boolVal bool, strVal string) asc.AgeRatingDeclarationAttributes {
 	return asc.AgeRatingDeclarationAttributes{
