@@ -110,6 +110,30 @@ func TestDefaultCheckpointPathSanitizesValues(t *testing.T) {
 	}
 }
 
+func TestCheckpointModeMatches(t *testing.T) {
+	tests := []struct {
+		name        string
+		existing    string
+		desired     string
+		wantMatched bool
+	}{
+		{name: "legacy run checkpoint", existing: "", desired: releaseModeRun, wantMatched: true},
+		{name: "legacy stage mismatch", existing: "", desired: releaseModeStage, wantMatched: false},
+		{name: "trimmed run mode", existing: "  run  ", desired: releaseModeRun, wantMatched: true},
+		{name: "trimmed stage mode", existing: "\tstage\n", desired: releaseModeStage, wantMatched: true},
+		{name: "mismatched mode", existing: "run", desired: releaseModeStage, wantMatched: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := checkpointModeMatches(tt.existing, tt.desired)
+			if got != tt.wantMatched {
+				t.Fatalf("checkpointModeMatches(%q, %q) = %v, want %v", tt.existing, tt.desired, got, tt.wantMatched)
+			}
+		})
+	}
+}
+
 func TestExecuteRun_ResumesCompletedCheckpoint(t *testing.T) {
 	origClientFactory := releaseClientFactory
 	origMetadataExecutor := metadataPushExecutor

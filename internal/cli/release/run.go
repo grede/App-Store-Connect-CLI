@@ -749,11 +749,12 @@ func defaultStageCheckpointPath(appID, version, buildID, platform string) string
 }
 
 func checkpointModeMatches(existingMode, desiredMode string) bool {
-	switch strings.TrimSpace(existingMode) {
+	normalizedExistingMode := strings.TrimSpace(existingMode)
+	switch normalizedExistingMode {
 	case "":
 		return desiredMode == releaseModeRun
 	default:
-		return existingMode == desiredMode
+		return normalizedExistingMode == desiredMode
 	}
 }
 
