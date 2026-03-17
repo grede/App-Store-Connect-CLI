@@ -45,6 +45,7 @@ Do not memorize flags. Always use `--help` for the current interface.
 | List builds | `asc builds list --app "APP_ID"` |
 | List TestFlight groups | `asc testflight groups list --app "APP_ID"` |
 | List internal TestFlight groups | `asc testflight groups list --app "APP_ID" --internal` |
+| Stage a release (pre-submit) | `asc release stage --app "APP_ID" --version "VERSION" --build "BUILD_ID" --copy-metadata-from "PREVIOUS_VERSION" --dry-run` |
 | Release (full pipeline) | `asc release run --app "APP_ID" --version "VERSION" --build "BUILD_ID" --metadata-dir "./metadata/version/VERSION" --dry-run` |
 | Submit for review (low-level) | `asc submit create --app "APP_ID" --version "VERSION" --build "BUILD_ID" --confirm` |
 | Weekly insights summary | `asc insights weekly --app "APP_ID" --source analytics --week "YYYY-MM-DD"` |
@@ -57,6 +58,16 @@ Do not memorize flags. Always use `--help` for the current interface.
 ```bash
 asc apps
 asc builds list --app "APP_ID" --sort -uploadedDate --limit 5
+```
+
+### Stage for Review (high-level: ensure version + copy/apply metadata + attach + validate)
+
+```bash
+# Dry-run the staging plan using metadata carry-forward
+asc release stage --app "APP_ID" --version "1.0.0" --build "BUILD_ID" --copy-metadata-from "0.9.0" --dry-run
+
+# Stage the version without submitting it for review yet
+asc release stage --app "APP_ID" --version "1.0.0" --build "BUILD_ID" --copy-metadata-from "0.9.0" --confirm
 ```
 
 ### Release (high-level: ensure version + apply metadata + attach + validate + submit)
@@ -149,7 +160,7 @@ Use `asc <command> --help` for subcommands and flags.
 - `pricing` - Manage app pricing and availability.
 - `pre-orders` - Manage app pre-orders.
 - `localizations` - Manage App Store localization metadata.
-- `metadata` - Pull, validate, and push canonical metadata workflows.
+- `metadata` - Pull, validate, push, and keyword-sync canonical metadata workflows.
 - `screenshots` - Upload and manage App Store screenshots; local capture/frame workflow is `[experimental]`.
 - `background-assets` - Manage background assets.
 - `build-localizations` - Manage build release notes localizations.

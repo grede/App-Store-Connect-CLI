@@ -11,6 +11,8 @@ import (
 	"crypto/x509/pkix"
 	"encoding/json"
 	"encoding/pem"
+	"errors"
+	"io"
 	"log/slog"
 	"math/big"
 	"net/http"
@@ -21,6 +23,12 @@ import (
 	"testing"
 	"time"
 )
+
+type roundTripFunc func(*http.Request) (*http.Response, error)
+
+func (f roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
+	return f(req)
+}
 
 func TestLogWebAuthHTTPRedactsSensitiveQueryValues(t *testing.T) {
 	origLogger := webDebugLogger
@@ -108,6 +116,73 @@ func TestLogWebAuthHTTPNoopWhenDebugDisabled(t *testing.T) {
 
 	if logs.Len() != 0 {
 		t.Fatalf("expected no debug output when disabled, got %q", logs.String())
+	}
+}
+
+func TestSigninCompleteReturnsInvalidCredentialsErrorForRejectedCredentials(t *testing.T) {
+	client := &http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			if req.Method != http.MethodPost {
+				t.Fatalf("expected POST request, got %s", req.Method)
+			}
+			if got, want := req.URL.String(), authServiceURL+"/signin/complete?isRememberMeEnabled=false"; got != want {
+				t.Fatalf("expected request URL %q, got %q", want, got)
+			}
+			return &http.Response{
+				StatusCode: http.StatusUnauthorized,
+				Header:     make(http.Header),
+				Body:       io.NopCloser(strings.NewReader(`{"serviceErrors":[{"code":"-20101"}]}`)),
+			}, nil
+		}),
+	}
+
+	err := signinComplete(
+		context.Background(),
+		client,
+		"user@example.com",
+		"m1-proof",
+		"m2-proof",
+		json.RawMessage(`{"v":1}`),
+		"service-key",
+		"hashcash-token",
+	)
+	if !errors.Is(err, errInvalidAppleAccountCredentials) {
+		t.Fatalf("expected invalid-credentials error, got %v", err)
+	}
+	if got, want := err.Error(), errInvalidAppleAccountCredentials.Error(); got != want {
+		t.Fatalf("expected error %q, got %q", want, got)
+	}
+}
+
+func TestSigninCompleteKeepsGenericUnauthorizedErrorsForOtherCodes(t *testing.T) {
+	client := &http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			return &http.Response{
+				StatusCode: http.StatusUnauthorized,
+				Header:     make(http.Header),
+				Body:       io.NopCloser(strings.NewReader(`{"serviceErrors":[{"code":"-99999"}]}`)),
+			}, nil
+		}),
+	}
+
+	err := signinComplete(
+		context.Background(),
+		client,
+		"user@example.com",
+		"m1-proof",
+		"m2-proof",
+		json.RawMessage(`{"v":1}`),
+		"service-key",
+		"hashcash-token",
+	)
+	if err == nil {
+		t.Fatal("expected unauthorized error")
+	}
+	if errors.Is(err, errInvalidAppleAccountCredentials) {
+		t.Fatalf("expected generic unauthorized error, got %v", err)
+	}
+	if !strings.Contains(err.Error(), "signin complete failed with status 401") {
+		t.Fatalf("expected generic status error, got %q", err.Error())
 	}
 }
 
@@ -222,6 +297,47 @@ func TestClientDoRequestHonorsCanceledContext(t *testing.T) {
 	}
 	if !strings.Contains(strings.ToLower(err.Error()), "context canceled") {
 		t.Fatalf("expected context canceled in error, got %v", err)
+	}
+}
+
+func TestClientDoRequestBaseUsesProvidedBaseAndHeaders(t *testing.T) {
+	var (
+		gotPath    string
+		gotAccept  string
+		gotReferer string
+	)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotPath = r.URL.Path + "?" + r.URL.RawQuery
+		gotAccept = r.Header.Get("Accept")
+		gotReferer = r.Header.Get("Referer")
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"data":[]}`))
+	}))
+	defer server.Close()
+
+	client := &Client{
+		httpClient: server.Client(),
+		baseURL:    "https://unused.example.test",
+	}
+	headers := make(http.Header)
+	headers.Set("Accept", "application/vnd.api+json")
+	headers.Set("Referer", "https://example.test/access/integrations/api")
+
+	if _, err := client.doRequestBase(context.Background(), server.URL+"/iris/v2", http.MethodGet, "/apiKeys?limit=1", nil, headers); err != nil {
+		t.Fatalf("doRequestBase() error: %v", err)
+	}
+
+	if gotPath != "/iris/v2/apiKeys?limit=1" {
+		t.Fatalf("expected request path %q, got %q", "/iris/v2/apiKeys?limit=1", gotPath)
+	}
+	if gotAccept != "application/vnd.api+json" {
+		t.Fatalf("expected accept header override, got %q", gotAccept)
+	}
+	if gotReferer != "https://example.test/access/integrations/api" {
+		t.Fatalf("expected referer header override, got %q", gotReferer)
+	}
+	if headers.Get("Content-Type") != "" {
+		t.Fatalf("expected caller headers to remain unmodified, got content-type %q", headers.Get("Content-Type"))
 	}
 }
 

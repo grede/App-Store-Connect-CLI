@@ -43,6 +43,20 @@ func TestWebAppsCreateSubcommandIsRegistered(t *testing.T) {
 	}
 }
 
+func TestWebAuthCapabilitiesSubcommandIsRegistered(t *testing.T) {
+	root := RootCommand("1.2.3")
+	if sub := findSubcommand(root, "web", "auth", "capabilities"); sub == nil {
+		t.Fatalf("expected web auth capabilities to be registered")
+	}
+}
+
+func TestWebXcodeCloudWorkflowsCreateSubcommandIsRegistered(t *testing.T) {
+	root := RootCommand("1.2.3")
+	if sub := findSubcommand(root, "web", "xcode-cloud", "workflows", "create"); sub == nil {
+		t.Fatalf("expected web xcode-cloud workflows create to be registered")
+	}
+}
+
 func TestWebAppsCreateMissingRequiredFlags(t *testing.T) {
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)
@@ -60,6 +74,26 @@ func TestWebAppsCreateMissingRequiredFlags(t *testing.T) {
 	}
 	if !strings.Contains(stderr, "Error: --name is required") {
 		t.Fatalf("expected missing --name error, got %q", stderr)
+	}
+}
+
+func TestWebXcodeCloudWorkflowsCreateMissingRequiredFlags(t *testing.T) {
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	var runErr error
+	_, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{"web", "xcode-cloud", "workflows", "create"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		runErr = root.Run(context.Background())
+	})
+
+	if !errors.Is(runErr, flag.ErrHelp) {
+		t.Fatalf("expected ErrHelp, got %v", runErr)
+	}
+	if !strings.Contains(stderr, "Error: --product-id is required") {
+		t.Fatalf("expected missing --product-id error, got %q", stderr)
 	}
 }
 

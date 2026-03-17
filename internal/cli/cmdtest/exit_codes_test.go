@@ -234,6 +234,16 @@ func TestRun_UsageValidationErrorsReturnExitUsage(t *testing.T) {
 			wantErr: "--sort must be one of",
 		},
 		{
+			name:    "xcode-cloud build-runs invalid limit",
+			args:    []string{"xcode-cloud", "build-runs", "--workflow-id", "WF_ID", "--limit", "201"},
+			wantErr: "--limit must be between 1 and 200",
+		},
+		{
+			name:    "xcode-cloud build-runs invalid next",
+			args:    []string{"xcode-cloud", "build-runs", "--next", "http://example.com/not-asc"},
+			wantErr: "--next must be an App Store Connect URL",
+		},
+		{
 			name:    "publish appstore invalid timeout",
 			args:    []string{"publish", "appstore", "--app", "APP_123", "--ipa", "app.ipa", "--version", "1.0.0", "--timeout", "-1s"},
 			wantErr: "--timeout must be greater than 0",

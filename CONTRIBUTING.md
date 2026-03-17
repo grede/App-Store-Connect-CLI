@@ -16,7 +16,7 @@ make build
 
 Run tests:
 ```bash
-go test ./...
+ASC_BYPASS_KEYCHAIN=1 make test
 ```
 
 Optional tooling:
@@ -55,9 +55,9 @@ export ASC_ISSUER_ID="YOUR_ISSUER_ID"
 export ASC_PRIVATE_KEY_PATH="/path/to/AuthKey.p8"
 export ASC_APP_ID="YOUR_APP_ID"
 
-asc feedback --app "$ASC_APP_ID"
-asc crashes --app "$ASC_APP_ID"
-asc reviews --app "$ASC_APP_ID"
+asc testflight feedback list --app "$ASC_APP_ID"
+asc testflight crashes list --app "$ASC_APP_ID"
+asc reviews list --app "$ASC_APP_ID"
 ```
 
 Credentials are stored in the system keychain when available, with a config fallback at
@@ -85,6 +85,12 @@ make build               # Build binary
 - When pruning repetitive tests, prefer grouped/table-driven suites, but keep representative high-signal assertions for response decoding and user-facing output formatting.
 - Update `README.md` if behavior or scope changes.
 - Avoid committing any credentials or `.p8` files.
+
+## Support and Questions
+
+- Use GitHub Discussions for install help, auth setup, workflow questions, and "how do I...?" support
+- Use GitHub Issues for reproducible bugs and concrete feature requests
+- When reporting a bug, include `asc version`, your OS, install method, exact command, stdout/stderr, whether it reproduces with `ASC_BYPASS_KEYCHAIN=1`, and redacted `ASC_DEBUG=api` output when safe
 
 ## Issue Triage Labels
 

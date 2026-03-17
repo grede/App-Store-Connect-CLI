@@ -14,7 +14,9 @@ import (
 	"flag"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -180,6 +182,98 @@ func TestRun_SkipsSkillsUpdateCheckForRootInvocation(t *testing.T) {
 
 	if called {
 		t.Fatal("expected skills update check to be skipped for root invocation")
+	}
+}
+
+func TestRun_HelpSkipsAuthResolution(t *testing.T) {
+	resetReportFlags(t)
+
+	tempDir := t.TempDir()
+
+	tests := []struct {
+		name          string
+		args          []string
+		wantHelpText  string
+		avoidMessages []string
+	}{
+		{
+			name:          "apps list help",
+			args:          []string{"apps", "list", "--help"},
+			wantHelpText:  "List apps from App Store Connect.",
+			avoidMessages: []string{"missing authentication", "keychain access denied"},
+		},
+		{
+			name:          "auth token help",
+			args:          []string{"auth", "token", "--help"},
+			wantHelpText:  "Print a signed JWT for direct App Store Connect API calls.",
+			avoidMessages: []string{"missing authentication", "--confirm is required", "keychain access denied"},
+		},
+		{
+			name:          "auth issuer-id help",
+			args:          []string{"auth", "issuer-id", "--help"},
+			wantHelpText:  "Print the active App Store Connect issuer ID.",
+			avoidMessages: []string{"missing authentication", "keychain access denied"},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			stdout, stderr, exitCode := runHelpSubprocess(t, tempDir, test.args...)
+			combined := stdout + stderr
+
+			if exitCode != 0 {
+				t.Fatalf("help exit code = %d, want 0; stdout=%q stderr=%q", exitCode, stdout, stderr)
+			}
+			if !strings.Contains(combined, test.wantHelpText) {
+				t.Fatalf("expected help text %q in output, got stdout=%q stderr=%q", test.wantHelpText, stdout, stderr)
+			}
+			for _, avoid := range test.avoidMessages {
+				if strings.Contains(combined, avoid) {
+					t.Fatalf("expected help path to avoid %q, got stdout=%q stderr=%q", avoid, stdout, stderr)
+				}
+			}
+		})
+	}
+}
+
+func TestMergeEnvOverridesReplacesExistingKeys(t *testing.T) {
+	env := mergeEnvOverrides(
+		[]string{
+			"ASC_BYPASS_KEYCHAIN=1",
+			"ASC_KEY_ID=PARENT",
+			"UNCHANGED=keep",
+		},
+		map[string]string{
+			"ASC_BYPASS_KEYCHAIN":  "",
+			"ASC_KEY_ID":           "",
+			"GO_WANT_HELP_PROCESS": "1",
+		},
+	)
+
+	values := map[string]string{}
+	counts := map[string]int{}
+	for _, entry := range env {
+		parts := strings.SplitN(entry, "=", 2)
+		key := parts[0]
+		value := ""
+		if len(parts) == 2 {
+			value = parts[1]
+		}
+		values[key] = value
+		counts[key]++
+	}
+
+	if counts["ASC_BYPASS_KEYCHAIN"] != 1 || values["ASC_BYPASS_KEYCHAIN"] != "" {
+		t.Fatalf("expected ASC_BYPASS_KEYCHAIN override, got counts=%v values=%v", counts, values)
+	}
+	if counts["ASC_KEY_ID"] != 1 || values["ASC_KEY_ID"] != "" {
+		t.Fatalf("expected ASC_KEY_ID override, got counts=%v values=%v", counts, values)
+	}
+	if counts["GO_WANT_HELP_PROCESS"] != 1 || values["GO_WANT_HELP_PROCESS"] != "1" {
+		t.Fatalf("expected GO_WANT_HELP_PROCESS override, got counts=%v values=%v", counts, values)
+	}
+	if values["UNCHANGED"] != "keep" {
+		t.Fatalf("expected unrelated env to be preserved, got values=%v", values)
 	}
 }
 
@@ -869,4 +963,85 @@ func captureCommandOutput(t *testing.T, fn func()) (string, string) {
 	_ = stderrW.Close()
 
 	return <-outC, <-errC
+}
+
+func runHelpSubprocess(t *testing.T, tempDir string, args ...string) (string, string, int) {
+	t.Helper()
+
+	exe, err := os.Executable()
+	if err != nil {
+		t.Fatalf("os.Executable() error: %v", err)
+	}
+
+	cmdArgs := []string{"-test.run=TestRunHelpHelperProcess", "--"}
+	cmdArgs = append(cmdArgs, args...)
+	cmd := exec.Command(exe, cmdArgs...)
+	cmd.Env = mergeEnvOverrides(os.Environ(), map[string]string{
+		"GO_WANT_HELP_PROCESS": "1",
+		"ASC_BYPASS_KEYCHAIN":  "",
+		"ASC_CONFIG_PATH":      filepath.Join(tempDir, "missing.json"),
+		"ASC_PROFILE":          "",
+		"ASC_KEY_ID":           "",
+		"ASC_ISSUER_ID":        "",
+		"ASC_PRIVATE_KEY_PATH": "",
+		"ASC_PRIVATE_KEY":      "",
+		"ASC_PRIVATE_KEY_B64":  "",
+		"ASC_STRICT_AUTH":      "",
+	})
+
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
+	err = cmd.Run()
+	if err == nil {
+		return stdout.String(), stderr.String(), 0
+	}
+	var exitErr *exec.ExitError
+	if !errors.As(err, &exitErr) {
+		t.Fatalf("help subprocess error: %v", err)
+	}
+	return stdout.String(), stderr.String(), exitErr.ExitCode()
+}
+
+func mergeEnvOverrides(base []string, overrides map[string]string) []string {
+	filtered := make([]string, 0, len(base)+len(overrides))
+	for _, entry := range base {
+		parts := strings.SplitN(entry, "=", 2)
+		key := parts[0]
+		if _, ok := overrides[key]; ok {
+			continue
+		}
+		filtered = append(filtered, entry)
+	}
+
+	keys := make([]string, 0, len(overrides))
+	for key := range overrides {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	for _, key := range keys {
+		filtered = append(filtered, key+"="+overrides[key])
+	}
+	return filtered
+}
+
+func TestRunHelpHelperProcess(t *testing.T) {
+	if os.Getenv("GO_WANT_HELP_PROCESS") != "1" {
+		return
+	}
+
+	sep := -1
+	for i, arg := range os.Args {
+		if arg == "--" {
+			sep = i
+			break
+		}
+	}
+	if sep == -1 || sep+1 >= len(os.Args) {
+		os.Exit(2)
+	}
+
+	code := Run(os.Args[sep+1:], "1.0.0")
+	os.Exit(code)
 }

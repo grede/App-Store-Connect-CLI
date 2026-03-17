@@ -60,6 +60,7 @@ asc <subcommand> [flags]
 - `app-tags` - Manage app tags for App Store visibility.
 - `versions` - Manage App Store versions.
 - `localizations` - Manage App Store localization metadata.
+- `metadata` - Manage app metadata with deterministic workflows and keyword tooling.
 - `screenshots` - Upload and manage App Store screenshots; local capture/frame workflow is [experimental].
 - `video-previews` - Manage App Store app preview videos.
 - `background-assets` - Manage background assets.
@@ -140,7 +141,6 @@ asc <subcommand> [flags]
 - `release-notes` - Generate and manage App Store release notes.
 - `workflow` - Run multi-step automation workflows.
 - `xcode` - Local Xcode archive/export helpers (macOS only).
-- `metadata` - Manage app metadata with deterministic file workflows.
 - `snitch` - Report CLI friction as a GitHub issue.
 
 ## Scripting Tips
@@ -160,6 +160,9 @@ asc apps list --output table
 
 # Upload a build
 asc builds upload --app "123456789" --ipa "/path/to/MyApp.ipa"
+
+# Stage an App Store version before submission
+asc release stage --app "123456789" --version "1.2.3" --build "BUILD_ID" --copy-metadata-from "1.2.2" --dry-run
 
 # Release an App Store version (high-level)
 asc release run --app "123456789" --version "1.2.3" --build "BUILD_ID" --metadata-dir "./metadata/version/1.2.3" --dry-run

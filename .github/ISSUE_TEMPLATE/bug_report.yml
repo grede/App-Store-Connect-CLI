@@ -9,6 +9,10 @@ body:
       value: |
         Thanks for taking the time to report a bug.
 
+        This form is for reproducible bugs. If you need install help, auth setup help,
+        workflow advice, or want to ask "how do I...?", please use GitHub Discussions:
+        https://github.com/rudrankriyam/App-Store-Connect-CLI/discussions
+
         Please include enough detail for someone else to reproduce the issue.
 
   - type: input
@@ -38,6 +42,30 @@ body:
         - install.sh script
         - Built from source
         - Other (please specify in Additional context)
+    validations:
+      required: true
+
+  - type: dropdown
+    id: bypass_keychain
+    attributes:
+      label: Reproduces with ASC_BYPASS_KEYCHAIN=1
+      description: Select Not applicable if the issue is unrelated to authentication or keychain access
+      options:
+        - "Yes"
+        - "No"
+        - "Not applicable"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: api_debug
+    attributes:
+      label: Redacted ASC_DEBUG=api or --api-debug output included
+      description: Select Not applicable if debug output would not help for this issue
+      options:
+        - "Yes"
+        - "No"
+        - "Not applicable"
     validations:
       required: true
 
@@ -72,7 +100,7 @@ body:
     id: logs
     attributes:
       label: Logs / output
-      description: Paste stdout/stderr output (redact secrets)
+      description: Paste stdout/stderr output. If safe, include redacted ASC_DEBUG=api or --api-debug output too.
       render: text
 
   - type: textarea
@@ -80,4 +108,3 @@ body:
     attributes:
       label: Additional context
       description: Anything else that helps (screenshots, repro repo, etc.)
-

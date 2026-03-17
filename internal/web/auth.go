@@ -38,6 +38,9 @@ const (
 	authServiceURL    = "https://idmsa.apple.com/appleauth/auth"
 	appStoreBaseURL   = "https://appstoreconnect.apple.com"
 	olympusSessionURL = "https://appstoreconnect.apple.com/olympus/v1/session"
+	irisV1BaseURL     = appStoreBaseURL + "/iris/v1"
+	irisV2BaseURL     = appStoreBaseURL + "/iris/v2"
+	olympusBaseURL    = appStoreBaseURL + "/olympus/v1"
 
 	// Apple currently uses RFC5054 group 2048 + 32-byte derived password.
 	srpClientSecretBytes  = 256
@@ -49,7 +52,10 @@ const (
 	minimumWebMinRequestInterval = 200 * time.Millisecond
 )
 
-var errTwoFactorRequired = errors.New("two-factor authentication required")
+var (
+	errTwoFactorRequired              = errors.New("two-factor authentication required")
+	errInvalidAppleAccountCredentials = errors.New("incorrect Apple Account email or password")
+)
 
 var webTLSRootBundlePaths = []string{
 	"/etc/ssl/cert.pem",
@@ -370,7 +376,7 @@ func parseSigninInitResponse(data []byte) (*signinInitResponse, error) {
 func NewClient(session *AuthSession) *Client {
 	return &Client{
 		httpClient:         session.Client,
-		baseURL:            appStoreBaseURL + "/iris/v1",
+		baseURL:            irisV1BaseURL,
 		minRequestInterval: resolveWebMinRequestInterval(),
 	}
 }
@@ -892,6 +898,9 @@ func signinComplete(ctx context.Context, client *http.Client, username, m1, m2 s
 			SCNT:             strings.TrimSpace(resp.Header.Get("scnt")),
 		}
 	}
+	if isInvalidAppleAccountCredentialsSigninComplete(resp.StatusCode, respBody) {
+		return errInvalidAppleAccountCredentials
+	}
 	return fmt.Errorf("signin complete failed with status %d", resp.StatusCode)
 }
 
@@ -1163,6 +1172,19 @@ func extractServiceErrorCodes(respBody []byte) []string {
 	return codes
 }
 
+// Apple currently returns -20101 when signin/complete rejects SRP credentials.
+func isInvalidAppleAccountCredentialsSigninComplete(status int, respBody []byte) bool {
+	if status != http.StatusUnauthorized {
+		return false
+	}
+	for _, code := range extractServiceErrorCodes(respBody) {
+		if code == "-20101" {
+			return true
+		}
+	}
+	return false
+}
+
 func (c *Client) waitForRateLimit(ctx context.Context) error {
 	if c == nil || c.minRequestInterval <= 0 {
 		return nil
@@ -1193,7 +1215,30 @@ func (c *Client) waitForRateLimit(ctx context.Context) error {
 	}
 }
 
+func cloneHeaders(headers http.Header) http.Header {
+	if len(headers) == 0 {
+		return make(http.Header)
+	}
+	cloned := make(http.Header, len(headers))
+	for key, values := range headers {
+		copied := make([]string, len(values))
+		copy(copied, values)
+		cloned[key] = copied
+	}
+	return cloned
+}
+
 func (c *Client) doRequest(ctx context.Context, method, path string, body any) ([]byte, error) {
+	headers := make(http.Header)
+	headers.Set("Content-Type", "application/json")
+	headers.Set("Accept", "application/json")
+	headers.Set("X-Requested-With", "XMLHttpRequest")
+	headers.Set("Origin", appStoreBaseURL)
+	headers.Set("Referer", appStoreBaseURL+"/")
+	return c.doRequestBase(ctx, c.baseURL, method, path, body, headers)
+}
+
+func (c *Client) doRequestBase(ctx context.Context, baseURL, method, path string, body any, headers http.Header) ([]byte, error) {
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -1210,16 +1255,21 @@ func (c *Client) doRequest(ctx context.Context, method, path string, body any) (
 		reqBody = bytes.NewReader(jsonBody)
 	}
 
-	fullURL := c.baseURL + path
+	fullURL := strings.TrimSpace(path)
+	if !strings.HasPrefix(fullURL, "https://") && !strings.HasPrefix(fullURL, "http://") {
+		fullURL = strings.TrimRight(baseURL, "/") + path
+	}
 	req, err := http.NewRequestWithContext(ctx, method, fullURL, reqBody)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Accept", "application/json")
-	req.Header.Set("X-Requested-With", "XMLHttpRequest")
-	req.Header.Set("Origin", appStoreBaseURL)
-	req.Header.Set("Referer", appStoreBaseURL+"/")
+	req.Header = cloneHeaders(headers)
+	if strings.TrimSpace(req.Header.Get("Content-Type")) == "" {
+		req.Header.Set("Content-Type", "application/json")
+	}
+	if strings.TrimSpace(req.Header.Get("Accept")) == "" {
+		req.Header.Set("Accept", "application/json")
+	}
 	setModifiedCookieHeader(c.httpClient, req)
 
 	resp, err := c.httpClient.Do(req)

@@ -1067,6 +1067,172 @@ func TestAuthTokenCommand(t *testing.T) {
 	})
 }
 
+func TestAuthIssuerIDCommand(t *testing.T) {
+	t.Run("no credentials", func(t *testing.T) {
+		cfgPath := filepath.Join(t.TempDir(), "config.json")
+		t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
+		t.Setenv("ASC_CONFIG_PATH", cfgPath)
+		clearResolvedAuthEnv(t)
+
+		cmd := AuthIssuerIDCommand()
+		if err := cmd.FlagSet.Parse([]string{}); err != nil {
+			t.Fatalf("Parse() error: %v", err)
+		}
+		err := cmd.Exec(context.Background(), []string{})
+		if err == nil || !strings.Contains(err.Error(), "missing authentication") {
+			t.Fatalf("expected missing authentication error, got %v", err)
+		}
+	})
+
+	t.Run("prints raw issuer id to stdout", func(t *testing.T) {
+		cfgPath := filepath.Join(t.TempDir(), "config.json")
+		t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
+		t.Setenv("ASC_CONFIG_PATH", cfgPath)
+		clearResolvedAuthEnv(t)
+		keyPath := writeTempECDSAKeyFile(t)
+		if err := authsvc.StoreCredentialsConfigAt("demo", "KEY123", "ISS456", keyPath, cfgPath); err != nil {
+			t.Fatalf("StoreCredentialsConfigAt() error: %v", err)
+		}
+
+		cmd := AuthIssuerIDCommand()
+		if err := cmd.FlagSet.Parse([]string{}); err != nil {
+			t.Fatalf("Parse() error: %v", err)
+		}
+		stdout, _ := captureAuthOutput(t, func() {
+			if err := cmd.Exec(context.Background(), []string{}); err != nil {
+				t.Fatalf("Exec() error: %v", err)
+			}
+		})
+		if stdout != "ISS456" {
+			t.Fatalf("expected raw issuer id, got %q", stdout)
+		}
+	})
+
+	t.Run("json output includes issuer id and profile", func(t *testing.T) {
+		cfgPath := filepath.Join(t.TempDir(), "config.json")
+		t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
+		t.Setenv("ASC_CONFIG_PATH", cfgPath)
+		clearResolvedAuthEnv(t)
+		keyPath := writeTempECDSAKeyFile(t)
+		if err := authsvc.StoreCredentialsConfigAt("demo", "KEY123", "ISS456", keyPath, cfgPath); err != nil {
+			t.Fatalf("StoreCredentialsConfigAt() error: %v", err)
+		}
+
+		cmd := AuthIssuerIDCommand()
+		if err := cmd.FlagSet.Parse([]string{"--output", "json"}); err != nil {
+			t.Fatalf("Parse() error: %v", err)
+		}
+		stdout, _ := captureAuthOutput(t, func() {
+			if err := cmd.Exec(context.Background(), []string{}); err != nil {
+				t.Fatalf("Exec() error: %v", err)
+			}
+		})
+
+		var payload struct {
+			IssuerID string `json:"issuerId"`
+			Profile  string `json:"profile"`
+		}
+		if err := json.Unmarshal([]byte(stdout), &payload); err != nil {
+			t.Fatalf("failed to unmarshal json: %v; stdout=%q", err, stdout)
+		}
+		if payload.IssuerID != "ISS456" {
+			t.Fatalf("expected issuerId ISS456, got %q", payload.IssuerID)
+		}
+		if payload.Profile != "demo" {
+			t.Fatalf("expected profile demo, got %q", payload.Profile)
+		}
+	})
+
+	t.Run("selects named profile", func(t *testing.T) {
+		cfgPath := filepath.Join(t.TempDir(), "config.json")
+		t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
+		t.Setenv("ASC_CONFIG_PATH", cfgPath)
+		clearResolvedAuthEnv(t)
+		keyPath := writeTempECDSAKeyFile(t)
+		if err := authsvc.StoreCredentialsConfigAt("first", "KEY_A", "ISS_A", keyPath, cfgPath); err != nil {
+			t.Fatalf("StoreCredentialsConfigAt() error: %v", err)
+		}
+		if err := authsvc.StoreCredentialsConfigAt("second", "KEY_B", "ISS_B", keyPath, cfgPath); err != nil {
+			t.Fatalf("StoreCredentialsConfigAt() error: %v", err)
+		}
+
+		cmd := AuthIssuerIDCommand()
+		if err := cmd.FlagSet.Parse([]string{"--name", "second", "--output", "json"}); err != nil {
+			t.Fatalf("Parse() error: %v", err)
+		}
+		stdout, _ := captureAuthOutput(t, func() {
+			if err := cmd.Exec(context.Background(), []string{}); err != nil {
+				t.Fatalf("Exec() error: %v", err)
+			}
+		})
+
+		var payload struct {
+			IssuerID string `json:"issuerId"`
+			Profile  string `json:"profile"`
+		}
+		if err := json.Unmarshal([]byte(stdout), &payload); err != nil {
+			t.Fatalf("failed to unmarshal json: %v", err)
+		}
+		if payload.IssuerID != "ISS_B" {
+			t.Fatalf("expected ISS_B, got %q", payload.IssuerID)
+		}
+		if payload.Profile != "second" {
+			t.Fatalf("expected profile second, got %q", payload.Profile)
+		}
+	})
+
+	t.Run("falls back to env credentials", func(t *testing.T) {
+		t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
+		t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "missing.json"))
+		clearResolvedAuthEnv(t)
+		t.Setenv("ASC_KEY_ID", "ENVKEY")
+		t.Setenv("ASC_ISSUER_ID", "ENVISS")
+		t.Setenv("ASC_PRIVATE_KEY_PATH", writeTempECDSAKeyFile(t))
+		t.Setenv("ASC_PRIVATE_KEY", "")
+		t.Setenv("ASC_PRIVATE_KEY_B64", "")
+
+		cmd := AuthIssuerIDCommand()
+		if err := cmd.FlagSet.Parse([]string{"--output", "json"}); err != nil {
+			t.Fatalf("Parse() error: %v", err)
+		}
+		stdout, _ := captureAuthOutput(t, func() {
+			if err := cmd.Exec(context.Background(), []string{}); err != nil {
+				t.Fatalf("Exec() error: %v", err)
+			}
+		})
+
+		var payload struct {
+			IssuerID string `json:"issuerId"`
+			Profile  string `json:"profile"`
+		}
+		if err := json.Unmarshal([]byte(stdout), &payload); err != nil {
+			t.Fatalf("failed to unmarshal json: %v", err)
+		}
+		if payload.IssuerID != "ENVISS" {
+			t.Fatalf("expected ENVISS, got %q", payload.IssuerID)
+		}
+		if payload.Profile != "" {
+			t.Fatalf("expected empty profile for env credentials, got %q", payload.Profile)
+		}
+	})
+
+	t.Run("unexpected args rejected", func(t *testing.T) {
+		cmd := AuthIssuerIDCommand()
+		if err := cmd.FlagSet.Parse([]string{}); err != nil {
+			t.Fatalf("Parse() error: %v", err)
+		}
+		_, stderr := captureAuthOutput(t, func() {
+			err := cmd.Exec(context.Background(), []string{"extra"})
+			if !errors.Is(err, flag.ErrHelp) {
+				t.Fatalf("expected flag.ErrHelp, got %v", err)
+			}
+		})
+		if !strings.Contains(stderr, "unexpected argument") {
+			t.Fatalf("expected unexpected argument error, got %q", stderr)
+		}
+	})
+}
+
 func writeTempECDSAKeyFile(t *testing.T) string {
 	t.Helper()
 

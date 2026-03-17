@@ -5,8 +5,9 @@
 ## Validation
 
 - [ ] `make format`
+- [ ] `make check-command-docs`
 - [ ] `make lint`
-- [ ] `make test`
+- [ ] `ASC_BYPASS_KEYCHAIN=1 make test`
 
 ## Wall of Apps (only if this PR adds/updates a Wall app)
 
