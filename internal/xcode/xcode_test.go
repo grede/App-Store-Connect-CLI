@@ -1052,11 +1052,12 @@ func TestXcodeHelperProcess(t *testing.T) {
 				fmt.Fprintln(os.Stderr, err)
 				os.Exit(2)
 			}
-			fmt.Fprint(os.Stdout, "BUILD-STATUS: FAILED\n")
-			fmt.Fprint(os.Stdout, "DELIVERY-UUID: delivery-1\n")
-			fmt.Fprint(os.Stdout, "PROCESSING-ERRORS:\n")
-			fmt.Fprint(os.Stdout, "code : 90626\n")
-			fmt.Fprint(os.Stdout, "description : Invalid Siri Support. App Intent description cannot contain apple. (90626)\n")
+			// Modern altool writes both informational and successful command output to stderr.
+			fmt.Fprint(os.Stderr, "BUILD-STATUS: FAILED\n")
+			fmt.Fprint(os.Stderr, "DELIVERY-UUID: delivery-1\n")
+			fmt.Fprint(os.Stderr, "PROCESSING-ERRORS:\n")
+			fmt.Fprint(os.Stderr, "code : 90626\n")
+			fmt.Fprint(os.Stderr, "description : Invalid Siri Support. App Intent description cannot contain apple. (90626)\n")
 			os.Exit(0)
 		}
 		if !helperContainsArg(commandArgs[2:], "--validate-app") {

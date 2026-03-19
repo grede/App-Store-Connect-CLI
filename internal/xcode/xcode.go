@@ -665,19 +665,20 @@ func runAltoolAndCapture(ctx context.Context, args []string, logWriter io.Writer
 	}
 	cmd := commandContextFn(ctx, "xcrun", args...)
 	var stdout strings.Builder
+	var stderr strings.Builder
 	outputTail := newTailBuffer(xcodebuildErrorTailLimit)
 	stdoutWriter := io.Writer(&stdout)
-	stderrWriter := io.Writer(outputTail)
+	stderrWriter := io.Writer(io.MultiWriter(&stderr, outputTail))
 	if logWriter != nil {
 		stdoutWriter = io.MultiWriter(logWriter, &stdout)
-		stderrWriter = io.MultiWriter(logWriter, outputTail)
+		stderrWriter = io.MultiWriter(logWriter, &stderr, outputTail)
 	}
 	cmd.Stdout = stdoutWriter
 	cmd.Stderr = stderrWriter
 	if err := cmd.Run(); err != nil {
 		detail := strings.TrimSpace(outputTail.String())
 		if detail == "" {
-			detail = strings.TrimSpace(stdout.String())
+			detail = strings.TrimSpace(mergeCapturedCommandOutput(stdout.String(), stderr.String()))
 		}
 		if detail != "" {
 			if outputTail.Truncated() {
@@ -687,7 +688,18 @@ func runAltoolAndCapture(ctx context.Context, args []string, logWriter io.Writer
 		}
 		return "", fmt.Errorf("xcrun altool %s failed: %w", action, err)
 	}
-	return stdout.String(), nil
+	return mergeCapturedCommandOutput(stdout.String(), stderr.String()), nil
+}
+
+func mergeCapturedCommandOutput(stdout, stderr string) string {
+	switch {
+	case stdout == "":
+		return stderr
+	case stderr == "":
+		return stdout
+	default:
+		return stdout + "\n" + stderr
+	}
 }
 
 func parseBuildStatusOutput(output string) *BuildStatusResult {
