@@ -56,7 +56,7 @@ Examples:
 				return flag.ErrHelp
 			}
 			if err := shared.ValidateBuildLocalizationLocale(localeValue); err != nil {
-				return fmt.Errorf("localizations create: %w", err)
+				return shared.UsageError(err.Error())
 			}
 
 			client, err := shared.GetASCClient()

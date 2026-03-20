@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+
+	cmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
 )
 
 func TestLocalizationsCreateSuccess(t *testing.T) {
@@ -105,5 +107,80 @@ func TestLocalizationsCreateSuccess(t *testing.T) {
 	}
 	if seenPayload.Data.Attributes.SupportURL != "https://example.com/support" {
 		t.Fatalf("expected trimmed support url, got %q", seenPayload.Data.Attributes.SupportURL)
+	}
+}
+
+func TestLocalizationsCreate_InvalidLocaleReturnsUsageError(t *testing.T) {
+	setupAuth(t)
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+
+	requestCount := 0
+	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		requestCount++
+		t.Fatalf("unexpected HTTP request: %s %s", req.Method, req.URL.Path)
+		return nil, nil
+	})
+
+	stdout, stderr := captureOutput(t, func() {
+		code := cmd.Run([]string{
+			"localizations", "create",
+			"--version", "version-1",
+			"--locale", "not_a_locale",
+		}, "1.2.3")
+		if code != cmd.ExitUsage {
+			t.Fatalf("expected exit code %d, got %d", cmd.ExitUsage, code)
+		}
+	})
+
+	if stdout != "" {
+		t.Fatalf("expected empty stdout, got %q", stdout)
+	}
+	if !strings.Contains(stderr, `invalid locale "not_a_locale"`) {
+		t.Fatalf("expected invalid locale error, got %q", stderr)
+	}
+	if requestCount != 0 {
+		t.Fatalf("expected no HTTP requests, got %d", requestCount)
+	}
+}
+
+func TestLocalizationsCreate_RejectsPositionalArgs(t *testing.T) {
+	setupAuth(t)
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+
+	requestCount := 0
+	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		requestCount++
+		t.Fatalf("unexpected HTTP request: %s %s", req.Method, req.URL.Path)
+		return nil, nil
+	})
+
+	stdout, stderr := captureOutput(t, func() {
+		code := cmd.Run([]string{
+			"localizations", "create",
+			"--version", "version-1",
+			"--locale", "ja",
+			"extra",
+		}, "1.2.3")
+		if code != cmd.ExitUsage {
+			t.Fatalf("expected exit code %d, got %d", cmd.ExitUsage, code)
+		}
+	})
+
+	if stdout != "" {
+		t.Fatalf("expected empty stdout, got %q", stdout)
+	}
+	if !strings.Contains(stderr, "localizations create does not accept positional arguments") {
+		t.Fatalf("expected positional-args error, got %q", stderr)
+	}
+	if requestCount != 0 {
+		t.Fatalf("expected no HTTP requests, got %d", requestCount)
 	}
 }

@@ -3324,19 +3324,16 @@ func TestLocalizationsCreateInvalidLocale(t *testing.T) {
 		if err == nil {
 			t.Fatal("expected error, got nil")
 		}
-		if errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("expected non-help error, got %v", err)
-		}
-		if !strings.Contains(err.Error(), `invalid locale "not_a_locale"`) {
-			t.Fatalf("expected invalid locale error, got %v", err)
+		if !errors.Is(err, flag.ErrHelp) {
+			t.Fatalf("expected flag.ErrHelp, got %v", err)
 		}
 	})
 
 	if stdout != "" {
 		t.Fatalf("expected empty stdout, got %q", stdout)
 	}
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
+	if !strings.Contains(stderr, `invalid locale "not_a_locale"`) {
+		t.Fatalf("expected invalid locale error, got %q", stderr)
 	}
 }
 
