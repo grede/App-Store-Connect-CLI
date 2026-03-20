@@ -287,10 +287,42 @@ func checkBuildEncryption(ctx context.Context, client *asc.Client, buildID strin
 			Hint:    fmt.Sprintf("asc encryption declarations assign-builds --id DECLARATION_ID --build %s", buildID),
 		}
 	}
-	return checkResult{
-		Name:    "Encryption compliance",
-		Passed:  true,
-		Message: fmt.Sprintf("Encryption declaration attached (%s)", declarationID),
+	declarationState := declarationResp.Data.Attributes.AppEncryptionDeclarationState
+	switch declarationState {
+	case asc.AppEncryptionDeclarationStateApproved:
+		return checkResult{
+			Name:    "Encryption compliance",
+			Passed:  true,
+			Message: fmt.Sprintf("Encryption declaration approved and attached (%s)", declarationID),
+		}
+	case asc.AppEncryptionDeclarationStateCreated, asc.AppEncryptionDeclarationStateInReview:
+		return checkResult{
+			Name:    "Encryption compliance",
+			Passed:  false,
+			Message: fmt.Sprintf("Encryption declaration attached (%s) is still %s", declarationID, declarationState),
+			Hint:    "Wait for the encryption declaration to reach APPROVED in App Store Connect, then rerun asc submit preflight",
+		}
+	case asc.AppEncryptionDeclarationStateRejected, asc.AppEncryptionDeclarationStateInvalid, asc.AppEncryptionDeclarationStateExpired:
+		return checkResult{
+			Name:    "Encryption compliance",
+			Passed:  false,
+			Message: fmt.Sprintf("Encryption declaration attached (%s) is %s", declarationID, declarationState),
+			Hint:    fmt.Sprintf("Attach an approved encryption declaration to build %s in App Store Connect, then rerun asc submit preflight", buildID),
+		}
+	case "":
+		return checkResult{
+			Name:    "Encryption compliance",
+			Passed:  false,
+			Message: fmt.Sprintf("Encryption declaration attached (%s) is missing approval state", declarationID),
+			Hint:    fmt.Sprintf("asc builds app-encryption-declaration get --id %s", buildID),
+		}
+	default:
+		return checkResult{
+			Name:    "Encryption compliance",
+			Passed:  false,
+			Message: fmt.Sprintf("Encryption declaration attached (%s) has unsupported state %q", declarationID, declarationState),
+			Hint:    fmt.Sprintf("asc builds app-encryption-declaration get --id %s", buildID),
+		}
 	}
 }
 

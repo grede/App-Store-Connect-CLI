@@ -214,10 +214,10 @@ func TestCheckBuildEncryption_False(t *testing.T) {
 	}
 }
 
-func TestCheckBuildEncryption_TrueWithDeclaration(t *testing.T) {
+func TestCheckBuildEncryption_TrueWithApprovedDeclaration(t *testing.T) {
 	client := newSubmitTestClient(t, submitRoundTripFunc(func(req *http.Request) (*http.Response, error) {
 		if req.Method == http.MethodGet && req.URL.Path == "/v1/builds/build-1/appEncryptionDeclaration" {
-			return submitJSONResponse(http.StatusOK, `{"data":{"type":"appEncryptionDeclarations","id":"decl-1","attributes":{}}}`)
+			return submitJSONResponse(http.StatusOK, `{"data":{"type":"appEncryptionDeclarations","id":"decl-1","attributes":{"appEncryptionDeclarationState":"APPROVED"}}}`)
 		}
 		return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.Path)
 	}))
@@ -226,6 +226,65 @@ func TestCheckBuildEncryption_TrueWithDeclaration(t *testing.T) {
 	check := checkBuildEncryption(context.Background(), client, "build-1", attrs)
 	if !check.Passed {
 		t.Fatalf("expected pass when encryption=true with declaration, got: %q", check.Message)
+	}
+}
+
+func TestCheckBuildEncryption_NonApprovedDeclarationStatesFail(t *testing.T) {
+	tests := []struct {
+		name        string
+		response    string
+		wantMessage string
+	}{
+		{
+			name:        "created",
+			response:    `{"data":{"type":"appEncryptionDeclarations","id":"decl-1","attributes":{"appEncryptionDeclarationState":"CREATED"}}}`,
+			wantMessage: "CREATED",
+		},
+		{
+			name:        "in review",
+			response:    `{"data":{"type":"appEncryptionDeclarations","id":"decl-1","attributes":{"appEncryptionDeclarationState":"IN_REVIEW"}}}`,
+			wantMessage: "IN_REVIEW",
+		},
+		{
+			name:        "rejected",
+			response:    `{"data":{"type":"appEncryptionDeclarations","id":"decl-1","attributes":{"appEncryptionDeclarationState":"REJECTED"}}}`,
+			wantMessage: "REJECTED",
+		},
+		{
+			name:        "invalid",
+			response:    `{"data":{"type":"appEncryptionDeclarations","id":"decl-1","attributes":{"appEncryptionDeclarationState":"INVALID"}}}`,
+			wantMessage: "INVALID",
+		},
+		{
+			name:        "expired",
+			response:    `{"data":{"type":"appEncryptionDeclarations","id":"decl-1","attributes":{"appEncryptionDeclarationState":"EXPIRED"}}}`,
+			wantMessage: "EXPIRED",
+		},
+		{
+			name:        "missing state",
+			response:    `{"data":{"type":"appEncryptionDeclarations","id":"decl-1","attributes":{}}}`,
+			wantMessage: "missing approval state",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			client := newSubmitTestClient(t, submitRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+				if req.Method == http.MethodGet && req.URL.Path == "/v1/builds/build-1/appEncryptionDeclaration" {
+					return submitJSONResponse(http.StatusOK, tt.response)
+				}
+				return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.Path)
+			}))
+			enc := true
+			attrs := &asc.BuildAttributes{Version: "1", UsesNonExemptEncryption: &enc}
+			check := checkBuildEncryption(context.Background(), client, "build-1", attrs)
+			if check.Passed {
+				t.Fatalf("expected fail for %s declaration state", tt.name)
+			}
+			if !strings.Contains(check.Message, tt.wantMessage) {
+				t.Fatalf("expected %q in failure message, got %q", tt.wantMessage, check.Message)
+			}
+		})
 	}
 }
 
