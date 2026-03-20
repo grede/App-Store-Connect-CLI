@@ -90,6 +90,79 @@ func TestWebReviewSubscriptionsListCommandOutputsJSON(t *testing.T) {
 	}
 }
 
+func TestWebReviewSubscriptionsListCommandTableIncludesGroupID(t *testing.T) {
+	_ = stubWebProgressLabels(t)
+
+	origResolveSession := resolveSessionFn
+	t.Cleanup(func() { resolveSessionFn = origResolveSession })
+
+	resolveSessionFn = func(ctx context.Context, appleID, password, twoFactorCode string) (*webcore.AuthSession, string, error) {
+		return &webcore.AuthSession{
+			Client: &http.Client{
+				Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+					if req.Method != http.MethodGet {
+						t.Fatalf("unexpected method: %s", req.Method)
+					}
+					if req.URL.Path != "/iris/v1/apps/app-1/subscriptionGroups" {
+						t.Fatalf("unexpected path: %s", req.URL.Path)
+					}
+					body := `{
+						"data": [{
+							"id": "group-1",
+							"type": "subscriptionGroups",
+							"attributes": {"referenceName": "Premium"},
+							"relationships": {
+								"subscriptions": {"data": [{"type": "subscriptions", "id": "sub-1"}]}
+							}
+						}],
+						"included": [{
+							"id": "sub-1",
+							"type": "subscriptions",
+							"attributes": {
+								"productId": "com.example.monthly",
+								"name": "Monthly",
+								"state": "READY_TO_SUBMIT",
+								"isAppStoreReviewInProgress": false,
+								"submitWithNextAppStoreVersion": true
+							}
+						}]
+					}`
+					return &http.Response{
+						StatusCode: http.StatusOK,
+						Header:     http.Header{"Content-Type": []string{"application/json"}},
+						Body:       io.NopCloser(strings.NewReader(body)),
+						Request:    req,
+					}, nil
+				}),
+			},
+		}, "cache", nil
+	}
+
+	cmd := WebReviewSubscriptionsListCommand()
+	if err := cmd.FlagSet.Parse([]string{
+		"--app", "app-1",
+		"--output", "table",
+	}); err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+
+	stdout, _ := captureOutput(t, func() {
+		if err := cmd.Exec(context.Background(), nil); err != nil {
+			t.Fatalf("exec error: %v", err)
+		}
+	})
+
+	if !strings.Contains(stdout, "Group ID") {
+		t.Fatalf("expected table header to include Group ID, got %q", stdout)
+	}
+	if !strings.Contains(stdout, "group-1") {
+		t.Fatalf("expected table output to include group ID, got %q", stdout)
+	}
+	if !strings.Contains(stdout, "Premium") {
+		t.Fatalf("expected table output to include group reference name, got %q", stdout)
+	}
+}
+
 func TestWebReviewSubscriptionsAttachCommandRefreshesState(t *testing.T) {
 	labels := stubWebProgressLabels(t)
 
@@ -396,6 +469,110 @@ func TestWebReviewSubscriptionsAttachFailsFastForMissingMetadata(t *testing.T) {
 	}
 }
 
+func TestWebReviewSubscriptionsAttachFailsFastForNonReadyState(t *testing.T) {
+	labels := stubWebProgressLabels(t)
+
+	origResolveSession := resolveSessionFn
+	t.Cleanup(func() { resolveSessionFn = origResolveSession })
+
+	postCalls := 0
+	resolveSessionFn = func(ctx context.Context, appleID, password, twoFactorCode string) (*webcore.AuthSession, string, error) {
+		return &webcore.AuthSession{
+			Client: &http.Client{
+				Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+					switch {
+					case req.Method == http.MethodGet && req.URL.Path == "/iris/v1/apps/app-1/subscriptionGroups":
+						body := `{
+							"data": [{
+								"id": "group-1",
+								"type": "subscriptionGroups",
+								"attributes": {"referenceName": "Premium"},
+								"relationships": {
+									"subscriptions": {"data": [{"type": "subscriptions", "id": "sub-1"}]}
+								}
+							}],
+							"included": [{
+								"id": "sub-1",
+								"type": "subscriptions",
+								"attributes": {
+									"productId": "com.example.monthly",
+									"name": "Monthly",
+									"state": "DEVELOPER_ACTION_NEEDED",
+									"isAppStoreReviewInProgress": false,
+									"submitWithNextAppStoreVersion": false
+								}
+							}]
+						}`
+						return &http.Response{
+							StatusCode: http.StatusOK,
+							Header:     http.Header{"Content-Type": []string{"application/json"}},
+							Body:       io.NopCloser(strings.NewReader(body)),
+							Request:    req,
+						}, nil
+
+					case req.Method == http.MethodPost && req.URL.Path == "/iris/v1/subscriptionSubmissions":
+						postCalls++
+						body := `{
+							"data": {
+								"id": "submission-1",
+								"type": "subscriptionSubmissions",
+								"attributes": {"submitWithNextAppStoreVersion": true},
+								"relationships": {
+									"subscription": {"data": {"type": "subscriptions", "id": "sub-1"}}
+								}
+							}
+						}`
+						return &http.Response{
+							StatusCode: http.StatusCreated,
+							Header:     http.Header{"Content-Type": []string{"application/json"}},
+							Body:       io.NopCloser(strings.NewReader(body)),
+							Request:    req,
+						}, nil
+
+					default:
+						t.Fatalf("unexpected request: %s %s", req.Method, req.URL.Path)
+						return nil, nil
+					}
+				}),
+			},
+		}, "cache", nil
+	}
+
+	cmd := WebReviewSubscriptionsAttachCommand()
+	if err := cmd.FlagSet.Parse([]string{
+		"--app", "app-1",
+		"--subscription-id", "sub-1",
+		"--confirm",
+	}); err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+
+	_, stderr := captureOutput(t, func() {
+		err := cmd.Exec(context.Background(), nil)
+		if err == nil {
+			t.Fatal("expected non-ready preflight error")
+		}
+		var reported shared.ReportedError
+		if !errors.As(err, &reported) {
+			t.Fatalf("expected ReportedError, got %T: %v", err, err)
+		}
+	})
+
+	if postCalls != 0 {
+		t.Fatalf("expected attach preflight to block POST, got %d calls", postCalls)
+	}
+	if !strings.Contains(stderr, "DEVELOPER_ACTION_NEEDED") {
+		t.Fatalf("expected non-ready state explanation, got %q", stderr)
+	}
+	if !strings.Contains(stderr, "READY_TO_SUBMIT") {
+		t.Fatalf("expected READY_TO_SUBMIT guidance, got %q", stderr)
+	}
+	wantLabels := []string{"Loading review subscriptions"}
+	if strings.Join(*labels, "|") != strings.Join(wantLabels, "|") {
+		t.Fatalf("expected labels %v, got %v", wantLabels, *labels)
+	}
+}
+
 func TestWebReviewSubscriptionsAttachGroupCommandRefreshesReadySubscriptions(t *testing.T) {
 	labels := stubWebProgressLabels(t)
 
@@ -509,6 +686,113 @@ func TestWebReviewSubscriptionsAttachGroupCommandRefreshesReadySubscriptions(t *
 	wantLabels := []string{
 		"Loading review subscriptions",
 		"Attaching subscription group to next app version",
+		"Refreshing review subscriptions",
+	}
+	if strings.Join(*labels, "|") != strings.Join(wantLabels, "|") {
+		t.Fatalf("expected labels %v, got %v", wantLabels, *labels)
+	}
+}
+
+func TestWebReviewSubscriptionsAttachGroupCommandIsIdempotentAfterReadySubscriptionsAlreadyAttached(t *testing.T) {
+	labels := stubWebProgressLabels(t)
+
+	origResolveSession := resolveSessionFn
+	t.Cleanup(func() { resolveSessionFn = origResolveSession })
+
+	listCalls := 0
+	postCalls := 0
+	resolveSessionFn = func(ctx context.Context, appleID, password, twoFactorCode string) (*webcore.AuthSession, string, error) {
+		return &webcore.AuthSession{
+			Client: &http.Client{
+				Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+					switch {
+					case req.Method == http.MethodGet && req.URL.Path == "/iris/v1/apps/app-1/subscriptionGroups":
+						listCalls++
+						body := `{
+							"data": [{
+								"id": "group-1",
+								"type": "subscriptionGroups",
+								"attributes": {"referenceName": "Premium"},
+								"relationships": {
+									"subscriptions": {"data": [
+										{"type": "subscriptions", "id": "sub-1"},
+										{"type": "subscriptions", "id": "sub-2"},
+										{"type": "subscriptions", "id": "sub-3"}
+									]}
+								}
+							}],
+							"included": [
+								{"id": "sub-1", "type": "subscriptions", "attributes": {"productId": "com.example.monthly", "name": "Monthly", "state": "READY_TO_SUBMIT", "submitWithNextAppStoreVersion": true}},
+								{"id": "sub-2", "type": "subscriptions", "attributes": {"productId": "com.example.annual", "name": "Annual", "state": "READY_TO_SUBMIT", "submitWithNextAppStoreVersion": true}},
+								{"id": "sub-3", "type": "subscriptions", "attributes": {"productId": "com.example.legacy", "name": "Legacy", "state": "MISSING_METADATA", "submitWithNextAppStoreVersion": false}}
+							]
+						}`
+						return &http.Response{
+							StatusCode: http.StatusOK,
+							Header:     http.Header{"Content-Type": []string{"application/json"}},
+							Body:       io.NopCloser(strings.NewReader(body)),
+							Request:    req,
+						}, nil
+
+					case req.Method == http.MethodPost && req.URL.Path == "/iris/v1/subscriptionSubmissions":
+						postCalls++
+						body := `{"data":{"id":"submission-1","type":"subscriptionSubmissions","attributes":{"submitWithNextAppStoreVersion":true}}}`
+						return &http.Response{
+							StatusCode: http.StatusCreated,
+							Header:     http.Header{"Content-Type": []string{"application/json"}},
+							Body:       io.NopCloser(strings.NewReader(body)),
+							Request:    req,
+						}, nil
+
+					default:
+						t.Fatalf("unexpected request: %s %s", req.Method, req.URL.Path)
+						return nil, nil
+					}
+				}),
+			},
+		}, "cache", nil
+	}
+
+	cmd := WebReviewSubscriptionsAttachGroupCommand()
+	if err := cmd.FlagSet.Parse([]string{
+		"--app", "app-1",
+		"--group-id", "group-1",
+		"--confirm",
+		"--output", "json",
+	}); err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+
+	stdout, _ := captureOutput(t, func() {
+		if err := cmd.Exec(context.Background(), nil); err != nil {
+			t.Fatalf("exec error: %v", err)
+		}
+	})
+
+	var payload reviewSubscriptionGroupMutationOutput
+	if err := json.Unmarshal([]byte(stdout), &payload); err != nil {
+		t.Fatalf("failed to parse stdout JSON: %v\nstdout=%s", err, stdout)
+	}
+	if payload.Operation != "attach-group" || payload.ChangedCount != 0 || payload.SkippedCount != 3 {
+		t.Fatalf("unexpected idempotent attach-group output: %#v", payload)
+	}
+	if postCalls != 0 {
+		t.Fatalf("expected no POSTs on idempotent rerun, got %d", postCalls)
+	}
+	if listCalls != 2 {
+		t.Fatalf("expected list before and after idempotent attach-group, got %d calls", listCalls)
+	}
+	if len(payload.Skipped) != 3 {
+		t.Fatalf("expected three skipped subscriptions, got %#v", payload.Skipped)
+	}
+	if payload.Skipped[0].Reason != "already attached" || payload.Skipped[1].Reason != "already attached" {
+		t.Fatalf("expected already-attached skips, got %#v", payload.Skipped)
+	}
+	if !strings.Contains(payload.Skipped[2].Reason, "MISSING_METADATA") {
+		t.Fatalf("expected missing metadata skip, got %#v", payload.Skipped)
+	}
+	wantLabels := []string{
+		"Loading review subscriptions",
 		"Refreshing review subscriptions",
 	}
 	if strings.Join(*labels, "|") != strings.Join(wantLabels, "|") {

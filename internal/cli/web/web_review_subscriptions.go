@@ -73,8 +73,8 @@ func reviewSubscriptionState(subscription webcore.ReviewSubscription) string {
 }
 
 func reviewSubscriptionAttachPreflight(appID string, subscription webcore.ReviewSubscription) error {
-	state := strings.ToUpper(strings.TrimSpace(subscription.State))
-	if state != "MISSING_METADATA" {
+	state := reviewSubscriptionState(subscription)
+	if state == "READY_TO_SUBMIT" {
 		return nil
 	}
 
@@ -97,12 +97,19 @@ func reviewSubscriptionAttachPreflight(appID string, subscription webcore.Review
 		reviewSubscriptionValue(strings.TrimSpace(appID)),
 	)
 	fmt.Fprintln(os.Stderr, "Hint: Apple only allows this attach flow after the subscription reaches READY_TO_SUBMIT.")
-	fmt.Fprintln(os.Stderr, "Hint: Check localizations, pricing coverage, and the App Store review screenshot.")
-	fmt.Fprintf(
-		os.Stderr,
-		"Hint: In live testing, a subscription promotional image also mattered even though App Store Connect surfaces it as a recommendation. Upload one with `asc subscriptions images create --subscription-id \"%s\" --file \"./image.png\"` if it is missing.\n",
-		reviewSubscriptionValue(subscriptionID),
-	)
+	switch state {
+	case "MISSING_METADATA":
+		fmt.Fprintln(os.Stderr, "Hint: Check localizations, pricing coverage, and the App Store review screenshot.")
+		fmt.Fprintf(
+			os.Stderr,
+			"Hint: In live testing, a subscription promotional image also mattered even though App Store Connect surfaces it as a recommendation. Upload one with `asc subscriptions images create --subscription-id \"%s\" --file \"./image.png\"` if it is missing.\n",
+			reviewSubscriptionValue(subscriptionID),
+		)
+	case "":
+		fmt.Fprintln(os.Stderr, "Hint: Refresh App Store Connect or rerun `asc web review subscriptions list` to confirm the current readiness state before retrying.")
+	default:
+		fmt.Fprintln(os.Stderr, "Hint: Complete the outstanding App Store Connect action for this subscription, then retry once it reaches READY_TO_SUBMIT.")
+	}
 
 	return shared.NewReportedError(
 		fmt.Errorf(
@@ -176,6 +183,7 @@ func buildReviewSubscriptionsListTableRows(subscriptions []webcore.ReviewSubscri
 	rows := make([][]string, 0, len(subscriptions))
 	for _, subscription := range subscriptions {
 		rows = append(rows, []string{
+			reviewSubscriptionValue(subscription.GroupID),
 			reviewSubscriptionValue(subscription.GroupReferenceName),
 			reviewSubscriptionValue(subscription.ID),
 			reviewSubscriptionValue(subscription.ProductID),
@@ -189,13 +197,13 @@ func buildReviewSubscriptionsListTableRows(subscriptions []webcore.ReviewSubscri
 }
 
 func renderReviewSubscriptionsListTable(payload reviewSubscriptionsListOutput) error {
-	headers := []string{"Group", "Subscription ID", "Product ID", "Name", "State", "Next Version", "Review In Progress"}
+	headers := []string{"Group ID", "Group", "Subscription ID", "Product ID", "Name", "State", "Next Version", "Review In Progress"}
 	asc.RenderTable(headers, buildReviewSubscriptionsListTableRows(payload.Subscriptions))
 	return nil
 }
 
 func renderReviewSubscriptionsListMarkdown(payload reviewSubscriptionsListOutput) error {
-	headers := []string{"Group", "Subscription ID", "Product ID", "Name", "State", "Next Version", "Review In Progress"}
+	headers := []string{"Group ID", "Group", "Subscription ID", "Product ID", "Name", "State", "Next Version", "Review In Progress"}
 	asc.RenderMarkdown(headers, buildReviewSubscriptionsListTableRows(payload.Subscriptions))
 	return nil
 }
@@ -277,8 +285,12 @@ func reviewSubscriptionAttachSkipReason(subscription webcore.ReviewSubscription)
 
 func reviewSubscriptionGroupAttachPreflight(appID, groupID string, subscriptions []webcore.ReviewSubscription) error {
 	readyCount := 0
+	attachedCount := 0
 	missingCount := 0
 	for _, subscription := range subscriptions {
+		if subscription.SubmitWithNextAppStoreVersion {
+			attachedCount++
+		}
 		switch reviewSubscriptionState(subscription) {
 		case "READY_TO_SUBMIT":
 			if !subscription.SubmitWithNextAppStoreVersion {
@@ -290,7 +302,7 @@ func reviewSubscriptionGroupAttachPreflight(appID, groupID string, subscriptions
 			}
 		}
 	}
-	if readyCount > 0 || missingCount == 0 {
+	if readyCount > 0 || attachedCount > 0 || missingCount == 0 {
 		return nil
 	}
 
