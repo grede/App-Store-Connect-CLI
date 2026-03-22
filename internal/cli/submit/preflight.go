@@ -168,14 +168,14 @@ func tallyCounts(result *preflightResult) {
 	result.PassCount = 0
 	result.FailCount = 0
 	for _, c := range result.Checks {
+		if c.Passed {
+			result.PassCount++
+			continue
+		}
 		if c.Advisory {
 			continue
 		}
-		if c.Passed {
-			result.PassCount++
-		} else {
-			result.FailCount++
-		}
+		result.FailCount++
 	}
 }
 

@@ -103,12 +103,12 @@ func TestPreflightResult_TallyCounts(t *testing.T) {
 			{Name: "b", Passed: false},
 			{Name: "c", Passed: true},
 			{Name: "d", Passed: false},
-			{Name: "info", Advisory: true},
+			{Name: "info", Passed: true, Advisory: true},
 		},
 	}
 	tallyCounts(result)
-	if result.PassCount != 2 {
-		t.Fatalf("expected 2 passes, got %d", result.PassCount)
+	if result.PassCount != 3 {
+		t.Fatalf("expected 3 passes including advisories, got %d", result.PassCount)
 	}
 	if result.FailCount != 2 {
 		t.Fatalf("expected 2 failures, got %d", result.FailCount)
@@ -120,10 +120,13 @@ func TestPreflightResult_AllPass(t *testing.T) {
 		Checks: []checkResult{
 			{Name: "a", Passed: true},
 			{Name: "b", Passed: true},
-			{Name: "info", Advisory: true},
+			{Name: "info", Passed: true, Advisory: true},
 		},
 	}
 	tallyCounts(result)
+	if result.PassCount != 3 {
+		t.Fatalf("expected 3 passes including advisories, got %d", result.PassCount)
+	}
 	if result.FailCount != 0 {
 		t.Fatalf("expected 0 failures, got %d", result.FailCount)
 	}
@@ -715,6 +718,9 @@ func TestSubmitPreflightCommand_JSONAllPassIncludesPrivacyAdvisoryAsPassed(t *te
 	}
 	if result.FailCount != 0 {
 		t.Fatalf("expected advisory-only JSON result to stay non-blocking, got %+v", result)
+	}
+	if result.PassCount != len(result.Checks) {
+		t.Fatalf("expected advisory-only JSON pass count to include every check, got %+v", result)
 	}
 
 	foundPrivacyAdvisory := false
