@@ -19,25 +19,39 @@ import (
 )
 
 type validateSubscriptionsFixture struct {
-	groups                     string
-	availabilityV2             string
-	availabilityV2Status       int
-	territories                string
-	territoriesByQuery         map[string]string
-	territoryStatusByQuery     map[string]int
-	subscriptionsByGroup       map[string]string
-	groupLocalizationsByGroup  map[string]string
-	groupLocalizationStatus    map[string]int
-	imagesBySubscription       map[string]string
-	imageStatusBySubscription  map[string]int
-	imageErrorBySubscription   map[string]error
-	localizationsBySub         map[string]string
-	localizationsStatusBySub   map[string]int
-	pricesBySubscription       map[string]string
-	expectedPriceInclude       string
-	pricesStatusBySubscription map[string]int
-	priceErrorBySubscription   map[string]error
-	subscriptionGroupsStatus   int
+	groups                                    string
+	availabilityV2                            string
+	availabilityV2Status                      int
+	territories                               string
+	territoriesByQuery                        map[string]string
+	territoryStatusByQuery                    map[string]int
+	builds                                    string
+	buildsStatus                              int
+	subscriptionsByGroup                      map[string]string
+	groupLocalizationsByGroup                 map[string]string
+	groupLocalizationStatus                   map[string]int
+	imagesBySubscription                      map[string]string
+	imageStatusBySubscription                 map[string]int
+	imageErrorBySubscription                  map[string]error
+	reviewScreenshotBySub                     map[string]string
+	reviewScreenshotStatusBySub               map[string]int
+	localizationsBySub                        map[string]string
+	localizationsStatusBySub                  map[string]int
+	subscriptionAvailabilityBySub             map[string]string
+	subscriptionAvailabilityStatusBySub       map[string]int
+	availabilityTerritoriesByAvailability     map[string]string
+	availabilityTerritoryStatusByAvailability map[string]int
+	pricesBySubscription                      map[string]string
+	expectedPriceInclude                      string
+	pricesStatusBySubscription                map[string]int
+	priceErrorBySubscription                  map[string]error
+	introductoryOffersBySub                   map[string]string
+	introductoryOffersStatusBySub             map[string]int
+	promotionalOffersBySub                    map[string]string
+	promotionalOffersStatusBySub              map[string]int
+	winBackOffersBySub                        map[string]string
+	winBackOffersStatusBySub                  map[string]int
+	subscriptionGroupsStatus                  int
 }
 
 func newValidateSubscriptionsClient(t *testing.T, fixture validateSubscriptionsFixture) *asc.Client {
@@ -69,6 +83,14 @@ func newValidateSubscriptionsClient(t *testing.T, fixture validateSubscriptionsF
 				return jsonResponse(http.StatusOK, fixture.availabilityV2)
 			}
 			return jsonResponse(http.StatusNotFound, notFound)
+		case path == "/v1/apps/app-1/builds":
+			if fixture.buildsStatus != 0 {
+				return jsonResponse(fixture.buildsStatus, apiErrorJSONForStatus(fixture.buildsStatus))
+			}
+			if fixture.builds != "" {
+				return jsonResponse(http.StatusOK, fixture.builds)
+			}
+			return jsonResponse(http.StatusOK, `{"data":[]}`)
 		case strings.HasPrefix(path, "/v2/appAvailabilities/") && strings.HasSuffix(path, "/territoryAvailabilities"):
 			if status, ok := fixture.territoryStatusByQuery[req.URL.RawQuery]; ok {
 				return jsonResponse(status, apiErrorJSONForStatus(status))
@@ -104,6 +126,24 @@ func newValidateSubscriptionsClient(t *testing.T, fixture validateSubscriptionsF
 				return jsonResponse(http.StatusOK, body)
 			}
 			return jsonResponse(http.StatusOK, `{"data":[]}`)
+		case strings.HasPrefix(path, "/v1/subscriptions/") && strings.HasSuffix(path, "/subscriptionAvailability"):
+			subscriptionID := strings.TrimSuffix(strings.TrimPrefix(path, "/v1/subscriptions/"), "/subscriptionAvailability")
+			if status, ok := fixture.subscriptionAvailabilityStatusBySub[subscriptionID]; ok {
+				return jsonResponse(status, apiErrorJSONForStatus(status))
+			}
+			if body, ok := fixture.subscriptionAvailabilityBySub[subscriptionID]; ok {
+				return jsonResponse(http.StatusOK, body)
+			}
+			return jsonResponse(http.StatusNotFound, notFound)
+		case strings.HasPrefix(path, "/v1/subscriptionAvailabilities/") && strings.HasSuffix(path, "/availableTerritories"):
+			availabilityID := strings.TrimSuffix(strings.TrimPrefix(path, "/v1/subscriptionAvailabilities/"), "/availableTerritories")
+			if status, ok := fixture.availabilityTerritoryStatusByAvailability[availabilityID]; ok {
+				return jsonResponse(status, apiErrorJSONForStatus(status))
+			}
+			if body, ok := fixture.availabilityTerritoriesByAvailability[availabilityID]; ok {
+				return jsonResponse(http.StatusOK, body)
+			}
+			return jsonResponse(http.StatusOK, `{"data":[]}`)
 		case strings.HasPrefix(path, "/v1/subscriptions/") && strings.HasSuffix(path, "/prices"):
 			subscriptionID := strings.TrimSuffix(strings.TrimPrefix(path, "/v1/subscriptions/"), "/prices")
 			if fixture.expectedPriceInclude != "" && req.URL.Query().Get("include") != fixture.expectedPriceInclude {
@@ -128,6 +168,42 @@ func newValidateSubscriptionsClient(t *testing.T, fixture validateSubscriptionsF
 				return jsonResponse(status, apiErrorJSONForStatus(status))
 			}
 			if body, ok := fixture.imagesBySubscription[subscriptionID]; ok {
+				return jsonResponse(http.StatusOK, body)
+			}
+			return jsonResponse(http.StatusOK, `{"data":[]}`)
+		case strings.HasPrefix(path, "/v1/subscriptions/") && strings.HasSuffix(path, "/appStoreReviewScreenshot"):
+			subscriptionID := strings.TrimSuffix(strings.TrimPrefix(path, "/v1/subscriptions/"), "/appStoreReviewScreenshot")
+			if status, ok := fixture.reviewScreenshotStatusBySub[subscriptionID]; ok {
+				return jsonResponse(status, apiErrorJSONForStatus(status))
+			}
+			if body, ok := fixture.reviewScreenshotBySub[subscriptionID]; ok {
+				return jsonResponse(http.StatusOK, body)
+			}
+			return jsonResponse(http.StatusNotFound, notFound)
+		case strings.HasPrefix(path, "/v1/subscriptions/") && strings.HasSuffix(path, "/introductoryOffers"):
+			subscriptionID := strings.TrimSuffix(strings.TrimPrefix(path, "/v1/subscriptions/"), "/introductoryOffers")
+			if status, ok := fixture.introductoryOffersStatusBySub[subscriptionID]; ok {
+				return jsonResponse(status, apiErrorJSONForStatus(status))
+			}
+			if body, ok := fixture.introductoryOffersBySub[subscriptionID]; ok {
+				return jsonResponse(http.StatusOK, body)
+			}
+			return jsonResponse(http.StatusOK, `{"data":[]}`)
+		case strings.HasPrefix(path, "/v1/subscriptions/") && strings.HasSuffix(path, "/promotionalOffers"):
+			subscriptionID := strings.TrimSuffix(strings.TrimPrefix(path, "/v1/subscriptions/"), "/promotionalOffers")
+			if status, ok := fixture.promotionalOffersStatusBySub[subscriptionID]; ok {
+				return jsonResponse(status, apiErrorJSONForStatus(status))
+			}
+			if body, ok := fixture.promotionalOffersBySub[subscriptionID]; ok {
+				return jsonResponse(http.StatusOK, body)
+			}
+			return jsonResponse(http.StatusOK, `{"data":[]}`)
+		case strings.HasPrefix(path, "/v1/subscriptions/") && strings.HasSuffix(path, "/winBackOffers"):
+			subscriptionID := strings.TrimSuffix(strings.TrimPrefix(path, "/v1/subscriptions/"), "/winBackOffers")
+			if status, ok := fixture.winBackOffersStatusBySub[subscriptionID]; ok {
+				return jsonResponse(status, apiErrorJSONForStatus(status))
+			}
+			if body, ok := fixture.winBackOffersBySub[subscriptionID]; ok {
 				return jsonResponse(http.StatusOK, body)
 			}
 			return jsonResponse(http.StatusOK, `{"data":[]}`)
@@ -633,6 +709,113 @@ func TestValidateSubscriptionsMissingMetadataDiagnosticsWarnByDefault(t *testing
 	}
 }
 
+func TestValidateSubscriptionsIncludesDiagnosticsMatrixForOpaqueMissingMetadata(t *testing.T) {
+	fixture := validValidateSubscriptionsFixture()
+	fixture.availabilityV2 = `{"data":{"type":"appAvailabilities","id":"app-avail-1","attributes":{"availableInNewTerritories":true}}}`
+	fixture.territories = `{"data":[
+		{"type":"territoryAvailabilities","id":"ta-us","attributes":{"available":true},"relationships":{"territory":{"data":{"type":"territories","id":"USA"}}}},
+		{"type":"territoryAvailabilities","id":"ta-ca","attributes":{"available":true},"relationships":{"territory":{"data":{"type":"territories","id":"CAN"}}}}
+	]}`
+	fixture.builds = `{"data":[]}`
+	fixture.subscriptionsByGroup["group-1"] = `{"data":[{"type":"subscriptions","id":"sub-1","attributes":{"name":"Monthly","productId":"com.example.monthly","state":"MISSING_METADATA"}}]}`
+	fixture.groupLocalizationsByGroup = map[string]string{
+		"group-1": `{"data":[{"type":"subscriptionGroupLocalizations","id":"group-loc-1","attributes":{"locale":"en-US","name":"Premium"}}]}`,
+	}
+	fixture.localizationsBySub = map[string]string{
+		"sub-1": `{"data":[{"type":"subscriptionLocalizations","id":"loc-1","attributes":{"locale":"en-US","name":"Monthly","description":"Unlimited access"}}]}`,
+	}
+	fixture.expectedPriceInclude = "territory"
+	fixture.pricesBySubscription = map[string]string{
+		"sub-1": `{"data":[
+			{"type":"subscriptionPrices","id":"price-1","relationships":{"territory":{"data":{"type":"territories","id":"USA"}}}},
+			{"type":"subscriptionPrices","id":"price-2","relationships":{"territory":{"data":{"type":"territories","id":"CAN"}}}}
+		]}`,
+	}
+	fixture.subscriptionAvailabilityBySub = map[string]string{
+		"sub-1": `{"data":{"type":"subscriptionAvailabilities","id":"sub-avail-1","attributes":{"availableInNewTerritories":true}}}`,
+	}
+	fixture.availabilityTerritoriesByAvailability = map[string]string{
+		"sub-avail-1": `{"data":[{"type":"territories","id":"USA"},{"type":"territories","id":"CAN"}]}`,
+	}
+	fixture.reviewScreenshotBySub = map[string]string{
+		"sub-1": `{"data":{"type":"subscriptionAppStoreReviewScreenshots","id":"shot-1","attributes":{"fileName":"review.png"}}}`,
+	}
+
+	client := newValidateSubscriptionsClient(t, fixture)
+	restore := validate.SetClientFactory(func() (*asc.Client, error) {
+		return client, nil
+	})
+	defer restore()
+
+	root := RootCommand("1.2.3")
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{"validate", "subscriptions", "--app", "app-1"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("expected opaque missing metadata diagnostics to stay warning-only, got %v", err)
+		}
+	})
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+
+	var report validation.SubscriptionsReport
+	if err := json.Unmarshal([]byte(stdout), &report); err != nil {
+		t.Fatalf("failed to parse JSON output: %v", err)
+	}
+	if len(report.Diagnostics) != 1 {
+		t.Fatalf("expected one diagnostics entry, got %+v", report.Diagnostics)
+	}
+
+	diag := report.Diagnostics[0]
+	if diag.Conclusion != "opaque_apple_state" {
+		t.Fatalf("expected opaque_apple_state conclusion, got %+v", diag)
+	}
+	if !strings.Contains(diag.Summary, "Apple still reports MISSING_METADATA") {
+		t.Fatalf("expected opaque-state summary, got %+v", diag)
+	}
+
+	for _, key := range []string{
+		"group_localizations",
+		"subscription_localizations",
+		"review_screenshot",
+		"subscription_availability",
+		"price_records",
+		"price_coverage_subscription_availability",
+		"price_coverage_app_availability",
+	} {
+		row, ok := findSubscriptionDiagnosticRow(t, diag.Rows, key)
+		if !ok {
+			t.Fatalf("expected diagnostic row %q, got %+v", key, diag.Rows)
+		}
+		if row.Status != validation.DiagnosticStatusYes {
+			t.Fatalf("expected %s row to be yes, got %+v", key, row)
+		}
+	}
+
+	buildRow, ok := findSubscriptionDiagnosticRow(t, diag.Rows, "app_has_build")
+	if !ok {
+		t.Fatalf("expected app_has_build row, got %+v", diag.Rows)
+	}
+	if buildRow.Status != validation.DiagnosticStatusNo {
+		t.Fatalf("expected app_has_build=no when app build count is zero, got %+v", buildRow)
+	}
+
+	root = RootCommand("1.2.3")
+	stdout, _ = captureOutput(t, func() {
+		if err := root.Parse([]string{"validate", "subscriptions", "--app", "app-1", "--output", "table"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("expected table render to succeed, got %v", err)
+		}
+	})
+	if !strings.Contains(stdout, "Conclusion") || !strings.Contains(stdout, "opaque_apple_state") || !strings.Contains(stdout, "review_screenshot") {
+		t.Fatalf("expected table output to include diagnostics rows, got %q", stdout)
+	}
+}
+
 func TestValidateSubscriptionsWarnsWhenSubscriptionImageMissing(t *testing.T) {
 	fixture := validValidateSubscriptionsFixture()
 	fixture.imagesBySubscription["sub-1"] = `{"data":[]}`
@@ -992,4 +1175,14 @@ func TestValidateSubscriptionsFailsWhenSubscriptionGroupsForbidden(t *testing.T)
 	if runErr == nil {
 		t.Fatal("expected validate subscriptions to fail when subscription groups cannot be read")
 	}
+}
+
+func findSubscriptionDiagnosticRow(t *testing.T, rows []validation.SubscriptionDiagnosticRow, key string) (validation.SubscriptionDiagnosticRow, bool) {
+	t.Helper()
+	for _, row := range rows {
+		if row.Key == key {
+			return row, true
+		}
+	}
+	return validation.SubscriptionDiagnosticRow{}, false
 }

@@ -71,13 +71,25 @@ func runValidateSubscriptions(ctx context.Context, opts validateSubscriptionsOpt
 	defer cancel()
 
 	pricingCoverageSkipReason := ""
-	_, availableTerritories, err := fetchAvailableTerritories(requestCtx, client, opts.AppID)
+	_, appAvailableTerritories, availableTerritories, err := fetchAvailableTerritoryDetails(requestCtx, client, opts.AppID)
 	if err != nil {
 		if reason, ok := availabilityCheckSkipReason(err); ok {
 			pricingCoverageSkipReason = reason
 		} else {
 			return fmt.Errorf("validate subscriptions: %w", err)
 		}
+	}
+
+	buildCount := 0
+	buildCheckSkipped := false
+	buildCheckSkipReason := ""
+	buildCount, buildStatus, err := fetchAppBuildCount(requestCtx, client, opts.AppID)
+	if err != nil {
+		return fmt.Errorf("validate subscriptions: %w", err)
+	}
+	if !buildStatus.Verified {
+		buildCheckSkipped = true
+		buildCheckSkipReason = buildStatus.SkipReason
 	}
 
 	subs, err := fetchSubscriptionsFn(ctx, client, opts.AppID)
@@ -89,7 +101,11 @@ func runValidateSubscriptions(ctx context.Context, opts validateSubscriptionsOpt
 		AppID:                     opts.AppID,
 		Subscriptions:             subs,
 		AvailableTerritories:      availableTerritories,
+		AppAvailableTerritories:   appAvailableTerritories,
 		PricingCoverageSkipReason: pricingCoverageSkipReason,
+		AppBuildCount:             buildCount,
+		BuildCheckSkipped:         buildCheckSkipped,
+		BuildCheckSkipReason:      buildCheckSkipReason,
 	}, opts.Strict)
 
 	if err := shared.PrintOutput(&report, opts.Output, opts.Pretty); err != nil {
