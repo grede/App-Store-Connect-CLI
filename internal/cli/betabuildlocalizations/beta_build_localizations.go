@@ -32,9 +32,9 @@ Legacy-only behaviors still remain here during the transition:
 - ` + "`beta-build-localizations build get`" + `
 
 Examples:
-  asc builds test-notes list --build "BUILD_ID"
-  asc builds test-notes view --id "LOCALIZATION_ID"
-  asc builds test-notes create --build "BUILD_ID" --locale "en-US" --whats-new "Test instructions"`,
+  asc builds test-notes list --build-id "BUILD_ID"
+  asc builds test-notes view --build-id "BUILD_ID" --locale "en-US"
+  asc builds test-notes create --build-id "BUILD_ID" --locale "en-US" --whats-new "Test instructions"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DeprecatedUsageFunc,
 		Subcommands: []*ffcli.Command{

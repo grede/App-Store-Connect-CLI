@@ -55,6 +55,12 @@ func TestBuildsTestNotesHelpShowsViewNotGet(t *testing.T) {
 	if !strings.Contains(stderr, "view") {
 		t.Fatalf("expected builds test-notes help to contain view, got %q", stderr)
 	}
+	if !strings.Contains(stderr, `asc builds test-notes list --build-id "BUILD_ID"`) {
+		t.Fatalf("expected builds test-notes help to show build-id examples, got %q", stderr)
+	}
+	if strings.Contains(stderr, `asc builds test-notes view --id "LOCALIZATION_ID"`) {
+		t.Fatalf("expected builds test-notes help to avoid canonical --id examples, got %q", stderr)
+	}
 	if strings.Contains(stderr, "\n  get ") || strings.Contains(stderr, "\n  get\t") {
 		t.Fatalf("expected builds test-notes help to hide get alias, got %q", stderr)
 	}
@@ -100,7 +106,7 @@ func TestDeprecatedBuildsTestNotesGetAliasWarnsAndMatchesViewOutput(t *testing.T
 		})
 	}
 
-	canonicalStdout, canonicalStderr := run([]string{"builds", "test-notes", "view", "--id", "loc-1", "--output", "json"})
+	canonicalStdout, canonicalStderr := run([]string{"builds", "test-notes", "view", "--localization-id", "loc-1", "--output", "json"})
 	aliasStdout, aliasStderr := run([]string{"builds", "test-notes", "get", "--id", "loc-1", "--output", "json"})
 
 	if canonicalStderr != "" {
@@ -163,7 +169,7 @@ func TestDeprecatedBetaBuildLocalizationsGetWarnsAndMatchesCanonicalViewOutput(t
 		})
 	}
 
-	canonicalStdout, canonicalStderr := run([]string{"builds", "test-notes", "view", "--id", "loc-1", "--output", "json"})
+	canonicalStdout, canonicalStderr := run([]string{"builds", "test-notes", "view", "--localization-id", "loc-1", "--output", "json"})
 	aliasStdout, aliasStderr := run([]string{"beta-build-localizations", "get", "--id", "loc-1", "--output", "json"})
 
 	if canonicalStderr != "" {

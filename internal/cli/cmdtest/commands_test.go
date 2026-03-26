@@ -3518,49 +3518,61 @@ func TestBuildLocalizationsValidationErrors(t *testing.T) {
 }
 
 func TestBuildsTestNotesValidationErrors(t *testing.T) {
+	t.Setenv("ASC_APP_ID", "")
+
 	tests := []struct {
 		name    string
 		args    []string
 		wantErr string
 	}{
 		{
-			name:    "builds test-notes list missing build",
+			name:    "builds test-notes list missing build selector",
 			args:    []string{"builds", "test-notes", "list"},
-			wantErr: "--build is required",
+			wantErr: "--build-id or --app is required",
 		},
 		{
 			name:    "builds test-notes create missing locale",
-			args:    []string{"builds", "test-notes", "create", "--build", "BUILD_ID", "--whats-new", "Notes"},
+			args:    []string{"builds", "test-notes", "create", "--build-id", "BUILD_ID", "--whats-new", "Notes"},
 			wantErr: "--locale is required",
 		},
 		{
 			name:    "builds test-notes create missing whats-new",
-			args:    []string{"builds", "test-notes", "create", "--build", "BUILD_ID", "--locale", "en-US"},
+			args:    []string{"builds", "test-notes", "create", "--build-id", "BUILD_ID", "--locale", "en-US"},
 			wantErr: "--whats-new is required",
+		},
+		{
+			name:    "builds test-notes view missing selector",
+			args:    []string{"builds", "test-notes", "view"},
+			wantErr: "either --localization-id or (--locale and a build selector) is required",
+		},
+		{
+			name:    "builds test-notes view localization id conflicts with build selector",
+			args:    []string{"builds", "test-notes", "view", "--localization-id", "LOC_ID", "--build-id", "BUILD_ID", "--locale", "en-US"},
+			wantErr: "--localization-id cannot be combined with build selectors or --locale",
 		},
 		{
 			name:    "builds test-notes update missing selector",
 			args:    []string{"builds", "test-notes", "update", "--whats-new", "Notes"},
-			wantErr: "either --id or (--build and --locale) is required",
+			wantErr: "either --localization-id or (--locale and a build selector) is required",
 		},
 		{
-			name:    "builds test-notes update id conflicts with build locale",
-			args:    []string{"builds", "test-notes", "update", "--id", "LOC_ID", "--build", "BUILD_ID", "--locale", "en-US", "--whats-new", "Notes"},
-			wantErr: "--id cannot be combined with --build or --locale",
+			name:    "builds test-notes update localization id conflicts with build selector",
+			args:    []string{"builds", "test-notes", "update", "--localization-id", "LOC_ID", "--build-id", "BUILD_ID", "--locale", "en-US", "--whats-new", "Notes"},
+			wantErr: "--localization-id cannot be combined with build selectors or --locale",
 		},
 		{
 			name:    "builds test-notes update missing locale for build selector",
-			args:    []string{"builds", "test-notes", "update", "--build", "BUILD_ID", "--whats-new", "Notes"},
-			wantErr: "either --id or (--build and --locale) is required",
+			args:    []string{"builds", "test-notes", "update", "--build-id", "BUILD_ID", "--whats-new", "Notes"},
+			wantErr: "either --localization-id or (--locale and a build selector) is required",
 		},
 		{
 			name:    "builds test-notes update missing build for locale selector",
 			args:    []string{"builds", "test-notes", "update", "--locale", "en-US", "--whats-new", "Notes"},
-			wantErr: "either --id or (--build and --locale) is required",
+			wantErr: "either --localization-id or (--locale and a build selector) is required",
 		},
 		{
 			name:    "builds test-notes delete missing confirm",
-			args:    []string{"builds", "test-notes", "delete", "--id", "LOC_ID"},
+			args:    []string{"builds", "test-notes", "delete", "--localization-id", "LOC_ID"},
 			wantErr: "--confirm is required",
 		},
 	}

@@ -215,13 +215,14 @@ Design note:
 
 ### PR 4: Redesign `builds test-notes`
 
-Status: planned
+Status: in progress
 
 Scope:
 
 - make `test-notes` build-scoped plus `--locale`
 - replace build-related `--id` usage with `--build-id`
 - optionally keep `--localization-id` as a low-level escape hatch
+- keep hidden deprecated `--build` / `--id` flag aliases during the transition
 
 ### PR 5: Legacy Removal + Remaining Read Commands
 
