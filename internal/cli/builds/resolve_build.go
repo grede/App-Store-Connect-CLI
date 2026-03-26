@@ -114,7 +114,7 @@ func validateResolveBuildOptions(opts ResolveBuildOptions) error {
 	hasExplicitAppSelectors := appInput != "" || opts.Latest || buildNumber != "" || version != "" || platform != ""
 
 	if buildID != "" && hasExplicitAppSelectors {
-		return shared.UsageError("--build cannot be combined with --app, --latest, --build-number, --version, or --platform")
+		return shared.UsageError("--build-id cannot be combined with --app, --latest, --build-number, --version, or --platform")
 	}
 	if opts.Latest && buildNumber != "" {
 		return shared.UsageError("--latest and --build-number are mutually exclusive")
@@ -124,10 +124,10 @@ func validateResolveBuildOptions(opts ResolveBuildOptions) error {
 	}
 
 	if shared.ResolveAppID(appInput) == "" {
-		return shared.UsageError("--build or --app is required (or set ASC_APP_ID)")
+		return shared.UsageError("--build-id or --app is required (or set ASC_APP_ID)")
 	}
 	if !opts.Latest && buildNumber == "" {
-		return shared.UsageError("--build, --latest, or --build-number is required")
+		return shared.UsageError("--build-id, --latest, or --build-number is required")
 	}
 	if platform != "" {
 		if _, err := shared.NormalizeAppStoreVersionPlatform(platform); err != nil {

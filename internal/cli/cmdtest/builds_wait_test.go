@@ -47,7 +47,7 @@ func TestBuildsWaitByBuildIDPollsUntilValid(t *testing.T) {
 	root.FlagSet.SetOutput(io.Discard)
 
 	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"builds", "wait", "--build", "build-1", "--poll-interval", "1ms", "--timeout", "200ms"}); err != nil {
+		if err := root.Parse([]string{"builds", "wait", "--build-id", "build-1", "--poll-interval", "1ms", "--timeout", "200ms"}); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
 		if err := root.Run(context.Background()); err != nil {
@@ -178,7 +178,7 @@ func TestBuildsWaitByAppAndBuildNumberResolvesThenWaits(t *testing.T) {
 	}
 }
 
-func TestBuildsWaitByAppNewestDiscoversThenWaits(t *testing.T) {
+func TestBuildsWaitByAppLatestDiscoversThenWaits(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 	t.Setenv("ASC_APP_ID", "")
@@ -245,7 +245,7 @@ func TestBuildsWaitByAppNewestDiscoversThenWaits(t *testing.T) {
 		if err := root.Parse([]string{
 			"builds", "wait",
 			"--app", "123456789",
-			"--newest",
+			"--latest",
 			"--poll-interval", "1ms",
 			"--timeout", "250ms",
 		}); err != nil {
@@ -390,7 +390,7 @@ func TestBuildsWaitByAppDiscoveryTimeoutReturnsError(t *testing.T) {
 		if err := root.Parse([]string{
 			"builds", "wait",
 			"--app", "123456789",
-			"--newest",
+			"--latest",
 			"--poll-interval", "1ms",
 			"--timeout", "10ms",
 		}); err != nil {
@@ -439,7 +439,7 @@ func TestBuildsWaitFailOnInvalidReturnsError(t *testing.T) {
 
 	var runErr error
 	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"builds", "wait", "--build", "build-1", "--fail-on-invalid", "--poll-interval", "1ms", "--timeout", "100ms"}); err != nil {
+		if err := root.Parse([]string{"builds", "wait", "--build-id", "build-1", "--fail-on-invalid", "--poll-interval", "1ms", "--timeout", "100ms"}); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
 		runErr = root.Run(context.Background())

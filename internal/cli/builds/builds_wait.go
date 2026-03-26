@@ -24,9 +24,9 @@ const (
 func BuildsWaitCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("wait", flag.ExitOnError)
 
-	buildID := fs.String("build", "", "Build ID to wait for")
-	appID := fs.String("app", "", "App Store Connect app ID, bundle ID, or exact app name (required when --build is not provided)")
-	newest := fs.Bool("newest", false, "Wait for the newest matching build for --app context")
+	buildID := fs.String("build-id", "", "Build ID to wait for")
+	appID := fs.String("app", "", "App Store Connect app ID, bundle ID, or exact app name (required when --build-id is not provided)")
+	latest := fs.Bool("latest", false, "Wait for the latest matching build for --app context")
 	version := fs.String("version", "", "Optional marketing version filter (CFBundleShortVersionString) for --app")
 	buildNumber := fs.String("build-number", "", "Optional build number filter (CFBundleVersion) for --app")
 	since := fs.String("since", "", "Only consider builds uploaded on or after this RFC3339 timestamp")
@@ -48,15 +48,15 @@ This command polls build processing state until a terminal condition:
   - INVALID -> exits non-zero only with --fail-on-invalid
 
 Build selector modes (mutually exclusive):
-  - --build BUILD_ID
+  - --build-id BUILD_ID
   - --app APP_ID with app-scoped selectors:
-      --newest
+      --latest
       [--version VERSION] [--build-number NUMBER] [--since RFC3339] [--platform IOS]
 
 Examples:
-  asc builds wait --build "BUILD_ID"
-  asc builds wait --build "BUILD_ID" --timeout 20m --poll-interval 15s
-  asc builds wait --app "1500196580" --newest
+  asc builds wait --build-id "BUILD_ID"
+  asc builds wait --build-id "BUILD_ID" --timeout 20m --poll-interval 15s
+  asc builds wait --app "1500196580" --latest
   asc builds wait --app "1500196580" --version "2.4.0" --build-number "2"
   asc builds wait --app "1500196580" --since "2026-03-02T18:00:00Z"
   asc builds wait --app "123456789" --build-number "42" --platform MAC_OS --fail-on-invalid`,
@@ -71,7 +71,7 @@ Examples:
 			buildNumberValue := strings.TrimSpace(*buildNumber)
 			sinceValue := strings.TrimSpace(*since)
 			platformValue := strings.TrimSpace(*platform)
-			appScopedFlagsUsed := appInputProvided || *newest || versionValue != "" || buildNumberValue != "" || sinceValue != "" || platformValue != ""
+			appScopedFlagsUsed := appInputProvided || *latest || versionValue != "" || buildNumberValue != "" || sinceValue != "" || platformValue != ""
 
 			if *pollInterval <= 0 {
 				return shared.UsageError("--poll-interval must be greater than 0")
@@ -82,14 +82,14 @@ Examples:
 
 			if buildValue != "" {
 				if appScopedFlagsUsed {
-					return shared.UsageError("--build is mutually exclusive with app-scoped selectors (--app, --newest, --version, --build-number, --since, --platform)")
+					return shared.UsageError("--build-id is mutually exclusive with app-scoped selectors (--app, --latest, --version, --build-number, --since, --platform)")
 				}
 			} else {
 				if resolvedAppID == "" {
-					return shared.UsageError("--app is required when --build is not provided")
+					return shared.UsageError("--app is required when --build-id is not provided")
 				}
-				if !*newest && versionValue == "" && buildNumberValue == "" && sinceValue == "" {
-					return shared.UsageError("provide at least one app-scoped selector: --newest, --version, --build-number, or --since")
+				if !*latest && versionValue == "" && buildNumberValue == "" && sinceValue == "" {
+					return shared.UsageError("provide at least one app-scoped selector: --latest, --version, --build-number, or --since")
 				}
 			}
 

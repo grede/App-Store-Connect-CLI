@@ -401,8 +401,8 @@ Examples:
   asc builds count --app "123456789"
   asc builds latest --app "123456789"
   asc builds find --app "123456789" --build-number "42"
-  asc builds wait --build "BUILD_ID"
-  asc builds wait --app "123456789" --newest
+  asc builds wait --build-id "BUILD_ID"
+  asc builds wait --app "123456789" --latest
   asc builds info --build "BUILD_ID"
   asc builds expire --build "BUILD_ID"
   asc builds expire-all --app "123456789" --older-than 90d --dry-run
@@ -422,7 +422,7 @@ Examples:
   asc builds build-beta-detail get --build "BUILD_ID"
   asc builds links view --build "BUILD_ID" --type "app"
   asc builds metrics beta-usages --build "BUILD_ID"
-  asc builds dsyms --build "BUILD_ID" --output-dir "./dsyms"`,
+  asc builds dsyms --build-id "BUILD_ID" --output-dir "./dsyms"`,
 		FlagSet:   fs,
 		UsageFunc: shared.VisibleUsageFunc,
 		Subcommands: []*ffcli.Command{

@@ -521,31 +521,31 @@ func TestBuildsWaitValidationErrors(t *testing.T) {
 		{
 			name:    "builds wait missing selectors",
 			args:    []string{"builds", "wait"},
-			wantErr: "Error: --app is required when --build is not provided",
+			wantErr: "Error: --app is required when --build-id is not provided",
 		},
 		{
 			name:    "builds wait app missing selector hints",
 			args:    []string{"builds", "wait", "--app", "APP_123"},
-			wantErr: "provide at least one app-scoped selector",
+			wantErr: "provide at least one app-scoped selector: --latest, --version, --build-number, or --since",
 		},
 		{
 			name:    "builds wait selectors mutually exclusive",
-			args:    []string{"builds", "wait", "--build", "BUILD_123", "--app", "APP_123", "--build-number", "42"},
-			wantErr: "--build is mutually exclusive with app-scoped selectors",
+			args:    []string{"builds", "wait", "--build-id", "BUILD_123", "--app", "APP_123", "--build-number", "42"},
+			wantErr: "--build-id is mutually exclusive with app-scoped selectors",
 		},
 		{
 			name:    "builds wait invalid poll interval",
-			args:    []string{"builds", "wait", "--build", "BUILD_123", "--poll-interval", "0s"},
+			args:    []string{"builds", "wait", "--build-id", "BUILD_123", "--poll-interval", "0s"},
 			wantErr: "--poll-interval must be greater than 0",
 		},
 		{
 			name:    "builds wait invalid timeout",
-			args:    []string{"builds", "wait", "--build", "BUILD_123", "--timeout", "0s"},
+			args:    []string{"builds", "wait", "--build-id", "BUILD_123", "--timeout", "0s"},
 			wantErr: "--timeout must be greater than 0",
 		},
 		{
 			name:    "builds wait invalid since timestamp",
-			args:    []string{"builds", "wait", "--app", "APP_123", "--newest", "--since", "nope"},
+			args:    []string{"builds", "wait", "--app", "APP_123", "--latest", "--since", "nope"},
 			wantErr: "--since must be an RFC3339 timestamp",
 		},
 	}

@@ -31,12 +31,10 @@ all: build
 
 # Build the binary
 .PHONY: build
-build: $(BINARY_NAME)
-	@echo "$(GREEN)✓ Build complete: $(BINARY_NAME)$(NC)"
-
-$(BINARY_NAME): $(GOMOD)
+build:
 	@echo "$(BLUE)Building $(BINARY_NAME)...$(NC)"
 	$(GO) build -ldflags "$(LDFLAGS)" -o $(BINARY_NAME) .
+	@echo "$(GREEN)✓ Build complete: $(BINARY_NAME)$(NC)"
 
 # Build for multiple platforms
 .PHONY: build-all
