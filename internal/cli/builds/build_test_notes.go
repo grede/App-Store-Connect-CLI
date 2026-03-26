@@ -16,13 +16,7 @@ import (
 const legacyLocalizationIDWarning = "Warning: `--id` is deprecated. Use `--localization-id`."
 
 type testNotesBuildSelectorFlags struct {
-	buildID       *string
-	legacyBuildID *trackedStringFlag
-	appID         *string
-	version       *string
-	buildNumber   *string
-	platform      *string
-	latest        *bool
+	buildSelectorFlags
 }
 
 // BuildsTestNotesCommand returns the builds test-notes command group.
@@ -478,38 +472,25 @@ Examples:
 
 func bindTestNotesBuildSelectorFlags(fs *flag.FlagSet) testNotesBuildSelectorFlags {
 	return testNotesBuildSelectorFlags{
-		buildID:       fs.String("build-id", "", "Build ID"),
-		legacyBuildID: bindHiddenStringFlag(fs, "build"),
-		appID:         fs.String("app", "", "App ID, bundle ID, or app name (or ASC_APP_ID)"),
-		version:       fs.String("version", "", "App version string (e.g., 1.2.3)"),
-		buildNumber:   fs.String("build-number", "", "Build number (CFBundleVersion)"),
-		platform:      fs.String("platform", "", "Platform: IOS, MAC_OS, TV_OS, VISION_OS"),
-		latest:        fs.Bool("latest", false, "Resolve the latest matching build for --app context"),
+		buildSelectorFlags: bindBuildSelectorFlags(fs, buildSelectorFlagOptions{
+			buildIDUsage:     "Build ID",
+			appUsage:         "App ID, bundle ID, or app name (or ASC_APP_ID)",
+			latestUsage:      "Resolve the latest matching build for --app context",
+			versionUsage:     "App version string (e.g., 1.2.3)",
+			buildNumberUsage: "Build number (CFBundleVersion)",
+			platformUsage:    "Platform: IOS, MAC_OS, TV_OS, VISION_OS",
+		}),
 	}
-}
-
-func (f testNotesBuildSelectorFlags) applyLegacyAliases() error {
-	return applyLegacyBuildIDAlias(f.buildID, f.legacyBuildID)
 }
 
 func (f testNotesBuildSelectorFlags) hasAnyInputs() bool {
-	return strings.TrimSpace(*f.buildID) != "" ||
-		strings.TrimSpace(*f.appID) != "" ||
-		strings.TrimSpace(*f.version) != "" ||
-		strings.TrimSpace(*f.buildNumber) != "" ||
-		strings.TrimSpace(*f.platform) != "" ||
-		*f.latest
-}
-
-func (f testNotesBuildSelectorFlags) resolveOptions() ResolveBuildOptions {
-	return ResolveBuildOptions{
-		BuildID:     strings.TrimSpace(*f.buildID),
-		AppID:       strings.TrimSpace(*f.appID),
-		Version:     strings.TrimSpace(*f.version),
-		BuildNumber: strings.TrimSpace(*f.buildNumber),
-		Platform:    strings.TrimSpace(*f.platform),
-		Latest:      *f.latest,
-	}
+	opts := f.resolveOptions()
+	return opts.BuildID != "" ||
+		opts.AppID != "" ||
+		opts.Version != "" ||
+		opts.BuildNumber != "" ||
+		opts.Platform != "" ||
+		opts.Latest
 }
 
 func (f testNotesBuildSelectorFlags) resolveBuild(ctx context.Context, client *asc.Client) (*asc.BuildResponse, error) {
