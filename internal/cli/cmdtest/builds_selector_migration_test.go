@@ -486,8 +486,8 @@ func TestBuildsWaitSelectorAliasesWarnAndMatchCanonicalSuccessPaths(t *testing.T
 					if query.Get("sort") != "-uploadedDate" {
 						t.Fatalf("expected sort=-uploadedDate, got %q", query.Get("sort"))
 					}
-					if query.Get("limit") != "1" {
-						t.Fatalf("expected limit=1, got %q", query.Get("limit"))
+					if query.Get("limit") != "200" {
+						t.Fatalf("expected limit=200, got %q", query.Get("limit"))
 					}
 					body := `{"data":[{"type":"builds","id":"build-99","attributes":{"uploadedDate":"2026-03-02T18:01:00Z","processingState":"PROCESSING","version":"99"}}]}`
 					return &http.Response{

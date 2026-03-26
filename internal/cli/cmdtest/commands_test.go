@@ -352,6 +352,8 @@ func TestBuildsInfoValidationErrors(t *testing.T) {
 }
 
 func TestBuildsExpireRequiresBuildID(t *testing.T) {
+	t.Setenv("ASC_APP_ID", "")
+
 	root := RootCommand("1.2.3")
 
 	stdout, stderr := captureOutput(t, func() {
@@ -367,7 +369,7 @@ func TestBuildsExpireRequiresBuildID(t *testing.T) {
 	if stdout != "" {
 		t.Fatalf("expected empty stdout, got %q", stdout)
 	}
-	if !strings.Contains(stderr, "--build-id is required") {
+	if !strings.Contains(stderr, "--build-id or --app is required") {
 		t.Fatalf("expected missing build error, got %q", stderr)
 	}
 }
@@ -497,6 +499,8 @@ func TestBuildsExpireAllValidationErrors(t *testing.T) {
 }
 
 func TestBuildsGroupValidationErrors(t *testing.T) {
+	t.Setenv("ASC_APP_ID", "")
+
 	tests := []struct {
 		name    string
 		args    []string
@@ -505,7 +509,7 @@ func TestBuildsGroupValidationErrors(t *testing.T) {
 		{
 			name:    "builds add-groups missing build id",
 			args:    []string{"builds", "add-groups"},
-			wantErr: "Error: --build-id is required",
+			wantErr: "Error: --build-id or --app is required",
 		},
 		{
 			name:    "builds add-groups missing group",
@@ -525,7 +529,7 @@ func TestBuildsGroupValidationErrors(t *testing.T) {
 		{
 			name:    "builds remove-groups missing build id",
 			args:    []string{"builds", "remove-groups"},
-			wantErr: "Error: --build-id is required",
+			wantErr: "Error: --build-id or --app is required",
 		},
 		{
 			name:    "builds remove-groups missing group",
@@ -580,7 +584,7 @@ func TestBuildsWaitValidationErrors(t *testing.T) {
 		{
 			name:    "builds wait app missing selector hints",
 			args:    []string{"builds", "wait", "--app", "APP_123"},
-			wantErr: "provide at least one app-scoped selector: --latest, --version, --build-number, or --since",
+			wantErr: "--latest or --build-number is required when using --app",
 		},
 		{
 			name:    "builds wait selectors mutually exclusive",
@@ -630,6 +634,8 @@ func TestBuildsWaitValidationErrors(t *testing.T) {
 }
 
 func TestBuildsExpireValidationErrors(t *testing.T) {
+	t.Setenv("ASC_APP_ID", "")
+
 	tests := []struct {
 		name    string
 		args    []string
@@ -638,7 +644,7 @@ func TestBuildsExpireValidationErrors(t *testing.T) {
 		{
 			name:    "builds expire missing build id",
 			args:    []string{"builds", "expire"},
-			wantErr: "Error: --build-id is required",
+			wantErr: "Error: --build-id or --app is required",
 		},
 		{
 			name:    "builds expire missing confirm",

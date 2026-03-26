@@ -27,8 +27,6 @@ Canonical build-scoped workflows now live under ` + "`asc builds test-notes ...`
 
 Legacy-only behaviors still remain here during the transition:
 - ` + "`beta-build-localizations list --global`" + `
-- ` + "`beta-build-localizations get --app ... --latest`" + `
-- ` + "`beta-build-localizations create --app ... --latest`" + `
 - ` + "`beta-build-localizations build get`" + `
 
 Examples:
@@ -46,13 +44,13 @@ Examples:
 			deprecatedBetaBuildLocalizationsLeafCommand(
 				BetaBuildLocalizationsGetCommand(),
 				"asc builds test-notes view",
-				"Warning: `asc beta-build-localizations get` is deprecated. Use `asc builds test-notes view` for ID-based lookups. `--latest` remains legacy-only during transition.",
+				"Warning: `asc beta-build-localizations get` is deprecated. Use `asc builds test-notes view`.",
 			),
 			BetaBuildLocalizationsBuildCommand(),
 			deprecatedBetaBuildLocalizationsLeafCommand(
 				BetaBuildLocalizationsCreateCommand(),
 				"asc builds test-notes create",
-				"Warning: `asc beta-build-localizations create` is deprecated. Use `asc builds test-notes create` for build-scoped workflows. `--latest` remains legacy-only during transition.",
+				"Warning: `asc beta-build-localizations create` is deprecated. Use `asc builds test-notes create` for build-scoped workflows.",
 			),
 			deprecatedBetaBuildLocalizationsLeafCommand(
 				BetaBuildLocalizationsUpdateCommand(),

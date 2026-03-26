@@ -11,7 +11,7 @@ func BuildsFindCommand() *ffcli.Command {
 	return shared.DeprecatedAliasLeafCommand(
 		BuildsInfoCommand(),
 		"find",
-		"asc builds find --app APP --build-number BUILD_NUMBER [--platform IOS] [flags]",
+		"asc builds find --app APP --build-number BUILD_NUMBER [--version VERSION] [--platform PLATFORM] [flags]",
 		"asc builds info",
 		"Warning: `asc builds find` is deprecated. Use `asc builds info`.",
 	)

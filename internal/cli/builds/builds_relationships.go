@@ -44,7 +44,8 @@ func BuildsRelationshipsCommand() *ffcli.Command {
 
 Examples:
   asc builds links view --build-id "BUILD_ID" --type "app"
-  asc builds links view --build-id "BUILD_ID" --type "betaBuildLocalizations" --paginate`,
+  asc builds links view --app "123456789" --latest --type "app"
+  asc builds links view --app "123456789" --latest --type "betaBuildLocalizations" --paginate`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
@@ -60,8 +61,7 @@ Examples:
 func BuildsRelationshipsGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("links view", flag.ExitOnError)
 
-	buildID := fs.String("build-id", "", "Build ID")
-	legacyBuildID := bindHiddenStringFlag(fs, "build")
+	selectors := bindBuildSelectorFlags(fs, buildSelectorFlagOptions{})
 	relType := fs.String("type", "", "Relationship type: "+strings.Join(buildRelationshipList(), ", "))
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
@@ -70,17 +70,18 @@ func BuildsRelationshipsGetCommand() *ffcli.Command {
 
 	return &ffcli.Command{
 		Name:       "view",
-		ShortUsage: "asc builds links view --build-id \"BUILD_ID\" --type \"RELATIONSHIP\" [flags]",
+		ShortUsage: "asc builds links view (--build-id BUILD_ID | --app APP --latest | --app APP --build-number BUILD_NUMBER [--version VERSION] [--platform PLATFORM]) --type \"RELATIONSHIP\" [flags]",
 		ShortHelp:  "View relationship linkages for a build.",
 		LongHelp: `View relationship linkages for a build.
 
 Examples:
   asc builds links view --build-id "BUILD_ID" --type "app"
-  asc builds links view --build-id "BUILD_ID" --type "individualTesters" --paginate`,
+  asc builds links view --app "123456789" --latest --type "app"
+  asc builds links view --app "123456789" --latest --type "individualTesters" --paginate`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := applyLegacyBuildIDAlias(buildID, legacyBuildID); err != nil {
+			if err := selectors.applyLegacyAliases(); err != nil {
 				return err
 			}
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
@@ -102,11 +103,11 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			buildValue := strings.TrimSpace(*buildID)
 			nextValue := strings.TrimSpace(*next)
-			if buildValue == "" && nextValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --build-id is required")
-				return flag.ErrHelp
+			if nextValue == "" {
+				if err := selectors.validate(); err != nil {
+					return err
+				}
 			}
 
 			if kind == relationshipSingle && (nextValue != "" || *paginate || *limit != 0) {
@@ -122,9 +123,17 @@ Examples:
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
+			buildID := ""
+			if nextValue == "" {
+				buildID, err = selectors.resolveBuildID(requestCtx, client)
+				if err != nil {
+					return fmt.Errorf("builds links view: %w", err)
+				}
+			}
+
 			switch kind {
 			case relationshipSingle:
-				resp, err := getBuildRelationship(requestCtx, client, relationshipType, buildValue)
+				resp, err := getBuildRelationship(requestCtx, client, relationshipType, buildID)
 				if err != nil {
 					return fmt.Errorf("builds links view: %w", err)
 				}
@@ -139,10 +148,10 @@ Examples:
 					paginateOpts := append(opts, asc.WithLinkagesLimit(200))
 					resp, err := shared.PaginateWithSpinner(requestCtx,
 						func(ctx context.Context) (asc.PaginatedResponse, error) {
-							return getBuildRelationshipList(ctx, client, relationshipType, buildValue, paginateOpts...)
+							return getBuildRelationshipList(ctx, client, relationshipType, buildID, paginateOpts...)
 						},
 						func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-							return getBuildRelationshipList(ctx, client, relationshipType, buildValue, asc.WithLinkagesNextURL(nextURL))
+							return getBuildRelationshipList(ctx, client, relationshipType, buildID, asc.WithLinkagesNextURL(nextURL))
 						},
 					)
 					if err != nil {
@@ -151,7 +160,7 @@ Examples:
 					return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 				}
 
-				resp, err := getBuildRelationshipList(requestCtx, client, relationshipType, buildValue, opts...)
+				resp, err := getBuildRelationshipList(requestCtx, client, relationshipType, buildID, opts...)
 				if err != nil {
 					return fmt.Errorf("builds links view: %w", err)
 				}

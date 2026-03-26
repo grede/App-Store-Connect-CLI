@@ -30,7 +30,7 @@ func BuildsWaitCommand() *ffcli.Command {
 	latest := fs.Bool("latest", false, "Wait for the latest matching build for --app context")
 	legacyNewest := bindHiddenBoolFlag(fs, "newest")
 	version := fs.String("version", "", "Optional marketing version filter (CFBundleShortVersionString) for --app")
-	buildNumber := fs.String("build-number", "", "Optional build number filter (CFBundleVersion) for --app")
+	buildNumber := fs.String("build-number", "", "Select a unique build by build number (CFBundleVersion) for --app context")
 	since := fs.String("since", "", "Only consider builds uploaded on or after this RFC3339 timestamp")
 	platform := fs.String("platform", "", "Optional platform filter for --app selectors: IOS, MAC_OS, TV_OS, VISION_OS")
 	timeout := fs.Duration("timeout", buildsWaitDefaultTimeout, "Maximum time to wait for build processing")
@@ -51,16 +51,17 @@ This command polls build processing state until a terminal condition:
 
 Build selector modes (mutually exclusive):
   - --build-id BUILD_ID
-  - --app APP_ID with app-scoped selectors:
-      --latest
-      [--version VERSION] [--build-number NUMBER] [--since RFC3339] [--platform IOS]
+  - --app APP_ID --latest
+      [--version VERSION] [--platform PLATFORM] [--since RFC3339]
+  - --app APP_ID --build-number NUMBER
+      [--version VERSION] [--platform PLATFORM] [--since RFC3339]
 
 Examples:
   asc builds wait --build-id "BUILD_ID"
   asc builds wait --build-id "BUILD_ID" --timeout 20m --poll-interval 15s
   asc builds wait --app "1500196580" --latest
-  asc builds wait --app "1500196580" --version "2.4.0" --build-number "2"
-  asc builds wait --app "1500196580" --since "2026-03-02T18:00:00Z"
+  asc builds wait --app "1500196580" --latest --since "2026-03-02T18:00:00Z"
+  asc builds wait --app "1500196580" --build-number "2" --version "2.4.0"
   asc builds wait --app "123456789" --build-number "42" --platform MAC_OS --fail-on-invalid`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
@@ -74,13 +75,11 @@ Examples:
 
 			started := time.Now()
 			buildValue := strings.TrimSpace(*buildID)
-			appInputProvided := strings.TrimSpace(*appID) != ""
 			resolvedAppID := shared.ResolveAppID(*appID)
 			versionValue := strings.TrimSpace(*version)
 			buildNumberValue := strings.TrimSpace(*buildNumber)
 			sinceValue := strings.TrimSpace(*since)
 			platformValue := strings.TrimSpace(*platform)
-			appScopedFlagsUsed := appInputProvided || *latest || versionValue != "" || buildNumberValue != "" || sinceValue != "" || platformValue != ""
 
 			if *pollInterval <= 0 {
 				return shared.UsageError("--poll-interval must be greater than 0")
@@ -90,15 +89,18 @@ Examples:
 			}
 
 			if buildValue != "" {
-				if appScopedFlagsUsed {
-					return shared.UsageError("--build-id is mutually exclusive with app-scoped selectors (--app, --latest, --version, --build-number, --since, --platform)")
+				if strings.TrimSpace(*appID) != "" || *latest || versionValue != "" || buildNumberValue != "" || platformValue != "" || sinceValue != "" {
+					return shared.UsageError("--build-id is mutually exclusive with app-scoped selectors (--app, --latest, --version, --build-number, --platform, --since)")
 				}
 			} else {
 				if resolvedAppID == "" {
 					return shared.UsageError("--app is required when --build-id is not provided")
 				}
-				if !*latest && versionValue == "" && buildNumberValue == "" && sinceValue == "" {
-					return shared.UsageError("provide at least one app-scoped selector: --latest, --version, --build-number, or --since")
+				if *latest && buildNumberValue != "" {
+					return shared.UsageError("--latest and --build-number are mutually exclusive")
+				}
+				if !*latest && buildNumberValue == "" {
+					return shared.UsageError("--latest or --build-number is required when using --app")
 				}
 			}
 
@@ -113,7 +115,7 @@ Examples:
 
 			var sinceTime *time.Time
 			if sinceValue != "" {
-				parsedSince, err := parseBuildsWaitTimestamp(sinceValue)
+				parsedSince, err := parseBuildUploadedTimestamp(sinceValue)
 				if err != nil {
 					return shared.UsageError("--since must be an RFC3339 timestamp (e.g., 2026-03-02T18:00:00Z)")
 				}
@@ -142,6 +144,7 @@ Examples:
 				}
 
 				buildResp, err = waitForBuildDiscovery(requestCtx, client, appBuildWaitSelector{
+					Latest:      *latest,
 					AppID:       lookupAppID,
 					Version:     versionValue,
 					BuildNumber: buildNumberValue,
@@ -195,6 +198,7 @@ Examples:
 }
 
 type appBuildWaitSelector struct {
+	Latest      bool
 	AppID       string
 	Version     string
 	BuildNumber string
@@ -220,7 +224,7 @@ func waitForBuildDiscovery(
 ) (*asc.BuildResponse, error) {
 	started := time.Now()
 	return asc.PollUntil(ctx, pollInterval, func(ctx context.Context) (*asc.BuildResponse, bool, error) {
-		buildResp, err := resolveLatestBuildForAppWait(ctx, client, selector)
+		buildResp, err := resolveBuildForAppWait(ctx, client, selector)
 		if err != nil {
 			return nil, false, err
 		}
@@ -237,49 +241,56 @@ func waitForBuildDiscovery(
 	})
 }
 
-func resolveLatestBuildForAppWait(
+func resolveBuildForAppWait(
 	ctx context.Context,
 	client *asc.Client,
 	selector appBuildWaitSelector,
 ) (*asc.BuildResponse, error) {
-	opts := []asc.BuildsOption{
-		asc.WithBuildsSort("-uploadedDate"),
-		asc.WithBuildsLimit(1),
-		asc.WithBuildsProcessingStates(buildsWaitProcessingStates()),
-	}
-	if selector.BuildNumber != "" {
-		opts = append(opts, asc.WithBuildsBuildNumber(selector.BuildNumber))
-	}
-	if selector.Version != "" {
-		opts = append(opts, asc.WithBuildsPreReleaseVersionVersion(selector.Version))
-	}
-	if selector.Platform != "" {
-		opts = append(opts, asc.WithBuildsPreReleaseVersionPlatforms([]string{selector.Platform}))
+	if selector.Latest {
+		selection, err := resolveLatestBuildSelection(ctx, client, latestBuildSelectionOptions{
+			AppID:                 selector.AppID,
+			Version:               selector.Version,
+			Platform:              selector.Platform,
+			ProcessingStateValues: buildsWaitProcessingStates(),
+		}, true)
+		if err != nil {
+			return nil, err
+		}
+		return applyWaitSinceConstraint(selection.LatestBuild, selector.Since)
 	}
 
-	buildsResp, err := client.GetBuilds(ctx, selector.AppID, opts...)
+	buildResp, err := resolveBuildByNumberSelection(ctx, client, buildNumberSelectionOptions{
+		AppID:                 selector.AppID,
+		Version:               selector.Version,
+		BuildNumber:           selector.BuildNumber,
+		Platform:              selector.Platform,
+		Since:                 selector.Since,
+		ProcessingStateValues: buildsWaitProcessingStates(),
+	}, true)
 	if err != nil {
 		return nil, err
 	}
-	if len(buildsResp.Data) == 0 {
+
+	return buildResp, nil
+}
+
+func applyWaitSinceConstraint(buildResp *asc.BuildResponse, since *time.Time) (*asc.BuildResponse, error) {
+	if buildResp == nil || since == nil {
+		return buildResp, nil
+	}
+
+	uploadedAt, err := parseBuildUploadedTimestamp(buildResp.Data.Attributes.UploadedDate)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse uploadedDate for build %s: %w", buildResp.Data.ID, err)
+	}
+	if uploadedAt.Before(since.UTC()) {
 		return nil, nil
 	}
 
-	candidate := buildsResp.Data[0]
-	if selector.Since != nil {
-		uploadedAt, err := parseBuildsWaitTimestamp(candidate.Attributes.UploadedDate)
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse uploadedDate for build %s: %w", candidate.ID, err)
-		}
-		if uploadedAt.Before(selector.Since.UTC()) {
-			return nil, nil
-		}
-	}
-
-	return &asc.BuildResponse{Data: candidate, Links: buildsResp.Links}, nil
+	return buildResp, nil
 }
 
-func parseBuildsWaitTimestamp(raw string) (time.Time, error) {
+func parseBuildUploadedTimestamp(raw string) (time.Time, error) {
 	value := strings.TrimSpace(raw)
 	if value == "" {
 		return time.Time{}, fmt.Errorf("timestamp is required")

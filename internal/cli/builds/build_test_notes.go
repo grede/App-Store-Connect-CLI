@@ -16,13 +16,7 @@ import (
 const legacyLocalizationIDWarning = "Warning: `--id` is deprecated. Use `--localization-id`."
 
 type testNotesBuildSelectorFlags struct {
-	buildID       *string
-	legacyBuildID *trackedStringFlag
-	appID         *string
-	version       *string
-	buildNumber   *string
-	platform      *string
-	latest        *bool
+	buildSelectorFlags
 }
 
 // BuildsTestNotesCommand returns the builds test-notes command group.
@@ -37,13 +31,13 @@ func BuildsTestNotesCommand() *ffcli.Command {
 
 Build selector modes:
   --build-id BUILD_ID
-  --app APP --latest
-  --app APP --build-number NUM
+  --app APP --latest [--version VER] [--platform PLATFORM]
+  --app APP --build-number NUM [--version VER] [--platform PLATFORM]
 
 Examples:
   asc builds test-notes list --build-id "BUILD_ID"
-  asc builds test-notes view --build-id "BUILD_ID" --locale "en-US"
-  asc builds test-notes create --build-id "BUILD_ID" --locale "en-US" --whats-new "Test instructions"
+  asc builds test-notes view --app "123456789" --latest --locale "en-US"
+  asc builds test-notes create --app "123456789" --build-number "42" --version "1.2.3" --locale "en-US" --whats-new "Test instructions"
   asc builds test-notes update --build-id "BUILD_ID" --locale "en-US" --whats-new "Updated instructions"
   asc builds test-notes delete --build-id "BUILD_ID" --locale "en-US" --confirm`,
 		FlagSet:   fs,
@@ -75,14 +69,14 @@ func BuildsTestNotesListCommand() *ffcli.Command {
 
 	return &ffcli.Command{
 		Name:       "list",
-		ShortUsage: "asc builds test-notes list [--build-id BUILD_ID | --app APP --latest | --app APP --build-number NUM] [flags]",
+		ShortUsage: "asc builds test-notes list [--build-id BUILD_ID | --app APP --latest [--version VER] [--platform PLATFORM] | --app APP --build-number NUM [--version VER] [--platform PLATFORM]] [flags]",
 		ShortHelp:  "List What to Test notes for a build.",
 		LongHelp: `List What to Test notes for a build.
 
 Build selector modes (one of):
   --build-id BUILD_ID
-  --app APP --latest [--version VER] [--platform IOS]
-  --app APP --build-number NUM [--platform IOS]
+  --app APP --latest [--version VER] [--platform PLATFORM]
+  --app APP --build-number NUM [--version VER] [--platform PLATFORM]
 
 Examples:
   asc builds test-notes list --build-id "BUILD_ID"
@@ -178,9 +172,17 @@ func BuildsTestNotesViewCommand() *ffcli.Command {
 		ShortHelp:  "View What to Test notes for a build and locale.",
 		LongHelp: `View What to Test notes for a build selector and locale.
 
+Selector modes:
+  --localization-id LOCALIZATION_ID
+  --locale LOCALE with one of:
+    --build-id BUILD_ID
+    --app APP --latest [--version VER] [--platform PLATFORM]
+    --app APP --build-number NUM [--version VER] [--platform PLATFORM]
+
 Examples:
   asc builds test-notes view --build-id "BUILD_ID" --locale "en-US"
-  asc builds test-notes view --app "123456789" --latest --locale "en-US"`,
+  asc builds test-notes view --app "123456789" --latest --locale "en-US"
+  asc builds test-notes view --app "123456789" --build-number "42" --version "1.2.3" --locale "en-US"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -247,18 +249,19 @@ func BuildsTestNotesCreateCommand() *ffcli.Command {
 
 	return &ffcli.Command{
 		Name:       "create",
-		ShortUsage: "asc builds test-notes create [--build-id BUILD_ID | --app APP --latest | --app APP --build-number NUM] [flags]",
+		ShortUsage: "asc builds test-notes create [--build-id BUILD_ID | --app APP --latest [--version VER] [--platform PLATFORM] | --app APP --build-number NUM [--version VER] [--platform PLATFORM]] [flags]",
 		ShortHelp:  "Create What to Test notes for a build.",
 		LongHelp: `Create What to Test notes for a build.
 
 Build selector modes (one of):
   --build-id BUILD_ID
-  --app APP --latest [--version VER] [--platform IOS]
-  --app APP --build-number NUM [--platform IOS]
+  --app APP --latest [--version VER] [--platform PLATFORM]
+  --app APP --build-number NUM [--version VER] [--platform PLATFORM]
 
 Examples:
   asc builds test-notes create --build-id "BUILD_ID" --locale "en-US" --whats-new "Test instructions"
-  asc builds test-notes create --app "123456789" --latest --locale "en-US" --whats-new "Test instructions"`,
+  asc builds test-notes create --app "123456789" --latest --locale "en-US" --whats-new "Test instructions"
+  asc builds test-notes create --app "123456789" --build-number "42" --version "1.2.3" --locale "en-US" --whats-new "Test instructions"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -328,9 +331,16 @@ func BuildsTestNotesUpdateCommand() *ffcli.Command {
 		ShortHelp:  "Update What to Test notes for a build and locale.",
 		LongHelp: `Update What to Test notes for a build selector and locale.
 
+Selector modes:
+  --localization-id LOCALIZATION_ID
+  --locale LOCALE with one of:
+    --build-id BUILD_ID
+    --app APP --latest [--version VER] [--platform PLATFORM]
+    --app APP --build-number NUM [--version VER] [--platform PLATFORM]
+
 Examples:
   asc builds test-notes update --build-id "BUILD_ID" --locale "en-US" --whats-new "Updated notes"
-  asc builds test-notes update --app "123456789" --build-number "42" --locale "en-US" --whats-new "Updated notes"`,
+  asc builds test-notes update --app "123456789" --build-number "42" --version "1.2.3" --locale "en-US" --whats-new "Updated notes"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -400,8 +410,16 @@ func BuildsTestNotesDeleteCommand() *ffcli.Command {
 		ShortHelp:  "Delete What to Test notes for a build and locale.",
 		LongHelp: `Delete What to Test notes for a build selector and locale.
 
+Selector modes:
+  --localization-id LOCALIZATION_ID
+  --locale LOCALE with one of:
+    --build-id BUILD_ID
+    --app APP --latest [--version VER] [--platform PLATFORM]
+    --app APP --build-number NUM [--version VER] [--platform PLATFORM]
+
 Examples:
-  asc builds test-notes delete --build-id "BUILD_ID" --locale "en-US" --confirm`,
+  asc builds test-notes delete --build-id "BUILD_ID" --locale "en-US" --confirm
+  asc builds test-notes delete --app "123456789" --build-number "42" --version "1.2.3" --locale "en-US" --confirm`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -454,38 +472,25 @@ Examples:
 
 func bindTestNotesBuildSelectorFlags(fs *flag.FlagSet) testNotesBuildSelectorFlags {
 	return testNotesBuildSelectorFlags{
-		buildID:       fs.String("build-id", "", "Build ID"),
-		legacyBuildID: bindHiddenStringFlag(fs, "build"),
-		appID:         fs.String("app", "", "App ID, bundle ID, or app name (or ASC_APP_ID)"),
-		version:       fs.String("version", "", "App version string (e.g., 1.2.3)"),
-		buildNumber:   fs.String("build-number", "", "Build number (CFBundleVersion)"),
-		platform:      fs.String("platform", "", "Platform: IOS, MAC_OS, TV_OS, VISION_OS"),
-		latest:        fs.Bool("latest", false, "Resolve the latest matching build for --app context"),
+		buildSelectorFlags: bindBuildSelectorFlags(fs, buildSelectorFlagOptions{
+			buildIDUsage:     "Build ID",
+			appUsage:         "App ID, bundle ID, or app name (or ASC_APP_ID)",
+			latestUsage:      "Resolve the latest matching build for --app context",
+			versionUsage:     "App version string (e.g., 1.2.3)",
+			buildNumberUsage: "Build number (CFBundleVersion)",
+			platformUsage:    "Platform: IOS, MAC_OS, TV_OS, VISION_OS",
+		}),
 	}
-}
-
-func (f testNotesBuildSelectorFlags) applyLegacyAliases() error {
-	return applyLegacyBuildIDAlias(f.buildID, f.legacyBuildID)
 }
 
 func (f testNotesBuildSelectorFlags) hasAnyInputs() bool {
-	return strings.TrimSpace(*f.buildID) != "" ||
-		strings.TrimSpace(*f.appID) != "" ||
-		strings.TrimSpace(*f.version) != "" ||
-		strings.TrimSpace(*f.buildNumber) != "" ||
-		strings.TrimSpace(*f.platform) != "" ||
-		*f.latest
-}
-
-func (f testNotesBuildSelectorFlags) resolveOptions() ResolveBuildOptions {
-	return ResolveBuildOptions{
-		BuildID:     strings.TrimSpace(*f.buildID),
-		AppID:       strings.TrimSpace(*f.appID),
-		Version:     strings.TrimSpace(*f.version),
-		BuildNumber: strings.TrimSpace(*f.buildNumber),
-		Platform:    strings.TrimSpace(*f.platform),
-		Latest:      *f.latest,
-	}
+	opts := f.resolveOptions()
+	return opts.BuildID != "" ||
+		opts.AppID != "" ||
+		opts.Version != "" ||
+		opts.BuildNumber != "" ||
+		opts.Platform != "" ||
+		opts.Latest
 }
 
 func (f testNotesBuildSelectorFlags) resolveBuild(ctx context.Context, client *asc.Client) (*asc.BuildResponse, error) {

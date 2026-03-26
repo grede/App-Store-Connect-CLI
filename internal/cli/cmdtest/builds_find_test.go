@@ -34,14 +34,14 @@ func TestBuildsInfoByBuildNumberSuccess(t *testing.T) {
 			if query.Get("filter[version]") != "42" {
 				t.Fatalf("expected filter[version]=42, got %q", query.Get("filter[version]"))
 			}
-			if query.Get("filter[preReleaseVersion.platform]") != "IOS" {
-				t.Fatalf("expected filter[preReleaseVersion.platform]=IOS, got %q", query.Get("filter[preReleaseVersion.platform]"))
+			if query.Get("filter[preReleaseVersion.platform]") != "" {
+				t.Fatalf("expected no implicit platform filter, got %q", query.Get("filter[preReleaseVersion.platform]"))
 			}
 			if query.Get("sort") != "-uploadedDate" {
 				t.Fatalf("expected sort=-uploadedDate, got %q", query.Get("sort"))
 			}
-			if query.Get("limit") != "1" {
-				t.Fatalf("expected limit=1, got %q", query.Get("limit"))
+			if query.Get("limit") != "200" {
+				t.Fatalf("expected limit=200, got %q", query.Get("limit"))
 			}
 			body := `{"data":[{"type":"builds","id":"build-42","attributes":{"version":"42","processingState":"PROCESSING"}}]}`
 			return &http.Response{
@@ -85,7 +85,7 @@ func TestBuildsInfoByBuildNumberSuccess(t *testing.T) {
 	}
 }
 
-func TestBuildsInfoByBuildNumberExplicitPlatformOverridesIOSDefault(t *testing.T) {
+func TestBuildsInfoByBuildNumberExplicitPlatformNarrowsResults(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 	t.Setenv("ASC_APP_ID", "")
@@ -95,11 +95,26 @@ func TestBuildsInfoByBuildNumberExplicitPlatformOverridesIOSDefault(t *testing.T
 		http.DefaultTransport = originalTransport
 	})
 
+	requestCount := 0
 	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		switch req.URL.Path {
-		case "/v1/builds":
-			if got := req.URL.Query().Get("filter[preReleaseVersion.platform]"); got != "TV_OS" {
-				t.Fatalf("expected explicit platform override TV_OS, got %q", got)
+		requestCount++
+		switch requestCount {
+		case 1:
+			if req.URL.Path != "/v1/builds" {
+				t.Fatalf("expected builds lookup, got %s", req.URL.Path)
+			}
+			query := req.URL.Query()
+			if got := query.Get("filter[app]"); got != "123456789" {
+				t.Fatalf("expected app filter 123456789, got %q", got)
+			}
+			if got := query.Get("filter[preReleaseVersion.platform]"); got != "TV_OS" {
+				t.Fatalf("expected platform filter TV_OS, got %q", got)
+			}
+			if got := query.Get("filter[version]"); got != "42" {
+				t.Fatalf("expected build number filter 42, got %q", got)
+			}
+			if got := query.Get("limit"); got != "200" {
+				t.Fatalf("expected limit=200, got %q", got)
 			}
 			body := `{"data":[{"type":"builds","id":"build-tv","attributes":{"version":"42","processingState":"VALID"}}]}`
 			return &http.Response{
@@ -107,7 +122,10 @@ func TestBuildsInfoByBuildNumberExplicitPlatformOverridesIOSDefault(t *testing.T
 				Body:       io.NopCloser(strings.NewReader(body)),
 				Header:     http.Header{"Content-Type": []string{"application/json"}},
 			}, nil
-		case "/v1/builds/build-tv/preReleaseVersion":
+		case 2:
+			if req.URL.Path != "/v1/builds/build-tv/preReleaseVersion" {
+				t.Fatalf("expected build pre-release version path, got %s", req.URL.Path)
+			}
 			body := `{"data":{"type":"preReleaseVersions","id":"prv-tv","attributes":{"version":"1.2.3","platform":"TV_OS"}}}`
 			return &http.Response{
 				StatusCode: http.StatusOK,
@@ -115,7 +133,7 @@ func TestBuildsInfoByBuildNumberExplicitPlatformOverridesIOSDefault(t *testing.T
 				Header:     http.Header{"Content-Type": []string{"application/json"}},
 			}, nil
 		default:
-			t.Fatalf("unexpected request path %s", req.URL.Path)
+			t.Fatalf("unexpected request count %d", requestCount)
 			return nil, nil
 		}
 	})
@@ -657,8 +675,11 @@ func TestBuildsFindAliasWarnsAndMatchesCanonicalInfoOutput(t *testing.T) {
 			if query.Get("filter[version]") != "42" {
 				t.Fatalf("expected filter[version]=42, got %q", query.Get("filter[version]"))
 			}
-			if query.Get("filter[preReleaseVersion.platform]") != "IOS" {
-				t.Fatalf("expected default IOS platform filter, got %q", query.Get("filter[preReleaseVersion.platform]"))
+			if query.Get("filter[preReleaseVersion.platform]") != "" {
+				t.Fatalf("expected no implicit platform filter, got %q", query.Get("filter[preReleaseVersion.platform]"))
+			}
+			if query.Get("limit") != "200" {
+				t.Fatalf("expected limit=200, got %q", query.Get("limit"))
 			}
 			body := `{"data":[{"type":"builds","id":"build-42","attributes":{"version":"42","processingState":"VALID"}}]}`
 			return &http.Response{

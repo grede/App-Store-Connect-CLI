@@ -216,6 +216,25 @@ func TestBuildsIconsListPaginateFromNext(t *testing.T) {
 	)
 }
 
+func TestBuildsIconsListPaginateFromNextWithoutBuildSelector(t *testing.T) {
+	const firstURL = "https://api.appstoreconnect.apple.com/v1/builds/build-1/icons?cursor=AQ&limit=200"
+	const secondURL = "https://api.appstoreconnect.apple.com/v1/builds/build-1/icons?cursor=BQ&limit=200"
+
+	firstBody := `{"data":[{"type":"buildIcons","id":"build-icon-next-1"}],"links":{"next":"` + secondURL + `"}}`
+	secondBody := `{"data":[{"type":"buildIcons","id":"build-icon-next-2"}],"links":{"next":""}}`
+
+	runBuildsPaginateFromNext(
+		t,
+		[]string{"builds", "icons", "list"},
+		firstURL,
+		secondURL,
+		firstBody,
+		secondBody,
+		"build-icon-next-1",
+		"build-icon-next-2",
+	)
+}
+
 func TestBuildsIndividualTestersListRejectsInvalidNextURL(t *testing.T) {
 	runBuildsInvalidNextURLCases(
 		t,
@@ -234,6 +253,25 @@ func TestBuildsIndividualTestersListPaginateFromNext(t *testing.T) {
 	runBuildsPaginateFromNext(
 		t,
 		[]string{"builds", "individual-testers", "list", "--build-id", "build-1"},
+		firstURL,
+		secondURL,
+		firstBody,
+		secondBody,
+		"build-individual-tester-next-1",
+		"build-individual-tester-next-2",
+	)
+}
+
+func TestBuildsIndividualTestersListPaginateFromNextWithoutBuildSelector(t *testing.T) {
+	const firstURL = "https://api.appstoreconnect.apple.com/v1/builds/build-1/individualTesters?cursor=AQ&limit=200"
+	const secondURL = "https://api.appstoreconnect.apple.com/v1/builds/build-1/individualTesters?cursor=BQ&limit=200"
+
+	firstBody := `{"data":[{"type":"betaTesters","id":"build-individual-tester-next-1"}],"links":{"next":"` + secondURL + `"}}`
+	secondBody := `{"data":[{"type":"betaTesters","id":"build-individual-tester-next-2"}],"links":{"next":""}}`
+
+	runBuildsPaginateFromNext(
+		t,
+		[]string{"builds", "individual-testers", "list"},
 		firstURL,
 		secondURL,
 		firstBody,

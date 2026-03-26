@@ -59,7 +59,7 @@ func BuildsDsymsCommand() *ffcli.Command {
 
 	return &ffcli.Command{
 		Name:       "dsyms",
-		ShortUsage: "asc builds dsyms [--build-id BUILD_ID | --app APP --latest | --app APP --build-number NUM] [flags]",
+		ShortUsage: "asc builds dsyms [--build-id BUILD_ID | --app APP --latest [--version VER] [--platform PLATFORM] | --app APP --build-number NUM [--version VER] [--platform PLATFORM]] [flags]",
 		ShortHelp:  "Download dSYM files for a build.",
 		LongHelp: `Download dSYM debug symbol files for a build.
 
@@ -68,18 +68,17 @@ and Sentry. Each build bundle that includes symbols will have a dSYM
 download URL.
 
 Build selection (one of):
-  --build-id BUILD_ID                 Direct build ID
-  --app APP --latest                  Most recently uploaded build
-  --app APP --build-number NUM        Specific build number
-  --app APP --version VER --latest    Latest build for a version
+  --build-id BUILD_ID
+  --app APP --latest [--version VER] [--platform PLATFORM]
+  --app APP --build-number NUM [--version VER] [--platform PLATFORM]
 
 Examples:
   asc builds dsyms --build-id "BUILD_ID"
   asc builds dsyms --app "com.example.app" --latest
   asc builds dsyms --app "com.example.app" --latest --platform IOS
-  asc builds dsyms --app "com.example.app" --version "1.2.3" --latest
+  asc builds dsyms --app "com.example.app" --latest --version "1.2.3"
   asc builds dsyms --app "com.example.app" --build-number "42"
-  asc builds dsyms --app "com.example.app" --build-number "42" --output-dir "./dsyms"`,
+  asc builds dsyms --app "com.example.app" --build-number "42" --version "1.2.3" --output-dir "./dsyms"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
