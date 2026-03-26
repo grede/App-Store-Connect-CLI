@@ -403,7 +403,7 @@ Examples:
   asc builds find --app "123456789" --build-number "42"
   asc builds wait --build-id "BUILD_ID"
   asc builds wait --app "123456789" --latest
-  asc builds info --build "BUILD_ID"
+  asc builds info --build-id "BUILD_ID"
   asc builds expire --build "BUILD_ID"
   asc builds expire-all --app "123456789" --older-than 90d --dry-run
   asc builds upload --app "123456789" --ipa "app.ipa"
@@ -415,13 +415,13 @@ Examples:
   asc builds add-groups --build "BUILD_ID" --group "GROUP_ID"
   asc builds add-groups --build "BUILD_ID" --group "GROUP_ID" --submit --confirm
   asc builds remove-groups --build "BUILD_ID" --group "GROUP_ID"
-  asc builds app get --build "BUILD_ID"
-  asc builds pre-release-version get --build "BUILD_ID"
-  asc builds icons list --build "BUILD_ID"
-  asc builds beta-app-review-submission get --build "BUILD_ID"
-  asc builds build-beta-detail get --build "BUILD_ID"
-  asc builds links view --build "BUILD_ID" --type "app"
-  asc builds metrics beta-usages --build "BUILD_ID"
+  asc builds app get --build-id "BUILD_ID"
+  asc builds pre-release-version get --build-id "BUILD_ID"
+  asc builds icons list --build-id "BUILD_ID"
+  asc builds beta-app-review-submission get --build-id "BUILD_ID"
+  asc builds build-beta-detail get --build-id "BUILD_ID"
+  asc builds links view --build-id "BUILD_ID" --type "app"
+  asc builds metrics beta-usages --build-id "BUILD_ID"
   asc builds dsyms --build-id "BUILD_ID" --output-dir "./dsyms"`,
 		FlagSet:   fs,
 		UsageFunc: shared.VisibleUsageFunc,
@@ -739,22 +739,22 @@ func mergeBuildRelationship(relationships json.RawMessage, key string, value map
 func BuildsInfoCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("builds info", flag.ExitOnError)
 
-	buildID := fs.String("build", "", "Build ID")
+	buildID := fs.String("build-id", "", "Build ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "info",
-		ShortUsage: "asc builds info --build BUILD_ID",
+		ShortUsage: "asc builds info --build-id BUILD_ID",
 		ShortHelp:  "Show details for a specific build.",
 		LongHelp: `Show details for a specific build.
 
 Examples:
-  asc builds info --build "BUILD_ID"`,
+  asc builds info --build-id "BUILD_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if strings.TrimSpace(*buildID) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --build is required")
+				fmt.Fprintln(os.Stderr, "Error: --build-id is required")
 				return flag.ErrHelp
 			}
 

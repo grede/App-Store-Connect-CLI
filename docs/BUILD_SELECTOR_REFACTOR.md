@@ -47,7 +47,8 @@ Progress checklist:
 - [x] Update focused tests and command docs for the PR 1 slice
 - [ ] Decide whether `builds wait` should later reuse more of the shared
   selector engine instead of only sharing vocabulary
-- [ ] Extend `--build-id` vocabulary beyond the current resolver-facing commands
+- [x] Extend `--build-id` vocabulary to the remaining read-oriented explicit
+  build commands in `builds`
 
 Scope:
 
@@ -62,6 +63,14 @@ Commands in scope:
 
 - `asc builds wait`
 - `asc builds dsyms`
+- `asc builds info`
+- `asc builds app get`
+- `asc builds pre-release-version get`
+- `asc builds icons list`
+- `asc builds beta-app-review-submission get`
+- `asc builds build-beta-detail get`
+- `asc builds links view`
+- `asc builds metrics beta-usages`
 - shared resolver helpers in `internal/cli/builds/resolve_build.go`
 
 Files expected in scope:

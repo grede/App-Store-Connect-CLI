@@ -292,7 +292,7 @@ func TestBuildsInfoRequiresBuildID(t *testing.T) {
 	if stdout != "" {
 		t.Fatalf("expected empty stdout, got %q", stdout)
 	}
-	if !strings.Contains(stderr, "--build is required") {
+	if !strings.Contains(stderr, "--build-id is required") {
 		t.Fatalf("expected missing build error, got %q", stderr)
 	}
 }

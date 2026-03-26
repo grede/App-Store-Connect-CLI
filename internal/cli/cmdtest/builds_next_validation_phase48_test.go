@@ -206,7 +206,7 @@ func TestBuildsIconsListPaginateFromNext(t *testing.T) {
 
 	runBuildsPaginateFromNext(
 		t,
-		[]string{"builds", "icons", "list", "--build", "build-1"},
+		[]string{"builds", "icons", "list", "--build-id", "build-1"},
 		firstURL,
 		secondURL,
 		firstBody,

@@ -72,7 +72,7 @@ func TestBuildsInfoTableShowsMarketingVersionAndPlatform(t *testing.T) {
 	root.FlagSet.SetOutput(io.Discard)
 
 	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"builds", "info", "--build", "build-1", "--output", "table"}); err != nil {
+		if err := root.Parse([]string{"builds", "info", "--build-id", "build-1", "--output", "table"}); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
 		if err := root.Run(context.Background()); err != nil {
@@ -141,7 +141,7 @@ func TestBuildsInfoJSONPreservesExistingRelationships(t *testing.T) {
 	root.FlagSet.SetOutput(io.Discard)
 
 	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"builds", "info", "--build", "build-1", "--output", "json"}); err != nil {
+		if err := root.Parse([]string{"builds", "info", "--build-id", "build-1", "--output", "json"}); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
 		if err := root.Run(context.Background()); err != nil {

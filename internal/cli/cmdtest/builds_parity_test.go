@@ -52,32 +52,32 @@ func TestBuildsParityValidationErrors(t *testing.T) {
 	}{
 		{
 			name:    "builds links missing type",
-			args:    []string{"builds", "links", "view", "--build", "BUILD_ID"},
+			args:    []string{"builds", "links", "view", "--build-id", "BUILD_ID"},
 			wantErr: "--type is required",
 		},
 		{
 			name:    "builds links missing build",
 			args:    []string{"builds", "links", "view", "--type", "app"},
-			wantErr: "--build is required",
+			wantErr: "--build-id is required",
 		},
 		{
 			name:    "builds links invalid type",
-			args:    []string{"builds", "links", "view", "--build", "BUILD_ID", "--type", "nope"},
+			args:    []string{"builds", "links", "view", "--build-id", "BUILD_ID", "--type", "nope"},
 			wantErr: "--type must be one of",
 		},
 		{
 			name:    "builds links invalid limit for single",
-			args:    []string{"builds", "links", "view", "--build", "BUILD_ID", "--type", "app", "--limit", "10"},
+			args:    []string{"builds", "links", "view", "--build-id", "BUILD_ID", "--type", "app", "--limit", "10"},
 			wantErr: "only valid for to-many relationships",
 		},
 		{
-			name:    "builds metrics beta-usages missing build",
+			name:    "builds metrics beta-usages missing build id",
 			args:    []string{"builds", "metrics", "beta-usages"},
-			wantErr: "--build is required",
+			wantErr: "--build-id is required",
 		},
 		{
 			name:    "builds metrics beta-usages invalid limit",
-			args:    []string{"builds", "metrics", "beta-usages", "--build", "BUILD_ID", "--limit", "300"},
+			args:    []string{"builds", "metrics", "beta-usages", "--build-id", "BUILD_ID", "--limit", "300"},
 			wantErr: "--limit must be between 1 and 200",
 		},
 		{
@@ -358,29 +358,29 @@ func TestParityRelatedCommandsValidationErrors(t *testing.T) {
 		wantErr string
 	}{
 		{
-			name:    "builds app get missing build",
+			name:    "builds app get missing build id",
 			args:    []string{"builds", "app", "get"},
-			wantErr: "--build is required",
+			wantErr: "--build-id is required",
 		},
 		{
-			name:    "builds pre-release-version get missing build",
+			name:    "builds pre-release-version get missing build id",
 			args:    []string{"builds", "pre-release-version", "get"},
-			wantErr: "--build is required",
+			wantErr: "--build-id is required",
 		},
 		{
-			name:    "builds icons list missing build",
+			name:    "builds icons list missing build id",
 			args:    []string{"builds", "icons", "list"},
-			wantErr: "--build is required",
+			wantErr: "--build-id is required",
 		},
 		{
-			name:    "builds beta-app-review-submission get missing build",
+			name:    "builds beta-app-review-submission get missing build id",
 			args:    []string{"builds", "beta-app-review-submission", "get"},
-			wantErr: "--build is required",
+			wantErr: "--build-id is required",
 		},
 		{
-			name:    "builds build-beta-detail get missing build",
+			name:    "builds build-beta-detail get missing build id",
 			args:    []string{"builds", "build-beta-detail", "get"},
-			wantErr: "--build is required",
+			wantErr: "--build-id is required",
 		},
 		{
 			name:    "beta-groups app get missing group-id",

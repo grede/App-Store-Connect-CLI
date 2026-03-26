@@ -24,7 +24,7 @@ func BuildsAppCommand() *ffcli.Command {
 		LongHelp: `View the app related to a build.
 
 Examples:
-  asc builds app get --build "BUILD_ID"`,
+  asc builds app get --build-id "BUILD_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
@@ -40,30 +40,23 @@ Examples:
 func BuildsAppGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("app get", flag.ExitOnError)
 
-	buildID := fs.String("build", "", "Build ID")
-	aliasID := fs.String("id", "", "Build ID (alias of --build)")
+	buildID := fs.String("build-id", "", "Build ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "get",
-		ShortUsage: "asc builds app get --build \"BUILD_ID\"",
+		ShortUsage: "asc builds app get --build-id \"BUILD_ID\"",
 		ShortHelp:  "Get the app for a build.",
 		LongHelp: `Get the app for a build.
 
 Examples:
-  asc builds app get --build "BUILD_ID"`,
+  asc builds app get --build-id "BUILD_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			buildValue := strings.TrimSpace(*buildID)
-			aliasValue := strings.TrimSpace(*aliasID)
 			if buildValue == "" {
-				buildValue = aliasValue
-			} else if aliasValue != "" && aliasValue != buildValue {
-				return fmt.Errorf("builds app get: --build and --id must match")
-			}
-			if buildValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --build is required")
+				fmt.Fprintln(os.Stderr, "Error: --build-id is required")
 				return flag.ErrHelp
 			}
 
@@ -96,7 +89,7 @@ func BuildsPreReleaseVersionCommand() *ffcli.Command {
 		LongHelp: `View the pre-release version related to a build.
 
 Examples:
-  asc builds pre-release-version get --build "BUILD_ID"`,
+  asc builds pre-release-version get --build-id "BUILD_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
@@ -112,30 +105,23 @@ Examples:
 func BuildsPreReleaseVersionGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("pre-release-version get", flag.ExitOnError)
 
-	buildID := fs.String("build", "", "Build ID")
-	aliasID := fs.String("id", "", "Build ID (alias of --build)")
+	buildID := fs.String("build-id", "", "Build ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "get",
-		ShortUsage: "asc builds pre-release-version get --build \"BUILD_ID\"",
+		ShortUsage: "asc builds pre-release-version get --build-id \"BUILD_ID\"",
 		ShortHelp:  "Get the pre-release version for a build.",
 		LongHelp: `Get the pre-release version for a build.
 
 Examples:
-  asc builds pre-release-version get --build "BUILD_ID"`,
+  asc builds pre-release-version get --build-id "BUILD_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			buildValue := strings.TrimSpace(*buildID)
-			aliasValue := strings.TrimSpace(*aliasID)
 			if buildValue == "" {
-				buildValue = aliasValue
-			} else if aliasValue != "" && aliasValue != buildValue {
-				return fmt.Errorf("builds pre-release-version get: --build and --id must match")
-			}
-			if buildValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --build is required")
+				fmt.Fprintln(os.Stderr, "Error: --build-id is required")
 				return flag.ErrHelp
 			}
 
@@ -168,7 +154,7 @@ func BuildsIconsCommand() *ffcli.Command {
 		LongHelp: `List build icons for a build.
 
 Examples:
-  asc builds icons list --build "BUILD_ID"`,
+  asc builds icons list --build-id "BUILD_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
@@ -184,8 +170,7 @@ Examples:
 func BuildsIconsListCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("icons list", flag.ExitOnError)
 
-	buildID := fs.String("build", "", "Build ID")
-	aliasID := fs.String("id", "", "Build ID (alias of --build)")
+	buildID := fs.String("build-id", "", "Build ID")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
@@ -198,8 +183,8 @@ func BuildsIconsListCommand() *ffcli.Command {
 		LongHelp: `List build icons for a build.
 
 Examples:
-  asc builds icons list --build "BUILD_ID"
-  asc builds icons list --build "BUILD_ID" --paginate`,
+  asc builds icons list --build-id "BUILD_ID"
+  asc builds icons list --build-id "BUILD_ID" --paginate`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -211,14 +196,8 @@ Examples:
 			}
 
 			buildValue := strings.TrimSpace(*buildID)
-			aliasValue := strings.TrimSpace(*aliasID)
-			if buildValue == "" {
-				buildValue = aliasValue
-			} else if aliasValue != "" && aliasValue != buildValue {
-				return fmt.Errorf("builds icons list: --build and --id must match")
-			}
 			if buildValue == "" && strings.TrimSpace(*next) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --build is required")
+				fmt.Fprintln(os.Stderr, "Error: --build-id is required")
 				return flag.ErrHelp
 			}
 
@@ -237,7 +216,7 @@ Examples:
 
 			if *paginate {
 				if buildValue == "" {
-					fmt.Fprintln(os.Stderr, "Error: --build is required")
+					fmt.Fprintln(os.Stderr, "Error: --build-id is required")
 					return flag.ErrHelp
 				}
 				paginateOpts := append(opts, asc.WithBuildIconsLimit(200))
@@ -276,7 +255,7 @@ func BuildsBetaAppReviewSubmissionCommand() *ffcli.Command {
 		LongHelp: `View beta app review submission for a build.
 
 Examples:
-  asc builds beta-app-review-submission get --build "BUILD_ID"`,
+  asc builds beta-app-review-submission get --build-id "BUILD_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
@@ -292,30 +271,23 @@ Examples:
 func BuildsBetaAppReviewSubmissionGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("beta-app-review-submission get", flag.ExitOnError)
 
-	buildID := fs.String("build", "", "Build ID")
-	aliasID := fs.String("id", "", "Build ID (alias of --build)")
+	buildID := fs.String("build-id", "", "Build ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "get",
-		ShortUsage: "asc builds beta-app-review-submission get --build \"BUILD_ID\"",
+		ShortUsage: "asc builds beta-app-review-submission get --build-id \"BUILD_ID\"",
 		ShortHelp:  "Get beta app review submission for a build.",
 		LongHelp: `Get beta app review submission for a build.
 
 Examples:
-  asc builds beta-app-review-submission get --build "BUILD_ID"`,
+  asc builds beta-app-review-submission get --build-id "BUILD_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			buildValue := strings.TrimSpace(*buildID)
-			aliasValue := strings.TrimSpace(*aliasID)
 			if buildValue == "" {
-				buildValue = aliasValue
-			} else if aliasValue != "" && aliasValue != buildValue {
-				return fmt.Errorf("builds beta-app-review-submission get: --build and --id must match")
-			}
-			if buildValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --build is required")
+				fmt.Fprintln(os.Stderr, "Error: --build-id is required")
 				return flag.ErrHelp
 			}
 
@@ -348,7 +320,7 @@ func BuildsBuildBetaDetailCommand() *ffcli.Command {
 		LongHelp: `View build beta detail for a build.
 
 Examples:
-  asc builds build-beta-detail get --build "BUILD_ID"`,
+  asc builds build-beta-detail get --build-id "BUILD_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
@@ -364,30 +336,23 @@ Examples:
 func BuildsBuildBetaDetailGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("build-beta-detail get", flag.ExitOnError)
 
-	buildID := fs.String("build", "", "Build ID")
-	aliasID := fs.String("id", "", "Build ID (alias of --build)")
+	buildID := fs.String("build-id", "", "Build ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "get",
-		ShortUsage: "asc builds build-beta-detail get --build \"BUILD_ID\"",
+		ShortUsage: "asc builds build-beta-detail get --build-id \"BUILD_ID\"",
 		ShortHelp:  "Get build beta detail for a build.",
 		LongHelp: `Get build beta detail for a build.
 
 Examples:
-  asc builds build-beta-detail get --build "BUILD_ID"`,
+  asc builds build-beta-detail get --build-id "BUILD_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			buildValue := strings.TrimSpace(*buildID)
-			aliasValue := strings.TrimSpace(*aliasID)
 			if buildValue == "" {
-				buildValue = aliasValue
-			} else if aliasValue != "" && aliasValue != buildValue {
-				return fmt.Errorf("builds build-beta-detail get: --build and --id must match")
-			}
-			if buildValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --build is required")
+				fmt.Fprintln(os.Stderr, "Error: --build-id is required")
 				return flag.ErrHelp
 			}
 
