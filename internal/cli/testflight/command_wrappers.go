@@ -1009,8 +1009,8 @@ func TestFlightAppLocalizationsCommand() *ffcli.Command {
 
 Examples:
   asc testflight app-localizations list --app "APP_ID"
-  asc testflight app-localizations get --id "LOCALIZATION_ID"
-  asc testflight app-localizations app get --id "LOCALIZATION_ID"
+  asc testflight app-localizations view --id "LOCALIZATION_ID"
+  asc testflight app-localizations app view --id "LOCALIZATION_ID"
   asc testflight app-localizations create --app "APP_ID" --locale "en-US" --description "Welcome testers"`
 	setUsageFuncRecursively(cmd, testflightVisibleUsageFunc)
 	return cmd

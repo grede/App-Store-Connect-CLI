@@ -24,7 +24,7 @@ func BuildsAppCommand() *ffcli.Command {
 		LongHelp: `View the app related to a build.
 
 Examples:
-  asc builds app get --build-id "BUILD_ID"`,
+  asc builds app view --build-id "BUILD_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
@@ -47,20 +47,20 @@ func BuildsAppGetCommand() *ffcli.Command {
 
 	return &ffcli.Command{
 		Name:       "get",
-		ShortUsage: "asc builds app get --build-id \"BUILD_ID\"",
-		ShortHelp:  "Get the app for a build.",
-		LongHelp: `Get the app for a build.
+		ShortUsage: "asc builds app view --build-id \"BUILD_ID\"",
+		ShortHelp:  "View the app for a build.",
+		LongHelp: `View the app for a build.
 
 Examples:
-  asc builds app get --build-id "BUILD_ID"`,
+  asc builds app view --build-id "BUILD_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if legacyBuildID.Used() {
-				return removedBuildFlagError(legacyBuildID.Value())
+			if err := applyLegacyBuildIDAlias(buildID, legacyBuildID); err != nil {
+				return err
 			}
-			if legacyID.Used() {
-				return removedIDFlagError(legacyID.Value())
+			if err := applyLegacyIDAlias(buildID, legacyID); err != nil {
+				return err
 			}
 			buildValue := strings.TrimSpace(*buildID)
 			if buildValue == "" {
@@ -97,7 +97,7 @@ func BuildsPreReleaseVersionCommand() *ffcli.Command {
 		LongHelp: `View the pre-release version related to a build.
 
 Examples:
-  asc builds pre-release-version get --build-id "BUILD_ID"`,
+  asc builds pre-release-version view --build-id "BUILD_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
@@ -120,20 +120,20 @@ func BuildsPreReleaseVersionGetCommand() *ffcli.Command {
 
 	return &ffcli.Command{
 		Name:       "get",
-		ShortUsage: "asc builds pre-release-version get --build-id \"BUILD_ID\"",
-		ShortHelp:  "Get the pre-release version for a build.",
-		LongHelp: `Get the pre-release version for a build.
+		ShortUsage: "asc builds pre-release-version view --build-id \"BUILD_ID\"",
+		ShortHelp:  "View the pre-release version for a build.",
+		LongHelp: `View the pre-release version for a build.
 
 Examples:
-  asc builds pre-release-version get --build-id "BUILD_ID"`,
+  asc builds pre-release-version view --build-id "BUILD_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if legacyBuildID.Used() {
-				return removedBuildFlagError(legacyBuildID.Value())
+			if err := applyLegacyBuildIDAlias(buildID, legacyBuildID); err != nil {
+				return err
 			}
-			if legacyID.Used() {
-				return removedIDFlagError(legacyID.Value())
+			if err := applyLegacyIDAlias(buildID, legacyID); err != nil {
+				return err
 			}
 			buildValue := strings.TrimSpace(*buildID)
 			if buildValue == "" {
@@ -206,11 +206,11 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if legacyBuildID.Used() {
-				return removedBuildFlagError(legacyBuildID.Value())
+			if err := applyLegacyBuildIDAlias(buildID, legacyBuildID); err != nil {
+				return err
 			}
-			if legacyID.Used() {
-				return removedIDFlagError(legacyID.Value())
+			if err := applyLegacyIDAlias(buildID, legacyID); err != nil {
+				return err
 			}
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("builds icons list: --limit must be between 1 and 200")
@@ -279,7 +279,7 @@ func BuildsBetaAppReviewSubmissionCommand() *ffcli.Command {
 		LongHelp: `View beta app review submission for a build.
 
 Examples:
-  asc builds beta-app-review-submission get --build-id "BUILD_ID"`,
+  asc builds beta-app-review-submission view --build-id "BUILD_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
@@ -302,20 +302,20 @@ func BuildsBetaAppReviewSubmissionGetCommand() *ffcli.Command {
 
 	return &ffcli.Command{
 		Name:       "get",
-		ShortUsage: "asc builds beta-app-review-submission get --build-id \"BUILD_ID\"",
-		ShortHelp:  "Get beta app review submission for a build.",
-		LongHelp: `Get beta app review submission for a build.
+		ShortUsage: "asc builds beta-app-review-submission view --build-id \"BUILD_ID\"",
+		ShortHelp:  "View beta app review submission for a build.",
+		LongHelp: `View beta app review submission for a build.
 
 Examples:
-  asc builds beta-app-review-submission get --build-id "BUILD_ID"`,
+  asc builds beta-app-review-submission view --build-id "BUILD_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if legacyBuildID.Used() {
-				return removedBuildFlagError(legacyBuildID.Value())
+			if err := applyLegacyBuildIDAlias(buildID, legacyBuildID); err != nil {
+				return err
 			}
-			if legacyID.Used() {
-				return removedIDFlagError(legacyID.Value())
+			if err := applyLegacyIDAlias(buildID, legacyID); err != nil {
+				return err
 			}
 			buildValue := strings.TrimSpace(*buildID)
 			if buildValue == "" {
@@ -352,7 +352,7 @@ func BuildsBuildBetaDetailCommand() *ffcli.Command {
 		LongHelp: `View build beta detail for a build.
 
 Examples:
-  asc builds build-beta-detail get --build-id "BUILD_ID"`,
+  asc builds build-beta-detail view --build-id "BUILD_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
@@ -375,20 +375,20 @@ func BuildsBuildBetaDetailGetCommand() *ffcli.Command {
 
 	return &ffcli.Command{
 		Name:       "get",
-		ShortUsage: "asc builds build-beta-detail get --build-id \"BUILD_ID\"",
-		ShortHelp:  "Get build beta detail for a build.",
-		LongHelp: `Get build beta detail for a build.
+		ShortUsage: "asc builds build-beta-detail view --build-id \"BUILD_ID\"",
+		ShortHelp:  "View build beta detail for a build.",
+		LongHelp: `View build beta detail for a build.
 
 Examples:
-  asc builds build-beta-detail get --build-id "BUILD_ID"`,
+  asc builds build-beta-detail view --build-id "BUILD_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if legacyBuildID.Used() {
-				return removedBuildFlagError(legacyBuildID.Value())
+			if err := applyLegacyBuildIDAlias(buildID, legacyBuildID); err != nil {
+				return err
 			}
-			if legacyID.Used() {
-				return removedIDFlagError(legacyID.Value())
+			if err := applyLegacyIDAlias(buildID, legacyID); err != nil {
+				return err
 			}
 			buildValue := strings.TrimSpace(*buildID)
 			if buildValue == "" {

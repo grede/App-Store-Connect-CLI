@@ -2,6 +2,8 @@ package builds
 
 import (
 	"flag"
+	"fmt"
+	"os"
 	"strconv"
 	"strings"
 
@@ -81,22 +83,44 @@ func bindHiddenBoolFlag(fs *flag.FlagSet, name string) *trackedBoolFlag {
 	return value
 }
 
-func removedBuildFlagError(value string) error {
-	value = strings.TrimSpace(value)
-	if value == "" {
-		return shared.UsageError("--build was removed; use --build-id BUILD_ID")
-	}
-	return shared.UsageErrorf("--build was removed; use --build-id %q", value)
+const (
+	legacyBuildIDWarning = "Warning: `--build` is deprecated. Use `--build-id`."
+	legacyIDWarning      = "Warning: `--id` as a build selector is deprecated. Use `--build-id`."
+	legacyNewestWarning  = "Warning: `--newest` is deprecated. Use `--latest`."
+)
+
+func applyLegacyBuildIDAlias(buildID *string, legacyBuildID *trackedStringFlag) error {
+	return applyLegacyStringAlias(buildID, legacyBuildID, "--build", "--build-id", legacyBuildIDWarning)
 }
 
-func removedIDFlagError(value string) error {
-	value = strings.TrimSpace(value)
-	if value == "" {
-		return shared.UsageError("--id was removed as a build selector; use --build-id BUILD_ID")
-	}
-	return shared.UsageErrorf("--id was removed as a build selector; use --build-id %q", value)
+func applyLegacyIDAlias(buildID *string, legacyID *trackedStringFlag) error {
+	return applyLegacyStringAlias(buildID, legacyID, "--id", "--build-id", legacyIDWarning)
 }
 
-func removedNewestFlagError() error {
-	return shared.UsageError("--newest was removed; use --latest")
+func applyLegacyLatestAlias(latest *bool, legacyNewest *trackedBoolFlag) {
+	if latest == nil || legacyNewest == nil || !legacyNewest.Used() {
+		return
+	}
+	if legacyNewest.value {
+		*latest = true
+	}
+	fmt.Fprintln(os.Stderr, legacyNewestWarning)
+}
+
+func applyLegacyStringAlias(canonical *string, legacy *trackedStringFlag, legacyName, canonicalName, warning string) error {
+	if canonical == nil || legacy == nil || !legacy.Used() {
+		return nil
+	}
+
+	legacyValue := legacy.Value()
+	canonicalValue := strings.TrimSpace(*canonical)
+	if canonicalValue != "" && legacyValue != "" && canonicalValue != legacyValue {
+		return shared.UsageErrorf("%s conflicts with %s; use only %s", legacyName, canonicalName, canonicalName)
+	}
+	if canonicalValue == "" {
+		*canonical = legacyValue
+	}
+
+	fmt.Fprintln(os.Stderr, warning)
+	return nil
 }

@@ -415,11 +415,11 @@ Examples:
   asc builds add-groups --build "BUILD_ID" --group "GROUP_ID"
   asc builds add-groups --build "BUILD_ID" --group "GROUP_ID" --submit --confirm
   asc builds remove-groups --build "BUILD_ID" --group "GROUP_ID"
-  asc builds app get --build-id "BUILD_ID"
-  asc builds pre-release-version get --build-id "BUILD_ID"
+  asc builds app view --build-id "BUILD_ID"
+  asc builds pre-release-version view --build-id "BUILD_ID"
   asc builds icons list --build-id "BUILD_ID"
-  asc builds beta-app-review-submission get --build-id "BUILD_ID"
-  asc builds build-beta-detail get --build-id "BUILD_ID"
+  asc builds beta-app-review-submission view --build-id "BUILD_ID"
+  asc builds build-beta-detail view --build-id "BUILD_ID"
   asc builds links view --build-id "BUILD_ID" --type "app"
   asc builds metrics beta-usages --build-id "BUILD_ID"
   asc builds dsyms --build-id "BUILD_ID" --output-dir "./dsyms"`,
@@ -754,8 +754,8 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if legacyBuildID.Used() {
-				return removedBuildFlagError(legacyBuildID.Value())
+			if err := applyLegacyBuildIDAlias(buildID, legacyBuildID); err != nil {
+				return err
 			}
 			if strings.TrimSpace(*buildID) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --build-id is required")

@@ -65,12 +65,10 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if legacyBuildID.Used() {
-				return removedBuildFlagError(legacyBuildID.Value())
+			if err := applyLegacyBuildIDAlias(buildID, legacyBuildID); err != nil {
+				return err
 			}
-			if legacyNewest.Used() {
-				return removedNewestFlagError()
-			}
+			applyLegacyLatestAlias(latest, legacyNewest)
 
 			started := time.Now()
 			buildValue := strings.TrimSpace(*buildID)

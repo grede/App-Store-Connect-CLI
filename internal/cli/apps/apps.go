@@ -48,13 +48,13 @@ Examples:
   asc apps public view --app "1234567890"
   asc apps public search --term "focus" --country us
   asc apps public storefronts list
-  asc apps get --id "APP_ID"
+  asc apps view --id "APP_ID"
   asc apps info view --app "APP_ID"
   asc apps info edit --app "APP_ID" --locale "en-US" --whats-new "Bug fixes"
-  asc apps ci-product get --id "APP_ID"
+  asc apps ci-product view --id "APP_ID"
   asc apps update --id "APP_ID" --bundle-id "com.example.app"
   asc apps update --id "APP_ID" --primary-locale "en-US"
-  asc apps subscription-grace-period get --app "APP_ID"
+  asc apps subscription-grace-period view --app "APP_ID"
   asc apps content-rights edit --app "APP_ID" --uses-third-party-content=false
   asc apps --limit 10
   asc apps --sort name
@@ -126,13 +126,13 @@ func AppsGetCommand() *ffcli.Command {
 
 	return &ffcli.Command{
 		Name:       "get",
-		ShortUsage: "asc apps get --id APP_ID",
-		ShortHelp:  "Get app details by ID.",
-		LongHelp: `Get app details by ID.
+		ShortUsage: "asc apps view --id APP_ID",
+		ShortHelp:  "View app details by ID.",
+		LongHelp: `View app details by ID.
 
 Examples:
-  asc apps get --id "APP_ID"
-  asc apps get --id "APP_ID" --output table`,
+  asc apps view --id "APP_ID"
+  asc apps view --id "APP_ID" --output table`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {

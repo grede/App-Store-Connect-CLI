@@ -9,15 +9,17 @@ model:
 - inferred build selection uses `--app ... --latest`
 - specific build lookup uses `--app ... --build-number`
 
-This cleanup intentionally removes deprecated and inconsistent vocabulary rather
-than preserving compatibility layers.
+This cleanup standardizes deprecated and inconsistent selector vocabulary while
+preserving compatibility aliases until the broader `1.0.0` cleanup.
 
 ## Accepted Decisions
 
-- `--newest` is removed.
+- `--newest` remains as a deprecated alias for `--latest` during transition.
 - `--latest` is the only inferred-build selector.
 - `--build-id` is the canonical explicit build selector everywhere.
-- `--id` is removed from build-related surfaces.
+- `--build` remains as a deprecated alias for `--build-id` during transition.
+- `--id` remains as a deprecated alias for `--build-id` on build-related read
+  surfaces during transition.
 - `asc builds latest` will be removed as a fetch command.
 - `asc builds find` will be removed once `asc builds info` can resolve by
   `--build-number`.
@@ -28,8 +30,8 @@ than preserving compatibility layers.
 
 - No app-first taxonomy rewrite. `builds` remains top-level.
 - No mutation-command expansion in the first wave unless explicitly scoped.
-- No compatibility aliases for removed selector vocabulary unless a later PR
-  decides they are needed for migration.
+- No selector-alias expansion beyond the existing `--build`, `--id`, and
+  `--newest` compatibility spellings.
 
 ## PR Plan
 
@@ -44,8 +46,8 @@ Progress checklist:
 - [x] Convert `asc builds dsyms` from `--build` to `--build-id`
 - [x] Convert `asc builds wait` from `--build` / `--newest` to
   `--build-id` / `--latest`
-- [x] Keep removed selector spellings as explicit migration errors that point to
-  the new flags
+- [x] Keep legacy selector spellings as deprecated aliases that warn and forward
+  to the canonical flags
 - [x] Update focused tests and command docs for the PR 1 slice
 - [ ] Decide whether `builds wait` should later reuse more of the shared
   selector engine instead of only sharing vocabulary
@@ -57,7 +59,8 @@ Scope:
 - standardize explicit selector naming to `--build-id` in the shared
   resolver-facing commands
 - standardize inferred selector naming to `--latest`
-- remove `--newest` from `asc builds wait`
+- keep `--newest` as a hidden deprecated alias for `--latest` on
+  `asc builds wait`
 - update shared resolver validation/error text to use `--build-id`
 - keep command taxonomy unchanged for now
 
@@ -103,13 +106,14 @@ Design note:
    - `--app APP --build-number NUM`
 
 4. Backward-compatibility / deprecation impact
-   This PR is intentionally breaking for selector naming in the touched
-   commands. `--newest` is removed rather than aliased.
+   This PR keeps the existing selector aliases working in the touched commands
+   while warning toward `--build-id` / `--latest`. Removal stays deferred to a
+   later cleanup PR closer to `1.0.0`.
 
 5. RED -> GREEN test plan
    - update command/unit tests to expect `--build-id`
-   - update wait tests to expect `--latest` and no `--newest`
-   - implement flag/help/error changes
+   - update wait tests to prefer `--latest` while keeping `--newest` warnings
+   - implement flag/help/warning changes
    - run focused tests for builds wait/dsyms/selector validation
 
 ### PR 2: Make `builds info` Canonical
