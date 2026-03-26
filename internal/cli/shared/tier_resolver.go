@@ -359,7 +359,9 @@ func ValidatePriceSelectionFlags(pricePoint string, tier int, price string, free
 		return fmt.Errorf("--tier must be a positive integer")
 	}
 
-	isFree := len(free) > 0 && free[0]
+	supportsFree := len(free) > 0
+	isFree := supportsFree && free[0]
+	requiredMessage, mutuallyExclusiveMessage := priceSelectionValidationMessages(supportsFree)
 
 	count := 0
 	if strings.TrimSpace(pricePoint) != "" {
@@ -375,10 +377,19 @@ func ValidatePriceSelectionFlags(pricePoint string, tier int, price string, free
 		count++
 	}
 	if count == 0 {
-		return fmt.Errorf("one of --price-point, --tier, --price, or --free is required")
+		return fmt.Errorf("%s", requiredMessage)
 	}
 	if count > 1 {
-		return fmt.Errorf("--price-point, --tier, --price, and --free are mutually exclusive")
+		return fmt.Errorf("%s", mutuallyExclusiveMessage)
 	}
 	return nil
+}
+
+func priceSelectionValidationMessages(supportsFree bool) (required string, mutuallyExclusive string) {
+	if supportsFree {
+		return "one of --price-point, --tier, --price, or --free is required",
+			"--price-point, --tier, --price, and --free are mutually exclusive"
+	}
+	return "one of --price-point, --tier, or --price is required",
+		"--price-point, --tier, and --price are mutually exclusive"
 }

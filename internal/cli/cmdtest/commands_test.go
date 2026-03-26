@@ -1559,7 +1559,7 @@ func TestSubscriptionsValidationErrors(t *testing.T) {
 		{
 			name:    "subscriptions pricing prices set missing price-point",
 			args:    []string{"subscriptions", "pricing", "prices", "set", "--subscription-id", "SUB_ID"},
-			wantErr: "one of --price-point, --tier, --price, or --free is required",
+			wantErr: "one of --price-point, --tier, or --price is required",
 		},
 		{
 			name:    "subscriptions pricing prices import missing id",

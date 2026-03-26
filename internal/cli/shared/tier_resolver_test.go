@@ -10,6 +10,17 @@ func TestValidatePriceSelectionFlags_NoneSet(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error when no flags set")
 	}
+	expected := "one of --price-point, --tier, or --price is required"
+	if err.Error() != expected {
+		t.Fatalf("expected %q, got %q", expected, err.Error())
+	}
+}
+
+func TestValidatePriceSelectionFlags_NoneSet_WithFreeSupport(t *testing.T) {
+	err := ValidatePriceSelectionFlags("", 0, "", false)
+	if err == nil {
+		t.Fatal("expected error when no flags set")
+	}
 	expected := "one of --price-point, --tier, --price, or --free is required"
 	if err.Error() != expected {
 		t.Fatalf("expected %q, got %q", expected, err.Error())
@@ -50,6 +61,31 @@ func TestValidatePriceSelectionFlags_OneSet(t *testing.T) {
 }
 
 func TestValidatePriceSelectionFlags_MultipleSet(t *testing.T) {
+	tests := []struct {
+		name       string
+		pricePoint string
+		tier       int
+		price      string
+	}{
+		{"price-point and tier", "PP", 5, ""},
+		{"price-point and price", "PP", 0, "4.99"},
+		{"tier and price", "", 5, "4.99"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			err := ValidatePriceSelectionFlags(tc.pricePoint, tc.tier, tc.price)
+			if err == nil {
+				t.Fatal("expected error for multiple flags")
+			}
+			expected := "--price-point, --tier, and --price are mutually exclusive"
+			if err.Error() != expected {
+				t.Fatalf("expected %q, got %q", expected, err.Error())
+			}
+		})
+	}
+}
+
+func TestValidatePriceSelectionFlags_MultipleSet_WithFreeSupport(t *testing.T) {
 	tests := []struct {
 		name       string
 		pricePoint string
