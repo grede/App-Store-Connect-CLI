@@ -6,18 +6,20 @@
 
 App Info commands manage version-specific metadata like descriptions, keywords, What's New text, and other localization data.
 
+`asc app-info ...` still works as a deprecated compatibility alias, but the canonical commands live under `asc apps info ...`.
+
 ## Commands
 
-### `asc app-info get`
+### `asc apps info view`
 
-Get App Store version localization metadata.
+View app store version localization metadata.
 
 <ParamField path="--app" type="string">
   App Store Connect app ID (or `ASC_APP_ID` env variable)
 </ParamField>
 
-<ParamField path="--app-info" type="string">
-  App Info ID (optional override)
+<ParamField path="--info-id" type="string">
+  App Info ID (optional override; legacy `--app-info` also works)
 </ParamField>
 
 <ParamField path="--version-id" type="string">
@@ -59,12 +61,12 @@ Get App Store version localization metadata.
 **Examples:**
 
 ```bash  theme={null}
-asc app-info get --app "APP_ID"
-asc app-info get --app "APP_ID" --version "1.2.3" --platform IOS
-asc app-info get --version-id "VERSION_ID"
-asc app-info get --app-info "APP_INFO_ID" --include "ageRatingDeclaration"
-asc app-info get --app "APP_ID" --include "ageRatingDeclaration,territoryAgeRatings"
-asc app-info get --app "APP_ID" --locale "en-US" --output table
+asc apps info view --app "APP_ID"
+asc apps info view --app "APP_ID" --version "1.2.3" --platform IOS
+asc apps info view --version-id "VERSION_ID"
+asc apps info view --info-id "APP_INFO_ID" --include "ageRatingDeclaration"
+asc apps info view --app "APP_ID" --include "ageRatingDeclaration,territoryAgeRatings"
+asc apps info view --app "APP_ID" --locale "en-US" --output table
 ```
 
 **Response:**
@@ -91,7 +93,7 @@ asc app-info get --app "APP_ID" --locale "en-US" --output table
 
 ***
 
-### `asc app-info set`
+### `asc apps info edit`
 
 Create or update App Store version metadata.
 
@@ -150,9 +152,9 @@ Create or update App Store version metadata.
 **Examples:**
 
 ```bash  theme={null}
-asc app-info set --app "APP_ID" --locale "en-US" --whats-new "Bug fixes"
-asc app-info set --app "APP_ID" --locale "fr-FR" --copy-from-locale "en-US" --whats-new "Corrections"
-asc app-info set --app "APP_ID" --version "1.2.3" --platform IOS --locale "en-US" --description "New release"
+asc apps info edit --app "APP_ID" --locale "en-US" --whats-new "Bug fixes"
+asc apps info edit --app "APP_ID" --locale "fr-FR" --copy-from-locale "en-US" --whats-new "Corrections"
+asc apps info edit --app "APP_ID" --version "1.2.3" --platform IOS --locale "en-US" --description "New release"
 ```
 
 **Response:**
@@ -180,25 +182,25 @@ asc app-info set --app "APP_ID" --version "1.2.3" --platform IOS --locale "en-US
 ### Get metadata for the latest version
 
 ```bash  theme={null}
-asc app-info get --app "123456789" --output table
+asc apps info view --app "123456789" --output table
 ```
 
 ### Update What's New text
 
 ```bash  theme={null}
-asc app-info set --app "123456789" --locale "en-US" --whats-new "New features and improvements"
+asc apps info edit --app "123456789" --locale "en-US" --whats-new "New features and improvements"
 ```
 
 ### Create a new locale by copying from existing
 
 ```bash  theme={null}
-asc app-info set --app "123456789" --locale "fr-FR" --copy-from-locale "en-US" --whats-new "Nouvelles fonctionnalités"
+asc apps info edit --app "123456789" --locale "fr-FR" --copy-from-locale "en-US" --whats-new "Nouvelles fonctionnalités"
 ```
 
 ### Get metadata with related resources
 
 ```bash  theme={null}
-asc app-info get --app "123456789" --include "ageRatingDeclaration,territoryAgeRatings" --output json
+asc apps info view --app "123456789" --include "ageRatingDeclaration,territoryAgeRatings" --output json
 ```
 
 ## Submit-Required Fields

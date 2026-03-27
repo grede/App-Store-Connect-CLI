@@ -34,7 +34,7 @@ asc localizations list --app "YOUR_APP_ID" --type app-info --locale "en-US,es-ES
 ### Update App Info Localization
 
 ```bash  theme={null}
-asc app-info set \
+asc app-setup info set \
   --app "YOUR_APP_ID" \
   --locale "en-US" \
   --name "My Awesome App" \
@@ -42,25 +42,25 @@ asc app-info set \
   --privacy-policy-url "https://example.com/privacy"
 ```
 
-### Copy Localization to Another Language
+### Create Another Language Localization
 
-Quickly localize by copying from an existing locale:
+Seed the target locale explicitly with app-level metadata:
 
 ```bash  theme={null}
-asc app-info set \
+asc app-setup info set \
   --app "YOUR_APP_ID" \
   --locale "fr-FR" \
-  --copy-from-locale "en-US"
+  --name "Mon Application Géniale" \
+  --subtitle "La meilleure app pour la productivité"
 ```
 
 Then update locale-specific fields:
 
 ```bash  theme={null}
-asc app-info set \
+asc app-setup info set \
   --app "YOUR_APP_ID" \
   --locale "fr-FR" \
-  --name "Mon Application Géniale" \
-  --subtitle "La meilleure app pour la productivité"
+  --privacy-policy-url "https://example.com/fr/privacy"
 ```
 
 ## Version-Specific Metadata
@@ -266,7 +266,7 @@ asc localizations preview-sets list --localization-id "LOCALIZATION_ID"
 ### Get Preview Set Details
 
 ```bash  theme={null}
-asc localizations preview-sets get --id "PREVIEW_SET_ID"
+asc localizations preview-sets view --id "PREVIEW_SET_ID"
 ```
 
 ### List Screenshot Sets
@@ -278,7 +278,7 @@ asc localizations screenshot-sets list --localization-id "LOCALIZATION_ID"
 ### Get Screenshot Set Details
 
 ```bash  theme={null}
-asc localizations screenshot-sets get --id "SCREENSHOT_SET_ID"
+asc localizations screenshot-sets view --id "SCREENSHOT_SET_ID"
 ```
 
 For uploading screenshots, see the [Screenshots Guide](/guides/screenshots).
@@ -361,10 +361,11 @@ Common App Store locales:
 <Steps>
   <Step title="Create app info localization">
     ```bash  theme={null}
-    asc app-info set \
+    asc app-setup info set \
       --app "YOUR_APP_ID" \
       --locale "ja" \
-      --copy-from-locale "en-US"
+      --name "アプリ名" \
+      --subtitle "日本語のサブタイトル"
     ```
   </Step>
 
@@ -398,11 +399,12 @@ APP_ID="YOUR_APP_ID"
 for locale in "${LOCALES[@]}"; do
   echo "Setting up $locale..."
   
-  # Copy app info from en-US
-  asc app-info set \
+  # Seed app info localization for this locale
+  asc app-setup info set \
     --app "$APP_ID" \
     --locale "$locale" \
-    --copy-from-locale "en-US"
+    --name "TODO localized app name" \
+    --subtitle "TODO localized app subtitle"
   
   # Note: You'll still need to translate the actual text content
   # This just creates the locale structure
@@ -417,7 +419,7 @@ echo "All locales created. Update translations in App Store Connect or via CLI."
 
 2. **Use dry-run**: Test uploads with `--dry-run` to catch errors before applying changes
 
-3. **Separate app info from version metadata**: Update persistent metadata (name, subtitle) via `app-info set`, version-specific content via `localizations update`
+3. **Separate app info from version metadata**: Update persistent metadata (name, subtitle) via `app-setup info set`, version-specific content via `localizations update`
 
 4. **Optimize keywords**: Research popular search terms and use all 100 characters effectively
 

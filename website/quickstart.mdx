@@ -104,19 +104,19 @@ Output:
 
 ## Step 3: Explore a specific app
 
-Use the app ID from the previous step to get detailed information:
+Use the app ID from the previous step to view detailed information:
 
 ```bash  theme={null}
-asc apps get --app "123456789" --output json --pretty
+asc apps view --id "123456789" --output json --pretty
 ```
 
 ### Set a default app
 
-Avoid typing `--app` repeatedly:
+A default app helps with commands that accept `--app`:
 
 ```bash  theme={null}
 export ASC_APP_ID="123456789"
-asc apps get  # Uses ASC_APP_ID automatically
+asc apps info view  # Uses ASC_APP_ID automatically
 ```
 
 Or add to your shell profile (`~/.bashrc`, `~/.zshrc`, etc.):

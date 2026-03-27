@@ -80,9 +80,9 @@ asc apps list --paginate
 
 ***
 
-### `asc apps get`
+### `asc apps view`
 
-Get app details by ID.
+View app details by ID.
 
 <ParamField path="--id" type="string" required>
   App Store Connect app ID
@@ -95,8 +95,8 @@ Get app details by ID.
 **Examples:**
 
 ```bash  theme={null}
-asc apps get --id "APP_ID"
-asc apps get --id "APP_ID" --output table
+asc apps view --id "APP_ID"
+asc apps view --id "APP_ID" --output table
 ```
 
 **Response:**
@@ -263,10 +263,10 @@ asc apps list --bundle-id "com.example.app" --output table
 asc apps create --name "My App" --bundle-id "com.example.myapp" --sku "MYAPP123"
 ```
 
-### Get app details
+### View app details
 
 ```bash  theme={null}
-asc apps get --id "123456789" --output json
+asc apps view --id "123456789" --output json
 ```
 
 ### Update app metadata

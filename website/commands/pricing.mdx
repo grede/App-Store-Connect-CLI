@@ -107,9 +107,9 @@ asc pricing price-points --app "123456789" --paginate
 
 ***
 
-### `asc pricing price-points get`
+### `asc pricing price-points view`
 
-Get a single app price point.
+View a single app price point.
 
 <ParamField path="--price-point" type="string" required>
   App price point ID
@@ -118,7 +118,7 @@ Get a single app price point.
 **Examples:**
 
 ```bash  theme={null}
-asc pricing price-points get --price-point "PRICE_POINT_ID"
+asc pricing price-points view --price-point "PRICE_POINT_ID"
 ```
 
 ***
@@ -151,9 +151,9 @@ asc pricing tiers --app "123456789" --territory "USA"
 
 ***
 
-### `asc pricing schedule get`
+### `asc pricing schedule view`
 
-Get the current app price schedule.
+View the current app price schedule.
 
 <ParamField path="--app" type="string">
   App Store Connect app ID (or `ASC_APP_ID` env variable)
@@ -170,8 +170,8 @@ Get the current app price schedule.
 **Examples:**
 
 ```bash  theme={null}
-asc pricing schedule get --app "123456789"
-asc pricing schedule get --id "SCHEDULE_ID"
+asc pricing schedule view --app "123456789"
+asc pricing schedule view --id "SCHEDULE_ID"
 ```
 
 **Response:**
@@ -255,9 +255,9 @@ asc pricing schedule automatic-prices --schedule "SCHEDULE_ID"
 
 ***
 
-### `asc pricing availability get`
+### `asc pricing availability view`
 
-Get app availability.
+View app availability.
 
 <ParamField path="--app" type="string">
   App Store Connect app ID (or `ASC_APP_ID` env variable)
@@ -274,8 +274,8 @@ Get app availability.
 **Examples:**
 
 ```bash  theme={null}
-asc pricing availability get --app "123456789"
-asc pricing availability get --id "AVAILABILITY_ID"
+asc pricing availability view --app "123456789"
+asc pricing availability view --id "AVAILABILITY_ID"
 ```
 
 **Response:**
@@ -294,16 +294,20 @@ asc pricing availability get --id "AVAILABILITY_ID"
 
 ***
 
-### `asc pricing availability set`
+### `asc pricing availability edit`
 
-Set app availability for territories.
+Edit app availability for territories.
 
 <ParamField path="--app" type="string" required>
   App Store Connect app ID
 </ParamField>
 
-<ParamField path="--territory" type="string" required>
+<ParamField path="--territory" type="string">
   Territory codes (comma-separated, e.g., USA,GBR,DEU)
+</ParamField>
+
+<ParamField path="--all-territories" type="boolean" default="false">
+  Apply to all territories instead of `--territory`
 </ParamField>
 
 <ParamField path="--available" type="boolean" required>
@@ -317,8 +321,8 @@ Set app availability for territories.
 **Examples:**
 
 ```bash  theme={null}
-asc pricing availability set --app "123456789" --territory "USA,GBR,DEU" --available true --available-in-new-territories true
-asc pricing availability set --app "123456789" --territory "CHN" --available false
+asc pricing availability edit --app "123456789" --territory "USA,GBR,DEU" --available true --available-in-new-territories true
+asc pricing availability edit --app "123456789" --all-territories --available true --available-in-new-territories true
 ```
 
 ***
@@ -359,16 +363,16 @@ asc pricing price-points --app "123456789" --territory "USA" --output json
 asc pricing schedule create --app "123456789" --price-point "PRICE_POINT_ID" --base-territory "USA" --start-date "2024-03-01"
 ```
 
-### Set app availability
+### Edit app availability
 
 ```bash  theme={null}
-asc pricing availability set --app "123456789" --territory "USA,GBR,DEU,FRA" --available true --available-in-new-territories true
+asc pricing availability edit --app "123456789" --territory "USA,GBR,DEU,FRA" --available true --available-in-new-territories true
 ```
 
 ### Check current pricing schedule
 
 ```bash  theme={null}
-asc pricing schedule get --app "123456789" --output json
+asc pricing schedule view --app "123456789" --output json
 ```
 
 ## Territory Codes

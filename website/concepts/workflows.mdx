@@ -137,7 +137,7 @@ Workflows support environment variable expansion using `$VAR` or `${VAR}` syntax
   "workflows": {
     "example": {
       "steps": [
-        "asc apps get --id $APP_ID",
+        "asc apps view --id $APP_ID",
         "asc versions list --app ${APP_ID} --filter[versionString]=$VERSION"
       ]
     }
@@ -210,7 +210,7 @@ Workflows can call other workflows using the `workflow` field:
       "description": "Pre-deployment checks",
       "steps": [
         "asc auth status",
-        "asc apps get --id $APP_ID"
+        "asc apps view --id $APP_ID"
       ]
     },
     "deploy": {
@@ -517,8 +517,8 @@ asc workflow run beta BUILD_ID:abc123 GROUP_ID:xyz789
       "description": "Pre-submission checks",
       "steps": [
         "asc auth status",
-        "asc apps get --id $APP_ID",
-        "asc builds get --id $BUILD_ID"
+        "asc apps view --id $APP_ID",
+        "asc builds info --build-id $BUILD_ID"
       ]
     }
   }

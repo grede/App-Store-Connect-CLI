@@ -108,9 +108,10 @@ Error: Missing required metadata for version 1.2.0
 **Solution:** Complete all required fields:
 
 ```bash  theme={null}
-asc app-info set --app 123456789 --version 1.2.0 \
+asc apps info edit --app 123456789 --version 1.2.0 --platform IOS --locale "en-US" \
   --description "App description" \
   --keywords "keyword1,keyword2" \
+  --support-url "https://example.com/support" \
   --whats-new "Bug fixes and improvements"
 ```
 
