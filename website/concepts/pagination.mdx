@@ -87,8 +87,8 @@ asc apps list --paginate --output table
 For very large datasets, some commands support `--stream` with `--paginate`:
 
 ```bash  theme={null}
-# Emits NDJSON (newline-delimited JSON) page-by-page
-asc analytics reports --stream --paginate
+# Emits NDJSON (newline-delimited JSON) page-by-page for very large result sets
+asc subscriptions pricing price-points list --subscription-id "SUB_ID" --paginate --stream
 ```
 
 Each page is printed as a separate JSON line:

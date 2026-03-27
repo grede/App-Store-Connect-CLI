@@ -70,9 +70,11 @@ asc versions list --app "123456789" --paginate
 
 ***
 
-### `asc versions get`
+### `asc versions view`
 
-Get details for an app store version.
+View details for an app store version.
+
+`asc versions get` still works as a deprecated compatibility alias, but `asc versions view` is the canonical command.
 
 <ParamField path="--version-id" type="string" required>
   App Store version ID
@@ -87,15 +89,15 @@ Get details for an app store version.
 </ParamField>
 
 <ParamField path="--include" type="string">
-  Include related resources (comma-separated): `ageRatingDeclaration`, `appStoreReviewDetail`, `appStoreVersionLocalizations`, `build`, `appStoreVersionPhasedRelease`, `routingAppCoverage`, `appStoreVersionSubmission`
+  Include related resources (comma-separated): `ageRatingDeclaration`, `appStoreReviewDetail`, `appClipDefaultExperience`, `appStoreVersionExperiments`, `appStoreVersionExperimentsV2`, `appStoreVersionSubmission`, `customerReviews`, `routingAppCoverage`, `alternativeDistributionPackage`, `gameCenterAppVersion`
 </ParamField>
 
 **Examples:**
 
 ```bash  theme={null}
-asc versions get --version-id "VERSION_ID"
-asc versions get --version-id "VERSION_ID" --include-build --include-submission
-asc versions get --version-id "VERSION_ID" --include "ageRatingDeclaration,appStoreReviewDetail"
+asc versions view --version-id "VERSION_ID"
+asc versions view --version-id "VERSION_ID" --include-build --include-submission
+asc versions view --version-id "VERSION_ID" --include "ageRatingDeclaration,appStoreReviewDetail"
 ```
 
 **Response:**
