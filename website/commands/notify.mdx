@@ -146,7 +146,7 @@ asc notify slack \
   --message "Release submitted" \
   --pretext "New release ready" \
   --payload-json '{"app":"MyApp","version":"1.2.3","build":"42"}' \
-  --success true
+  
 ```
 
 Or load from a file:
@@ -242,7 +242,7 @@ BUILD_ID="12345"
 GROUP_ID="67890"
 
 # Add build to TestFlight group
-asc builds add-groups --build "$BUILD_ID" --group "$GROUP_ID"
+asc builds add-groups --build-id "$BUILD_ID" --group "$GROUP_ID"
 
 # Notify Slack
 asc notify slack \
@@ -272,7 +272,7 @@ asc notify slack \
   --message "Version $VERSION submitted for review" \
   --pretext "App Store submission" \
   --payload-json '{"app":"MyApp","version":"'$VERSION'","build":"'$BUILD_ID'"}' \
-  --success true
+  
 ```
 
 ### Error Notification
@@ -287,7 +287,7 @@ if ! asc builds upload --ipa ./MyApp.ipa 2>&1; then
     --message "Build upload failed" \
     --pretext "CI/CD Error" \
     --payload-json '{"job":"upload","status":"failed"}' \
-    --success false
+    --success=false
   exit 1
 fi
 ```

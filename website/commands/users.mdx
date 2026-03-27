@@ -52,8 +52,8 @@ asc users list --paginate
 Get a user by ID:
 
 ```bash  theme={null}
-asc users get --id "USER_ID"
-asc users get --id "USER_ID" --include visibleApps
+asc users view --id "USER_ID"
+asc users view --id "USER_ID" --include visibleApps
 ```
 
 **Flags:**
@@ -148,12 +148,12 @@ asc users invites list --paginate
 * `--output` - Output format: `json`, `table`, `markdown`
 * `--pretty` - Pretty-print JSON output
 
-### users invites get
+### users invites view
 
 Get a user invitation by ID:
 
 ```bash  theme={null}
-asc users invites get --id "INVITE_ID"
+asc users invites view --id "INVITE_ID"
 ```
 
 **Flags:**
@@ -215,12 +215,12 @@ asc users visible-apps list --id "USER_ID" --paginate
 * `--output` - Output format: `json`, `table`, `markdown`
 * `--pretty` - Pretty-print JSON output
 
-### users visible-apps get
+### users visible-apps list
 
 Get visible apps for a user:
 
 ```bash  theme={null}
-asc users visible-apps get --id "USER_ID"
+asc users visible-apps list --id "USER_ID"
 ```
 
 **Flags:**

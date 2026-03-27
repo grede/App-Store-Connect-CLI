@@ -174,7 +174,7 @@ export ASC_ISSUER_ID="DEF456"
 export ASC_PRIVATE_KEY_B64="LS0tLS1CRUdJTiBQUklWQVRFIEtFWS0tLS0t..."
 export ASC_BYPASS_KEYCHAIN="true"
 
-asc builds upload --app 123456789 --file MyApp.ipa
+asc builds upload --app 123456789 --ipa MyApp.ipa
 ```
 
 ### Debug HTTP requests
@@ -191,7 +191,7 @@ asc apps list
 export ASC_TIMEOUT="3m"
 export ASC_UPLOAD_TIMEOUT="10m"
 
-asc builds upload --app 123456789 --file LargeApp.ipa
+asc builds upload --app 123456789 --ipa LargeApp.ipa
 ```
 
 ### Force JSON output in all environments

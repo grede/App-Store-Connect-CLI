@@ -40,7 +40,7 @@ workflows:
                 
                 asc builds upload \
                   --app "$APP_ID" \
-                  --file "$BITRISE_IPA_PATH"
+                  --ipa "$BITRISE_IPA_PATH"
 ```
 
 ## Step Configuration
@@ -119,7 +119,7 @@ workflows:
                 echo "Uploading build to TestFlight..."
                 asc builds upload \
                   --app "$APP_ID" \
-                  --file "$BITRISE_IPA_PATH"
+                  --ipa "$BITRISE_IPA_PATH"
                 
                 echo "Upload completed successfully"
       
@@ -211,11 +211,9 @@ workflows:
                 for screenshot in metadata/en-US/screenshots/iphone67/*.png; do
                   echo "Uploading $screenshot..."
                   asc screenshots upload \
-                    --app "$APP_ID" \
-                    --version "$VERSION" \
-                    --locale en-US \
-                    --display-type APP_IPHONE_67 \
-                    --file "$screenshot"
+                    --version-localization "$VERSION_LOCALIZATION_ID" \
+                    --device-type "IPHONE_65" \
+                    --path "$screenshot"
                 done
 ```
 
@@ -231,7 +229,7 @@ workflows:
           inputs:
             - mode: run
             - command: |
-                asc crashes \
+                asc testflight crashes list \
                   --app "$APP_ID" \
                   --sort -createdDate \
                   --limit 20 \
@@ -350,7 +348,7 @@ workflows:
           inputs:
             - mode: run
             - command: |
-                asc builds upload --app "$STAGING_APP_ID" --file "$BITRISE_IPA_PATH"
+                asc builds upload --app "$STAGING_APP_ID" --ipa "$BITRISE_IPA_PATH"
 ```
 
 ### Multiple App Deployment
@@ -369,7 +367,7 @@ workflows:
             - content: |
                 #!/bin/bash
                 set -ex
-                asc builds upload --app "$MYAPP_ID" --file "builds/MyApp.ipa"
+                asc builds upload --app "$MYAPP_ID" --ipa "builds/MyApp.ipa"
       
       - script:
           title: Deploy MyAppPro
@@ -377,7 +375,7 @@ workflows:
             - content: |
                 #!/bin/bash
                 set -ex
-                asc builds upload --app "$MYAPP_PRO_ID" --file "builds/MyAppPro.ipa"
+                asc builds upload --app "$MYAPP_PRO_ID" --ipa "builds/MyAppPro.ipa"
 ```
 
 ### Retry Logic
@@ -403,7 +401,7 @@ workflows:
                 for i in $(seq 1 $MAX_RETRIES); do
                   echo "Upload attempt $i/$MAX_RETRIES"
                   
-                  if asc builds upload --app "$APP_ID" --file "$BITRISE_IPA_PATH"; then
+                  if asc builds upload --app "$APP_ID" --ipa "$BITRISE_IPA_PATH"; then
                     echo "Upload successful"
                     exit 0
                   fi
@@ -460,7 +458,7 @@ workflows:
       - git::https://github.com/rudrankriyam/steps-setup-asc.git@main:
           inputs:
             - mode: run
-            - command: asc builds upload --app "$APP_ID" --file "$BITRISE_IPA_PATH"
+            - command: asc builds upload --app "$APP_ID" --ipa "$BITRISE_IPA_PATH"
 ```
 
 ### Test Authentication

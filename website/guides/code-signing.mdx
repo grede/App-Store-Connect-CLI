@@ -100,7 +100,7 @@ asc signing fetch \
     For development and ad-hoc profiles, register test devices:
 
     ```bash  theme={null}
-    asc devices create \
+    asc devices register \
       --name "Jane's iPhone" \
       --platform IOS \
       --udid "00008030-XXXXXXXXXXXX"
@@ -136,7 +136,7 @@ asc signing fetch \
     List existing certificates:
 
     ```bash  theme={null}
-    asc certificates list --type IOS_DISTRIBUTION
+    asc certificates list --certificate-type IOS_DISTRIBUTION
     ```
   </Step>
 
@@ -212,9 +212,9 @@ asc certificates list
 ### Filter by Type
 
 ```bash  theme={null}
-asc certificates list --type IOS_DISTRIBUTION
-asc certificates list --type IOS_DEVELOPMENT
-asc certificates list --type MAC_APP_DISTRIBUTION
+asc certificates list --certificate-type IOS_DISTRIBUTION
+asc certificates list --certificate-type IOS_DEVELOPMENT
+asc certificates list --certificate-type MAC_APP_DISTRIBUTION
 ```
 
 ### Check Certificate Expiration
@@ -230,7 +230,7 @@ asc certificates list --output json | jq '.data[] | {name: .attributes.name, exp
 </Warning>
 
 ```bash  theme={null}
-asc certificates delete --id "CERTIFICATE_ID" --confirm
+asc certificates revoke --id "CERTIFICATE_ID" --confirm
 ```
 
 ## Provisioning Profile Management
@@ -238,13 +238,13 @@ asc certificates delete --id "CERTIFICATE_ID" --confirm
 ### List Profiles
 
 ```bash  theme={null}
-asc profiles list --type IOS_APP_STORE
+asc profiles list --profile-type IOS_APP_STORE
 ```
 
 ### Get Profile Details
 
 ```bash  theme={null}
-asc profiles get --id "PROFILE_ID"
+asc profiles view --id "PROFILE_ID"
 ```
 
 ### Download a Specific Profile

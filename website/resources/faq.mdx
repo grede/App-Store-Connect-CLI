@@ -122,7 +122,7 @@
   Use the `--paginate` flag to automatically fetch all pages:
 
   ```bash  theme={null}
-  asc feedback --app "123456789" --paginate
+  asc testflight feedback list --app "123456789" --paginate
   asc analytics view --request-id "REQUEST_ID" --date "2024-01-01" --paginate
   ```
 
@@ -148,14 +148,14 @@
   Upload IPA or PKG files using:
 
   ```bash  theme={null}
-  asc builds upload --app "123456789" --file "/path/to/MyApp.ipa"
+  asc builds upload --app "123456789" --ipa "/path/to/MyApp.ipa"
   ```
 
   For large files, increase timeout:
 
   ```bash  theme={null}
   export ASC_UPLOAD_TIMEOUT=10m
-  asc builds upload --app "123456789" --file "/path/to/large.ipa"
+  asc builds upload --app "123456789" --ipa "/path/to/large.ipa"
   ```
 
   Then check processing status:
@@ -169,19 +169,19 @@
   Fetch feedback:
 
   ```bash  theme={null}
-  asc feedback --app "123456789" --paginate --output json
+  asc testflight feedback list --app "123456789" --paginate --output json
   ```
 
   Fetch recent crashes:
 
   ```bash  theme={null}
-  asc crashes --app "123456789" --sort -createdDate --limit 10
+  asc testflight crashes list --app "123456789" --sort -createdDate --limit 10
   ```
 
   For detailed crash information, use filters:
 
   ```bash  theme={null}
-  asc crashes --app "123456789" --filter "version=1.2.3"
+  asc testflight crashes list --app "123456789" --filter "version=1.2.3"
   ```
 </Accordion>
 

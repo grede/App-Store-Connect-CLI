@@ -240,12 +240,12 @@ List instances for a specific report.
 asc analytics reports links --report-id "REPORT_ID"
 ```
 
-### Get Report Details
+### View Report Details
 
 Get detailed information about a specific analytics report.
 
 ```bash  theme={null}
-asc analytics reports get --report-id "REPORT_ID"
+asc analytics reports view --report-id "REPORT_ID"
 ```
 
 ### View Relationships
@@ -253,7 +253,7 @@ asc analytics reports get --report-id "REPORT_ID"
 List instance relationships for a report.
 
 ```bash  theme={null}
-asc analytics reports relationships \
+asc analytics reports links \
   --report-id "REPORT_ID" \
   --paginate
 ```
@@ -262,23 +262,13 @@ asc analytics reports relationships \
 
 Large analytics reports are split into segments for download.
 
-### List Segments
+### View Segment
 
 ```bash  theme={null}
-asc analytics segments list --instance-id "INSTANCE_ID"
+asc analytics segments view --segment-id "SEGMENT_ID"
 ```
 
-**Optional Flags:**
-
-* `--limit` - Results per page (1-200)
-* `--paginate` - Fetch all segments
-* `--next` - Pagination URL
-
-### Get Segment Details
-
-```bash  theme={null}
-asc analytics segments get --segment-id "SEGMENT_ID"
-```
+Use segment IDs returned by `asc analytics reports links --report-id "REPORT_ID" --paginate`.
 
 ## Vendor Number
 

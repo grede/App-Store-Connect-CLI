@@ -290,7 +290,7 @@ Error: no certificates found for type IOS_DISTRIBUTION
 
 ```bash  theme={null}
 # 1. Generate CSR
-asc certificates csr --output ./cert.csr
+asc certificates csr generate --key-out ./cert.key --csr-out ./cert.csr
 
 # 2. Create certificate
 asc certificates create --certificate-type IOS_DISTRIBUTION \

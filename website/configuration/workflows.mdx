@@ -21,9 +21,9 @@ Create a `.asc/workflow.json` file in your project root:
     "testflight": {
       "description": "Upload build to TestFlight",
       "steps": [
-        "asc builds upload --app $APP_ID --file MyApp.ipa",
+        "asc builds upload --app $APP_ID --ipa MyApp.ipa",
         "asc builds list --app $APP_ID --limit 1",
-        "asc testflight builds list --app $APP_ID --limit 1"
+        "asc builds info --app $APP_ID --latest --output json"
       ]
     },
     "submit": {
@@ -42,7 +42,7 @@ Create a `.asc/workflow.json` file in your project root:
 Execute a workflow by name:
 
 ```bash  theme={null}
-asc workflow run --file .asc/workflow.json --workflow testflight
+asc workflow run --file .asc/workflow.json testflight
 ```
 
 Or use the short form:
@@ -133,7 +133,7 @@ Steps can be defined in two formats:
 "steps": [
   {
     "name": "Upload build",
-    "run": "asc builds upload --app $APP_ID --file MyApp.ipa"
+    "run": "asc builds upload --app $APP_ID --ipa MyApp.ipa"
   },
   {
     "name": "Verify upload",
@@ -182,7 +182,7 @@ Steps can be defined in two formats:
 
 Environment variables are resolved in this order (highest to lowest):
 
-1. **Runtime parameters** (`--with` flag)
+1. **Runtime parameters** (`KEY:VALUE` arguments to `asc workflow run`)
 2. **Step `with` field** (for sub-workflows)
 3. **Workflow `env` field**
 4. **Global `env` field**
@@ -191,7 +191,7 @@ Environment variables are resolved in this order (highest to lowest):
 Example:
 
 ```bash  theme={null}
-asc workflow run testflight --with APP_ID=987654321
+asc workflow run testflight APP_ID:987654321
 ```
 
 This overrides the `APP_ID` defined in the workflow file.
@@ -205,7 +205,7 @@ Use the `if` field to conditionally execute steps:
   "steps": [
     {
       "name": "Upload build",
-      "run": "asc builds upload --app $APP_ID --file MyApp.ipa"
+      "run": "asc builds upload --app $APP_ID --ipa MyApp.ipa"
     },
     {
       "name": "Submit for review",
@@ -234,7 +234,7 @@ Call other workflows from within a workflow:
     "release": {
       "description": "Full release process",
       "steps": [
-        "asc builds upload --app $APP_ID --file MyApp.ipa",
+        "asc builds upload --app $APP_ID --ipa MyApp.ipa",
         {
           "workflow": "notify",
           "with": {
@@ -272,7 +272,7 @@ Example with Slack notifications:
   "workflows": {
     "release": {
       "steps": [
-        "asc builds upload --app $APP_ID --file MyApp.ipa",
+        "asc builds upload --app $APP_ID --ipa MyApp.ipa",
         "asc submit create --app $APP_ID --version $VERSION"
       ]
     }
@@ -305,7 +305,7 @@ Here's a comprehensive workflow for a full release process:
         },
         {
           "name": "Upload to TestFlight",
-          "run": "asc builds upload --app $APP_ID --file $BUILD_DIR/MyApp.ipa"
+          "run": "asc builds upload --app $APP_ID --ipa $BUILD_DIR/MyApp.ipa"
         },
         {
           "name": "Wait for processing",
@@ -381,7 +381,7 @@ jobs:
         run: xcodebuild -scheme MyApp -archivePath build/MyApp.xcarchive archive
       
       - name: Run release workflow
-        run: asc workflow run release --with VERSION=${{ github.ref_name }}
+        run: asc workflow run release VERSION:${{ github.ref_name }}
 ```
 
 ### GitLab CI
@@ -390,7 +390,7 @@ jobs:
 release:
   stage: deploy
   script:
-    - asc workflow run release --with VERSION=$CI_COMMIT_TAG
+    - asc workflow run release VERSION:$CI_COMMIT_TAG
   only:
     - tags
   variables:
@@ -421,10 +421,10 @@ asc workflow run --file .asc/workflow.json testflight  # Specify file explicitly
 
 ### Environment variable not expanded
 
-Ensure variables are defined in the workflow file or passed via `--with`:
+Ensure variables are defined in the workflow file or passed as `KEY:VALUE` arguments:
 
 ```bash  theme={null}
-asc workflow run testflight --with APP_ID=123456789
+asc workflow run testflight APP_ID:123456789
 ```
 
 ### Step fails silently
@@ -432,7 +432,7 @@ asc workflow run testflight --with APP_ID=123456789
 Check exit codes and stderr:
 
 ```bash  theme={null}
-asc workflow run testflight --debug
+asc --debug workflow run testflight
 ```
 
 ## Related

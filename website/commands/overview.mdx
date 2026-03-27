@@ -28,7 +28,7 @@ Flags can appear before or after subcommands:
 
 ```bash  theme={null}
 asc --profile production apps list
-asc apps list --profile production
+asc --profile production apps list
 ```
 
 ## Command Families
@@ -171,7 +171,7 @@ asc validate --app "123456789" --version "1.2.3"
 asc submit create --app "123456789" --version "1.2.3"
 
 # Run a local automation workflow
-asc workflow run --file .asc/workflow.json --workflow release
+asc workflow run --file .asc/workflow.json release
 
 # Fetch all pages of results
 asc builds list --app "123456789" --paginate

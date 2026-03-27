@@ -81,8 +81,8 @@ export ASC_ISSUER_ID="YOUR_ISSUER_ID"
 export ASC_PRIVATE_KEY_PATH="/path/to/AuthKey.p8"
 export ASC_APP_ID="YOUR_APP_ID"
 
-asc feedback --app "$ASC_APP_ID"
-asc crashes --app "$ASC_APP_ID"
+asc testflight feedback list --app "$ASC_APP_ID"
+asc testflight crashes list --app "$ASC_APP_ID"
 asc reviews --app "$ASC_APP_ID"
 ```
 
@@ -227,13 +227,13 @@ Test realistic CLI invocation patterns:
 
 ```bash  theme={null}
 # Flags before subcommands
-asc --output json builds list
+asc --profile prod builds list --output json
 
 # Flag values that look like subcommands
-asc --report junit completion
+asc --profile list apps list
 
 # Multiple flags with values
-asc -a val1 -b val2 subcmd
+asc --profile prod builds list --limit 5 --output json
 ```
 
 For more details, see `docs/TESTING.md`.

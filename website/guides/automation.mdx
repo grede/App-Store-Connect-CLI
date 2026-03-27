@@ -41,7 +41,7 @@ Create `.asc/workflow.json` in your project:
         },
         {
           "name": "add_to_group",
-          "run": "asc builds add-groups --build $BUILD_ID --group $GROUP_ID"
+          "run": "asc builds add-groups --build-id $BUILD_ID --group $GROUP_ID"
         }
       ]
     }
@@ -161,7 +161,7 @@ Run only if a variable is set:
 {
   "name": "optional_step",
   "if": "BUILD_ID",
-  "run": "asc builds get --build $BUILD_ID"
+  "run": "asc builds info --build-id $BUILD_ID"
 }
 ```
 
@@ -212,7 +212,7 @@ The called workflow receives `EXTRA_VAR` in addition to its own environment.
         },
         {
           "name": "get_beta_group",
-          "run": "asc testflight beta-groups list --app $APP_ID --output json > /tmp/groups.json"
+          "run": "asc testflight groups list --app $APP_ID --output json > /tmp/groups.json"
         },
         {
           "name": "extract_group_id",
@@ -221,7 +221,7 @@ The called workflow receives `EXTRA_VAR` in addition to its own environment.
         {
           "name": "add_build_to_group",
           "if": "BUILD_ID",
-          "run": "asc builds add-groups --build $BUILD_ID --group $GROUP_ID"
+          "run": "asc builds add-groups --build-id $BUILD_ID --group $GROUP_ID"
         },
         {
           "name": "notify_success",

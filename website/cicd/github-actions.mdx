@@ -49,7 +49,7 @@ jobs:
         run: |
           asc builds upload \
             --app "${{ secrets.APP_ID }}" \
-            --file "MyApp.ipa"
+            --ipa "MyApp.ipa"
 ```
 
 ## Setup Action Configuration
@@ -122,7 +122,7 @@ jobs:
         run: |
           asc builds upload \
             --app "$ASC_APP_ID" \
-            --file build/MyApp.ipa
+            --ipa build/MyApp.ipa
       
       - name: Wait for processing
         env:
@@ -135,14 +135,14 @@ jobs:
           sleep 120
           
           # Get latest build
-          BUILD_ID=$(asc testflight builds list \
+          BUILD_ID=$(asc builds list \
             --app "$ASC_APP_ID" \
             --output json \
             --limit 1 | jq -r '.[0].id')
           
           # Add to external testers
-          asc testflight builds add-to-group \
-            --build "$BUILD_ID" \
+          asc builds add-groups \
+            --build-id "$BUILD_ID" \
             --group "External Testers"
 ```
 
@@ -243,11 +243,9 @@ jobs:
           # Upload iPhone 6.7" screenshots
           for screenshot in metadata/en-US/screenshots/iphone67/*.png; do
             asc screenshots upload \
-              --app "$ASC_APP_ID" \
-              --version "1.0" \
-              --locale en-US \
-              --display-type APP_IPHONE_67 \
-              --file "$screenshot"
+              --version-localization "$VERSION_LOCALIZATION_ID" \
+              --device-type "IPHONE_65" \
+              --path "$screenshot"
           done
 ```
 
@@ -277,7 +275,7 @@ jobs:
           ASC_PRIVATE_KEY_B64: ${{ secrets.ASC_PRIVATE_KEY_B64 }}
           ASC_APP_ID: ${{ secrets.APP_ID }}
         run: |
-          asc crashes \
+          asc testflight crashes list \
             --app "$ASC_APP_ID" \
             --sort -createdDate \
             --limit 10 \
@@ -348,7 +346,7 @@ jobs:
         run: |
           asc builds upload \
             --app "${{ matrix.app.id }}" \
-            --file build/${{ matrix.app.name }}.ipa
+            --ipa build/${{ matrix.app.name }}.ipa
 ```
 
 ## Authentication Setup
@@ -473,7 +471,7 @@ jobs:
     ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
     ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
     ASC_PRIVATE_KEY_B64: ${{ secrets.ASC_PRIVATE_KEY_B64 }}
-  run: asc builds upload --app "$APP_ID" --file MyApp.ipa
+  run: asc builds upload --app "$APP_ID" --ipa MyApp.ipa
 ```
 
 ### Verify Credentials

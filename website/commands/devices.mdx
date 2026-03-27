@@ -51,13 +51,13 @@ asc devices list --paginate
 * `--output` - Output format: `json`, `table`, `markdown`
 * `--pretty` - Pretty-print JSON output
 
-### devices get
+### devices view
 
 Get a device by ID:
 
 ```bash  theme={null}
-asc devices get --id "DEVICE_ID"
-asc devices get --id "DEVICE_ID" --fields "name,udid,platform,status"
+asc devices view --id "DEVICE_ID"
+asc devices view --id "DEVICE_ID" --fields "name,udid,platform,status"
 ```
 
 **Flags:**
@@ -269,10 +269,10 @@ After registering devices, regenerate provisioning profiles:
 
 ```bash  theme={null}
 # List profiles
-asc profiles list --type IOS_APP_DEVELOPMENT
+asc profiles list --profile-type IOS_APP_DEVELOPMENT
 
 # Download and install updated profile
-asc profiles download --id "PROFILE_ID" --save ./profile.mobileprovision
+asc profiles download --id "PROFILE_ID" --output ./profile.mobileprovision
 ```
 
 Or use Xcode to automatically refresh provisioning profiles.

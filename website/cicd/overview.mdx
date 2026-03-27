@@ -160,11 +160,11 @@ Customize `asc` behavior in CI:
 # Upload build to TestFlight
 asc builds upload \
   --app "123456789" \
-  --file "/path/to/MyApp.ipa"
+  --ipa "/path/to/MyApp.ipa"
 
 # Add to beta group
-asc testflight builds add-to-group \
-  --build "BUILD_ID" \
+asc builds add-groups \
+  --build-id "BUILD_ID" \
   --group "External Testers"
 ```
 
@@ -193,25 +193,23 @@ asc apps info edit \
 
 # Upload screenshots
 asc screenshots upload \
-  --app "123456789" \
-  --version "1.2.3" \
-  --locale en-US \
-  --display-type APP_IPHONE_67 \
-  --file "screenshot.png"
+  --version-localization "VERSION_LOCALIZATION_ID" \
+  --device-type "IPHONE_65" \
+  --path "screenshot.png"
 ```
 
 ### Crash and Feedback Monitoring
 
 ```bash  theme={null}
 # Get latest crashes
-asc crashes \
+asc testflight crashes list \
   --app "123456789" \
   --sort -createdDate \
   --limit 10 \
   --output json
 
 # Get feedback
-asc feedback \
+asc testflight feedback list \
   --app "123456789" \
   --paginate
 ```
@@ -227,7 +225,7 @@ asc feedback \
 Example error handling:
 
 ```bash  theme={null}
-if ! asc builds upload --app "$APP_ID" --file "$IPA_PATH"; then
+if ! asc builds upload --app "$APP_ID" --ipa "$IPA_PATH"; then
   echo "Build upload failed"
   exit 1
 fi
@@ -264,7 +262,7 @@ asc apps list --output markdown
 APP_ID=$(asc apps list --output json | jq -r '.[0].id')
 
 # Get build status
-STATUS=$(asc testflight builds list --app "$APP_ID" --output json | jq -r '.[0].processingState')
+STATUS=$(asc builds list --app "$APP_ID" --output json | jq -r '.[0].processingState')
 ```
 
 ## Platform-Specific Guides
@@ -297,10 +295,10 @@ Detailed integration guides for each platform:
 
     ```bash  theme={null}
     # Good
-    asc builds upload --app "123456789" --file "MyApp.ipa"
+    asc builds upload --app "123456789" --ipa "MyApp.ipa"
 
     # Avoid in CI
-    asc builds upload -a "123456789" -f "MyApp.ipa"
+    asc builds upload --app "123456789" --ipa "MyApp.ipa"
     ```
   </Accordion>
 
@@ -318,7 +316,7 @@ Detailed integration guides for each platform:
     Use `ASC_DEBUG=api` to log HTTP requests/responses:
 
     ```bash  theme={null}
-    ASC_DEBUG=api asc builds upload --app "$APP_ID" --file "$IPA_PATH"
+    ASC_DEBUG=api asc builds upload --app "$APP_ID" --ipa "$IPA_PATH"
     ```
   </Accordion>
 
@@ -326,7 +324,7 @@ Detailed integration guides for each platform:
     Use `--paginate` to fetch all results automatically:
 
     ```bash  theme={null}
-    asc feedback --app "123456789" --paginate --output json > feedback.json
+    asc testflight feedback list --app "123456789" --paginate --output json > feedback.json
     ```
   </Accordion>
 
@@ -368,7 +366,7 @@ App Store Connect API has rate limits. Implement retry logic:
 
 ```bash  theme={null}
 for i in {1..3}; do
-  asc builds upload --app "$APP_ID" --file "$IPA_PATH" && break
+  asc builds upload --app "$APP_ID" --ipa "$IPA_PATH" && break
   echo "Retry $i/3..."
   sleep 10
 done

@@ -176,6 +176,7 @@ check-repo-docs:
 check-website-docs:
 	@echo "$(BLUE)Checking Mintlify website docs...$(NC)"
 	python3 ./scripts/check_website_docs.py
+	python3 ./scripts/check_website_commands.py
 
 .PHONY: check-release-docs
 check-release-docs:
@@ -251,7 +252,7 @@ help:
 	@echo "  generate-command-docs Generate docs/COMMANDS.md from live CLI help"
 	@echo "  check-command-docs Validate docs command lists against live CLI help"
 	@echo "  check-repo-docs Validate local links in repository markdown docs"
-	@echo "  check-website-docs Validate Mintlify website navigation and internal links"
+	@echo "  check-website-docs Validate Mintlify website navigation, links, and CLI examples"
 	@echo "  check-release-docs Validate website release docs for VERSION=<x.y.z>"
 	@echo "  check-docs     Run all documentation checks"
 	@echo "  clean          Clean build artifacts"

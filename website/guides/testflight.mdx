@@ -20,14 +20,14 @@ TestFlight allows you to distribute pre-release builds to internal and external 
     View all beta groups for your app:
 
     ```bash  theme={null}
-    asc testflight beta-groups list --app "YOUR_APP_ID"
+    asc testflight groups list --app "YOUR_APP_ID"
     ```
 
     Filter to internal or external groups:
 
     ```bash  theme={null}
-    asc testflight beta-groups list --app "YOUR_APP_ID" --internal
-    asc testflight beta-groups list --app "YOUR_APP_ID" --external
+    asc testflight groups list --app "YOUR_APP_ID" --internal
+    asc testflight groups list --app "YOUR_APP_ID" --external
     ```
   </Step>
 
@@ -35,13 +35,13 @@ TestFlight allows you to distribute pre-release builds to internal and external 
     Create an external beta group:
 
     ```bash  theme={null}
-    asc testflight beta-groups create --app "YOUR_APP_ID" --name "External Beta Testers"
+    asc testflight groups create --app "YOUR_APP_ID" --name "External Beta Testers"
     ```
 
     Create an internal beta group:
 
     ```bash  theme={null}
-    asc testflight beta-groups create --app "YOUR_APP_ID" --name "QA Team" --internal
+    asc testflight groups create --app "YOUR_APP_ID" --name "QA Team" --internal
     ```
   </Step>
 
@@ -49,7 +49,7 @@ TestFlight allows you to distribute pre-release builds to internal and external 
     Enable public link for external distribution:
 
     ```bash  theme={null}
-    asc testflight beta-groups update --id "GROUP_ID" \
+    asc testflight groups update --id "GROUP_ID" \
       --public-link-enabled \
       --public-link-limit-enabled \
       --public-link-limit 100
@@ -58,7 +58,7 @@ TestFlight allows you to distribute pre-release builds to internal and external 
     Enable feedback collection:
 
     ```bash  theme={null}
-    asc testflight beta-groups update --id "GROUP_ID" --feedback-enabled
+    asc testflight groups update --id "GROUP_ID" --feedback-enabled
     ```
   </Step>
 </Steps>
@@ -70,7 +70,7 @@ TestFlight allows you to distribute pre-release builds to internal and external 
     Add a new tester to a beta group:
 
     ```bash  theme={null}
-    asc testflight beta-testers add \
+    asc testflight testers add \
       --app "YOUR_APP_ID" \
       --email "tester@example.com" \
       --group "Beta Testers"
@@ -79,7 +79,7 @@ TestFlight allows you to distribute pre-release builds to internal and external 
     Optionally include name details:
 
     ```bash  theme={null}
-    asc testflight beta-testers add \
+    asc testflight testers add \
       --app "YOUR_APP_ID" \
       --email "tester@example.com" \
       --first-name "Jane" \
@@ -92,7 +92,7 @@ TestFlight allows you to distribute pre-release builds to internal and external 
     Export existing testers to CSV:
 
     ```bash  theme={null}
-    asc testflight beta-testers export \
+    asc testflight testers export \
       --app "YOUR_APP_ID" \
       --output "./testers.csv"
     ```
@@ -100,13 +100,13 @@ TestFlight allows you to distribute pre-release builds to internal and external 
     Import testers from CSV (with dry-run first):
 
     ```bash  theme={null}
-    asc testflight beta-testers import \
+    asc testflight testers import \
       --app "YOUR_APP_ID" \
       --input "./testers.csv" \
       --dry-run
 
     # After verifying, run without dry-run
-    asc testflight beta-testers import \
+    asc testflight testers import \
       --app "YOUR_APP_ID" \
       --input "./testers.csv"
     ```
@@ -116,19 +116,19 @@ TestFlight allows you to distribute pre-release builds to internal and external 
     List all testers for an app:
 
     ```bash  theme={null}
-    asc testflight beta-testers list --app "YOUR_APP_ID"
+    asc testflight testers list --app "YOUR_APP_ID"
     ```
 
     Filter by beta group:
 
     ```bash  theme={null}
-    asc testflight beta-testers list --app "YOUR_APP_ID" --group "Beta Testers"
+    asc testflight testers list --app "YOUR_APP_ID" --group "Beta Testers"
     ```
 
     Filter by build:
 
     ```bash  theme={null}
-    asc testflight beta-testers list --app "YOUR_APP_ID" --build "BUILD_ID"
+    asc testflight testers list --app "YOUR_APP_ID" --build "BUILD_ID"
     ```
   </Step>
 
@@ -136,7 +136,7 @@ TestFlight allows you to distribute pre-release builds to internal and external 
     Invite a tester to start testing:
 
     ```bash  theme={null}
-    asc testflight beta-testers invite \
+    asc testflight testers invite \
       --app "YOUR_APP_ID" \
       --email "tester@example.com"
     ```
@@ -144,7 +144,7 @@ TestFlight allows you to distribute pre-release builds to internal and external 
     Invite and auto-create if tester doesn't exist:
 
     ```bash  theme={null}
-    asc testflight beta-testers invite \
+    asc testflight testers invite \
       --app "YOUR_APP_ID" \
       --email "newtester@example.com" \
       --group "Beta Testers"
@@ -165,7 +165,7 @@ TestFlight allows you to distribute pre-release builds to internal and external 
     Get a specific build:
 
     ```bash  theme={null}
-    asc builds get --app "YOUR_APP_ID" --version "1.0" --build-number "42"
+    asc builds info --app "YOUR_APP_ID" --version "1.0" --build-number "42"
     ```
   </Step>
 
@@ -173,13 +173,13 @@ TestFlight allows you to distribute pre-release builds to internal and external 
     Add a build to one or more groups:
 
     ```bash  theme={null}
-    asc builds add-groups --build "BUILD_ID" --group "GROUP_ID"
+    asc builds add-groups --build-id "BUILD_ID" --group "GROUP_ID"
     ```
 
     Add to multiple groups:
 
     ```bash  theme={null}
-    asc builds add-groups --build "BUILD_ID" --group "GROUP_ID1,GROUP_ID2"
+    asc builds add-groups --build-id "BUILD_ID" --group "GROUP_ID1,GROUP_ID2"
     ```
   </Step>
 
@@ -187,7 +187,7 @@ TestFlight allows you to distribute pre-release builds to internal and external 
     Check which groups have access to a build:
 
     ```bash  theme={null}
-    asc builds beta-groups relationships --build "BUILD_ID"
+    asc testflight distribution view --build-id "BUILD_ID"
     ```
   </Step>
 </Steps>
@@ -199,13 +199,13 @@ TestFlight allows you to distribute pre-release builds to internal and external 
     Get crash submission details:
 
     ```bash  theme={null}
-    asc testflight beta-feedback crash-submissions get --id "SUBMISSION_ID"
+    asc testflight crashes view --submission-id "SUBMISSION_ID"
     ```
 
     Download the crash log:
 
     ```bash  theme={null}
-    asc testflight beta-feedback crash-log get --id "SUBMISSION_ID"
+    asc testflight crashes log --submission-id "SUBMISSION_ID"
     ```
   </Step>
 
@@ -213,7 +213,7 @@ TestFlight allows you to distribute pre-release builds to internal and external 
     Get screenshot submission with annotations:
 
     ```bash  theme={null}
-    asc testflight beta-feedback screenshot-submissions get --id "SUBMISSION_ID"
+    asc testflight feedback view --submission-id "SUBMISSION_ID"
     ```
   </Step>
 
@@ -221,7 +221,7 @@ TestFlight allows you to distribute pre-release builds to internal and external 
     Get detailed crash logs for analysis:
 
     ```bash  theme={null}
-    asc testflight beta-crash-logs get --id "CRASH_LOG_ID"
+    asc testflight crashes log --crash-log-id "CRASH_LOG_ID"
     ```
   </Step>
 
@@ -229,13 +229,13 @@ TestFlight allows you to distribute pre-release builds to internal and external 
     Delete processed crash submissions:
 
     ```bash  theme={null}
-    asc testflight beta-feedback crash-submissions delete --id "SUBMISSION_ID" --confirm
+    asc testflight crashes delete --submission-id "SUBMISSION_ID" --confirm
     ```
 
     Delete screenshot submissions:
 
     ```bash  theme={null}
-    asc testflight beta-feedback screenshot-submissions delete --id "SUBMISSION_ID" --confirm
+    asc testflight feedback delete --submission-id "SUBMISSION_ID" --confirm
     ```
   </Step>
 </Steps>
@@ -245,7 +245,7 @@ TestFlight allows you to distribute pre-release builds to internal and external 
 Track how testers engage with your builds:
 
 ```bash  theme={null}
-asc testflight metrics beta-tester-usages --app "YOUR_APP_ID"
+asc testflight metrics app-testers --app "YOUR_APP_ID"
 ```
 
 This provides insights into:
@@ -267,26 +267,26 @@ asc builds list --app "$ASC_APP_ID" --sort "-uploadedDate" --limit 1 --output js
 BUILD_ID="..." # Extract from output
 
 # 3. Create or find your beta group
-asc testflight beta-groups list --app "$ASC_APP_ID"
+asc testflight groups list --app "$ASC_APP_ID"
 GROUP_ID="..." # Use existing or create new
 
 # 4. Add build to the beta group
-asc builds add-groups --build "$BUILD_ID" --group "$GROUP_ID"
+asc builds add-groups --build-id "$BUILD_ID" --group "$GROUP_ID"
 
 # 5. List testers in the group
-asc testflight beta-testers list --app "$ASC_APP_ID" --group "$GROUP_ID"
+asc testflight testers list --app "$ASC_APP_ID" --group "$GROUP_ID"
 
 # 6. Add new testers if needed
-asc testflight beta-testers add \
+asc testflight testers add \
   --app "$ASC_APP_ID" \
   --email "newtester@example.com" \
   --group "Beta Testers"
 
 # 7. Send invitations
-asc testflight beta-testers invite --app "$ASC_APP_ID" --email "newtester@example.com"
+asc testflight testers invite --app "$ASC_APP_ID" --email "newtester@example.com"
 
 # 8. Monitor beta tester activity
-asc testflight metrics beta-tester-usages --app "$ASC_APP_ID"
+asc testflight metrics app-testers --app "$ASC_APP_ID"
 ```
 
 ## Troubleshooting
@@ -295,34 +295,34 @@ asc testflight metrics beta-tester-usages --app "$ASC_APP_ID"
 
 1. Verify the tester is added to the group:
    ```bash  theme={null}
-   asc testflight beta-testers list --app "YOUR_APP_ID" --group "GROUP_ID"
+   asc testflight testers list --app "YOUR_APP_ID" --group "GROUP_ID"
    ```
 
 2. Check if invitation was sent:
    ```bash  theme={null}
-   asc testflight beta-testers get --id "TESTER_ID"
+   asc testflight testers view --id "TESTER_ID"
    ```
 
 3. Resend invitation:
    ```bash  theme={null}
-   asc testflight beta-testers invite --app "YOUR_APP_ID" --email "tester@example.com"
+   asc testflight testers invite --app "YOUR_APP_ID" --email "tester@example.com"
    ```
 
 ### Build Not Appearing for Testers
 
 1. Verify build is assigned to the group:
    ```bash  theme={null}
-   asc builds beta-groups relationships --build "BUILD_ID"
+   asc testflight distribution view --build-id "BUILD_ID"
    ```
 
 2. Check build processing status:
    ```bash  theme={null}
-   asc builds get --build "BUILD_ID"
+   asc builds info --build-id "BUILD_ID"
    ```
 
 3. Ensure build passed TestFlight review:
    ```bash  theme={null}
-   asc testflight beta-review get --build "BUILD_ID"
+   asc testflight review submissions list --build-id "BUILD_ID"
    ```
 
 ### Managing Group Limits
@@ -332,13 +332,13 @@ Internal groups have a limit of 100 testers. External groups can have up to 10,0
 To check current tester counts:
 
 ```bash  theme={null}
-asc testflight beta-groups get --id "GROUP_ID"
+asc testflight groups view --id "GROUP_ID"
 ```
 
 If you hit limits, create additional groups:
 
 ```bash  theme={null}
-asc testflight beta-groups create --app "YOUR_APP_ID" --name "Beta Testers Group 2"
+asc testflight groups create --app "YOUR_APP_ID" --name "Beta Testers Group 2"
 ```
 
 ## Best Practices

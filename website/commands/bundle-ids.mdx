@@ -37,7 +37,7 @@ asc bundle-ids list --output table
 Retrieve a specific bundle ID by resource ID:
 
 ```bash  theme={null}
-asc bundle-ids get --id "BUNDLE_ID"
+asc bundle-ids view --id "BUNDLE_ID"
 ```
 
 **Note:** The `--id` parameter expects the App Store Connect resource ID, not the bundle identifier string (e.g., "com.example.app"). Use `list` to find the resource ID.
@@ -130,7 +130,7 @@ asc bundle-ids delete --id "BUNDLE_ID" --confirm
 Find the app using this bundle ID:
 
 ```bash  theme={null}
-asc bundle-ids app get --id "BUNDLE_ID"
+asc bundle-ids app view --id "BUNDLE_ID"
 ```
 
 ### List Associated Profiles

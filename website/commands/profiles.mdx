@@ -37,10 +37,10 @@ asc profiles list --paginate
 Retrieve a specific profile by ID:
 
 ```bash  theme={null}
-asc profiles get --id "PROFILE_ID"
+asc profiles view --id "PROFILE_ID"
 
 # Include related resources
-asc profiles get --id "PROFILE_ID" \
+asc profiles view --id "PROFILE_ID" \
   --include bundleId,certificates,devices
 ```
 
@@ -203,13 +203,13 @@ View related resources for a profile:
 
 ```bash  theme={null}
 # Get bundle ID relationship
-asc profiles relationships bundle-id --id "PROFILE_ID"
+asc profiles links bundle-id --id "PROFILE_ID"
 
 # Get certificates relationship
-asc profiles relationships certificates --id "PROFILE_ID"
+asc profiles links certificates --id "PROFILE_ID"
 
 # Get devices relationship (development/ad hoc only)
-asc profiles relationships devices --id "PROFILE_ID"
+asc profiles links devices --id "PROFILE_ID"
 ```
 
 ## Local Profile Management
@@ -224,7 +224,7 @@ asc profiles local list
 asc profiles local clean
 
 # Get UUID of a profile file
-asc profiles local uuid --path ./profile.mobileprovision
+asc profiles local install --path ./profile.mobileprovision
 ```
 
 ## Complete Example Workflows
@@ -259,7 +259,7 @@ cp ./signing/appstore.mobileprovision \
 
 ```bash  theme={null}
 # 1. Register your device (if not already registered)
-asc devices create --name "My iPhone" \
+asc devices register --name "My iPhone" \
   --platform IOS \
   --udid "00008030-001234567890ABCD"
 
@@ -288,12 +288,12 @@ Profiles cannot be updated directly. Create a new profile:
 
 ```bash  theme={null}
 # 1. Register new device
-asc devices create --name "New iPad" \
+asc devices register --name "New iPad" \
   --platform IOS \
   --udid "00008103-001234567890ABCD"
 
 # 2. Get existing profile details
-asc profiles get --id "OLD_PROFILE_ID" \
+asc profiles view --id "OLD_PROFILE_ID" \
   --include bundleId,certificates,devices \
   --output json
 
@@ -312,12 +312,12 @@ asc profiles delete --id "OLD_PROFILE_ID" --confirm
 
 ```bash  theme={null}
 # 1. Create new certificate
-asc certificates csr --output ./new.csr
+asc certificates csr generate --key-out ./new.key --csr-out ./new.csr
 asc certificates create --certificate-type IOS_DISTRIBUTION \
   --csr ./new.csr
 
 # 2. Get profile details
-asc profiles get --id "PROFILE_ID" \
+asc profiles view --id "PROFILE_ID" \
   --include bundleId,devices \
   --output json
 
@@ -355,7 +355,7 @@ cp ./build.mobileprovision \
   ~/Library/MobileDevice/Provisioning\ Profiles/
 
 # Get profile UUID for Xcode
-PROFILE_UUID=$(asc profiles local uuid --path ./build.mobileprovision)
+PROFILE_UUID=$(asc profiles local install --path ./build.mobileprovision)
 echo "PROFILE_UUID=$PROFILE_UUID" >> $GITHUB_ENV
 ```
 
@@ -369,7 +369,7 @@ Profiles can be in different states:
 Check profile state:
 
 ```bash  theme={null}
-asc profiles get --id "PROFILE_ID" --output json | grep profileState
+asc profiles view --id "PROFILE_ID" --output json | grep profileState
 ```
 
 ## Profile Expiration
@@ -424,7 +424,7 @@ The profile may be in an invalid state.
 
 ```bash  theme={null}
 # Check profile state
-asc profiles get --id "PROFILE_ID" --output json
+asc profiles view --id "PROFILE_ID" --output json
 
 # If invalid, create a new profile
 ```

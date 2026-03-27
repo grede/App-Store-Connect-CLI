@@ -82,7 +82,7 @@ fi
 After submission, check the status:
 
 ```bash  theme={null}
-asc review list --app 123456789
+asc status --app 123456789 --output table
 ```
 
 ## Common errors
@@ -96,7 +96,7 @@ Error: Version 1.2.0 has no build attached
 **Solution:** Attach a build to the version:
 
 ```bash  theme={null}
-asc versions attach-build --app 123456789 --version 1.2.0 --build BUILD_ID
+asc versions attach-build --version-id "VERSION_ID" --build "BUILD_ID"
 ```
 
 ### Missing metadata

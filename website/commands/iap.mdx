@@ -49,7 +49,7 @@ asc iap list --app "123456789" --legacy
 Retrieve details for a specific in-app purchase.
 
 ```bash  theme={null}
-asc iap get --id "IAP_ID"
+asc iap view --id "IAP_ID"
 ```
 
 **Required Flags:**
@@ -166,7 +166,7 @@ asc iap delete --id "IAP_ID" --confirm
 View current pricing for in-app purchases in an app.
 
 ```bash  theme={null}
-asc iap prices --app "APP_ID"
+asc iap pricing summary --app "APP_ID"
 ```
 
 ### Manage Price Points
@@ -175,12 +175,11 @@ Work with App Store price points and tiers.
 
 ```bash  theme={null}
 # List available price points
-asc iap price-points list \
-  --territory "USA" \
-  --app "APP_ID"
+asc iap pricing price-points list \
+  --iap-id "IAP_ID"
 
 # Get price point details
-asc iap price-points get --id "PRICE_POINT_ID"
+asc iap pricing price-points equalizations --id "PRICE_POINT_ID"
 ```
 
 ### Manage Price Schedules
@@ -189,12 +188,13 @@ Configure pricing schedules for in-app purchases.
 
 ```bash  theme={null}
 # View price schedule
-asc iap price-schedules get --iap-id "IAP_ID"
+asc iap pricing schedules view --iap-id "IAP_ID"
 
-# Set base territory
-asc iap price-schedules set-base-territory \
+# Create price schedule
+asc iap pricing schedules create \
   --iap-id "IAP_ID" \
-  --territory "USA"
+  --base-territory "USA" \
+  --prices "PRICE_POINT_ID:2026-03-01"
 ```
 
 ## Localizations
@@ -226,7 +226,7 @@ asc iap localizations create \
 
 ```bash  theme={null}
 asc iap localizations update \
-  --id "LOCALIZATION_ID" \
+  --localization-id "LOCALIZATION_ID" \
   --name "Updated Name" \
   --description "Updated description"
 ```
@@ -235,7 +235,7 @@ asc iap localizations update \
 
 ```bash  theme={null}
 asc iap localizations delete \
-  --id "LOCALIZATION_ID" \
+  --localization-id "LOCALIZATION_ID" \
   --confirm
 ```
 
@@ -268,12 +268,12 @@ asc iap review-screenshots create \
   --iap-id "IAP_ID" \
   --file "./screenshot.png"
 
-# List review screenshots
-asc iap review-screenshots list --iap-id "IAP_ID"
+# View review screenshot
+asc iap review-screenshots view --iap-id "IAP_ID"
 
 # Delete review screenshot
 asc iap review-screenshots delete \
-  --id "SCREENSHOT_ID" \
+  --screenshot-id "SCREENSHOT_ID" \
   --confirm
 ```
 
@@ -284,13 +284,13 @@ Control which territories can purchase your in-app purchases.
 ### Get Availability
 
 ```bash  theme={null}
-asc iap availability get --iap-id "IAP_ID"
+asc iap pricing availability view --iap-id "IAP_ID"
 ```
 
 ### Set Availability
 
 ```bash  theme={null}
-asc iap availability set \
+asc iap pricing availability set \
   --iap-id "IAP_ID" \
   --territories "USA,CAN,GBR"
 ```
@@ -307,34 +307,34 @@ Use ISO 3166-1 alpha-3 codes:
 ### List Availabilities
 
 ```bash  theme={null}
-asc iap availabilities list --iap-id "IAP_ID"
+asc iap pricing availabilities view --id "AVAILABILITY_ID"
 ```
 
 ## Promoted In-App Purchases
 
 Promote in-app purchases on your App Store product page.
 
-### Get Promoted Purchase
+### View Promoted Purchase
 
 ```bash  theme={null}
-asc iap promoted-purchase get --iap-id "IAP_ID"
+asc iap promoted-purchases view --promoted-purchase-id "PROMO_ID"
 ```
 
 ### Create Promoted Purchase
 
 ```bash  theme={null}
-asc iap promoted-purchase create \
+asc iap promoted-purchases create \
   --app "APP_ID" \
-  --iap-id "IAP_ID" \
-  --visibility SHOW
+  --product-id "IAP_ID" \
+  --visible-for-all-users true
 ```
 
 ### Update Promotion Order
 
 ```bash  theme={null}
-asc iap promoted-purchase update-order \
+asc iap promoted-purchases link \
   --app "APP_ID" \
-  --iap-ids "IAP1,IAP2,IAP3"
+  --promoted-purchase-id "PROMO_ID"
 ```
 
 ## Offer Codes
@@ -347,8 +347,7 @@ Create promotional offer codes for in-app purchases.
 asc iap offer-codes create \
   --iap-id "IAP_ID" \
   --name "SPRING2024" \
-  --customer-eligibility NEW_AND_EXISTING \
-  --number-of-codes 100
+  --prices "USA:PRICE_POINT_ID"
 ```
 
 **Optional Flags:**
@@ -360,11 +359,10 @@ asc iap offer-codes create \
 ### Manage Offer Code Prices
 
 ```bash  theme={null}
-# Set offer code pricing
-asc iap offer-code-prices set \
+# List offer code pricing
+asc iap offer-codes prices \
   --offer-code-id "CODE_ID" \
-  --territory "USA" \
-  --price-point "PRICE_POINT_ID"
+  --paginate
 ```
 
 ## Content
@@ -372,13 +370,8 @@ asc iap offer-code-prices set \
 Manage hosted content for in-app purchases.
 
 ```bash  theme={null}
-# Upload content
-asc iap content upload \
-  --iap-id "IAP_ID" \
-  --file "./content.zip"
-
-# Get content status
-asc iap content get --iap-id "IAP_ID"
+# View content status
+asc iap content view --iap-id "IAP_ID"
 ```
 
 ## Submission
@@ -430,7 +423,7 @@ asc iap images create \
   --file "./promo.png"
 
 # 4. Set availability
-asc iap availability set \
+asc iap pricing availability set \
   --iap-id "$IAP_ID" \
   --territories "USA,CAN,GBR,AUS"
 
@@ -450,7 +443,7 @@ TERRITORIES="USA,CAN,GBR,AUS,JPN"
 
 for IAP_ID in $(asc iap list --app "$APP_ID" --output json | jq -r '.data[].id'); do
   echo "Updating $IAP_ID"
-  asc iap availability set \
+  asc iap pricing availability set \
     --iap-id "$IAP_ID" \
     --territories "$TERRITORIES"
 done

@@ -37,10 +37,10 @@ asc certificates list --paginate
 Retrieve a specific certificate by ID:
 
 ```bash  theme={null}
-asc certificates get --id "CERT_ID"
+asc certificates view --id "CERT_ID"
 
 # Include related resources
-asc certificates get --id "CERT_ID" --include passTypeId
+asc certificates view --id "CERT_ID" --include passTypeId
 ```
 
 ## Certificate Types
@@ -129,7 +129,7 @@ Before creating a certificate, generate a CSR:
 
 ```bash  theme={null}
 # Using asc CLI
-asc certificates csr --output ./cert.csr
+asc certificates csr generate --key-out ./cert.key --csr-out ./cert.csr
 
 # Or using openssl
 openssl req -new -newkey rsa:2048 -nodes \
@@ -186,7 +186,7 @@ asc certificates revoke --id "CERT_ID" --confirm
 View related resources for pass type certificates:
 
 ```bash  theme={null}
-asc certificates relationships pass-type-id --id "CERT_ID"
+asc certificates links pass-type-id --id "CERT_ID"
 ```
 
 This shows the pass type ID associated with Wallet pass certificates.
@@ -197,7 +197,7 @@ This shows the pass type ID associated with Wallet pass certificates.
 
 ```bash  theme={null}
 # 1. Generate CSR and private key
-asc certificates csr --output ./dist.csr
+asc certificates csr generate --key-out ./dist.key --csr-out ./dist.csr
 
 # 2. Create certificate
 asc certificates create --certificate-type IOS_DISTRIBUTION \
@@ -220,7 +220,7 @@ asc certificates list --certificate-type IOS_DISTRIBUTION \
   --output table
 
 # 2. Create new certificate
-asc certificates csr --output ./new-dist.csr
+asc certificates csr generate --key-out ./new-dist.key --csr-out ./new-dist.csr
 asc certificates create --certificate-type IOS_DISTRIBUTION \
   --csr ./new-dist.csr
 
@@ -337,7 +337,7 @@ Error: CSR file is empty or invalid
 openssl req -in cert.csr -noout -text
 
 # Regenerate if needed
-asc certificates csr --output ./cert.csr
+asc certificates csr generate --key-out ./cert.key --csr-out ./cert.csr
 ```
 
 ### Private Key Not Found
@@ -359,7 +359,7 @@ This means the certificate was created with a CSR from another machine.
 Check certificate status:
 
 ```bash  theme={null}
-asc certificates get --id "CERT_ID" --output json
+asc certificates view --id "CERT_ID" --output json
 ```
 
 Look for `certificateType`, `expirationDate`, and related attributes.

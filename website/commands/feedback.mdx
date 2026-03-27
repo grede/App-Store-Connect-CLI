@@ -1,13 +1,13 @@
 # feedback
 
-> List and manage TestFlight feedback from beta testers
+> Inspect beta tester feedback with `asc testflight feedback`
 
-The `feedback` command retrieves feedback submitted by beta testers through TestFlight.
+Feedback workflows now live under `asc testflight feedback ...`. This page keeps the older `feedback` URL, but the current CLI surface is the `testflight feedback` command family.
 
 ## Usage
 
 ```bash  theme={null}
-asc feedback [flags]
+asc testflight feedback <subcommand> [flags]
 ```
 
 ## List feedback
@@ -15,37 +15,27 @@ asc feedback [flags]
 Retrieve feedback for an app:
 
 ```bash  theme={null}
-asc feedback --app APP_ID
-asc feedback --app APP_ID --output table
-asc feedback --app APP_ID --paginate
+asc testflight feedback list --app APP_ID
+asc testflight feedback list --app APP_ID --output table
+asc testflight feedback list --app APP_ID --include-screenshots
+asc testflight feedback list --app APP_ID --paginate
 ```
 
-## Output example
+## View or delete a submission
 
-```json  theme={null}
-{
-  "data": [
-    {
-      "id": "feedback-id",
-      "type": "betaFeedbacks",
-      "attributes": {
-        "comment": "Great app, but the login screen is slow",
-        "timestamp": "2024-03-04T10:30:00Z",
-        "email": "tester@example.com"
-      }
-    }
-  ]
-}
+```bash  theme={null}
+asc testflight feedback view --submission-id SUBMISSION_ID
+asc testflight feedback delete --submission-id SUBMISSION_ID --confirm
 ```
 
-## Flags
+## Useful flags
 
 <ParamField path="--app" type="string" required>
-  App ID to retrieve feedback for
+  App Store Connect app ID
 </ParamField>
 
-<ParamField path="--output" type="string">
-  Output format: `json`, `table`, or `markdown`
+<ParamField path="--include-screenshots" type="boolean">
+  Include screenshot URLs in feedback output
 </ParamField>
 
 <ParamField path="--limit" type="number">
@@ -61,29 +51,29 @@ asc feedback --app APP_ID --paginate
 ### View all feedback in table format
 
 ```bash  theme={null}
-asc feedback --app 123456789 --output table --paginate
+asc testflight feedback list --app 123456789 --output table --paginate
 ```
 
 ### Export feedback to file
 
 ```bash  theme={null}
-asc feedback --app 123456789 --paginate > feedback.json
+asc testflight feedback list --app 123456789 --paginate > feedback.json
 ```
 
-### Filter recent feedback
+### Filter recent feedback by device or OS
 
 ```bash  theme={null}
-asc feedback --app 123456789 --output json | jq '.data[] | select(.attributes.timestamp > "2024-03-01")'
+asc testflight feedback list --app 123456789 --device-model "iPhone15,3" --os-version "17.2"
 ```
 
 ## Related
 
 <CardGroup cols={2}>
   <Card title="Crashes command" icon="bug" href="/commands/crashes">
-    View crash reports
+    View TestFlight crash submissions
   </Card>
 
-  <Card title="TestFlight guide" icon="plane" href="/guides/testflight">
-    Complete TestFlight guide
+  <Card title="TestFlight command" icon="plane" href="/commands/testflight">
+    Manage TestFlight groups, testers, feedback, and crashes
   </Card>
 </CardGroup>

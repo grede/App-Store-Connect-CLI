@@ -114,7 +114,7 @@ include:
       command: |
         asc builds upload \
           --app "$APP_ID" \
-          --file build/MyApp.ipa
+          --ipa build/MyApp.ipa
 
 testflight:run:
   needs:
@@ -173,9 +173,8 @@ release:run:
       job_prefix: status
       asc_version: latest
       command: |
-        asc review status \
+        asc status \
           --app "$APP_ID" \
-          --version "$CI_COMMIT_TAG" \
           --output json > review-status.json
 
 status:run:
@@ -220,11 +219,9 @@ description:run:
       command: |
         for screenshot in $METADATA_PATH/en-US/screenshots/iphone67/*.png; do
           asc screenshots upload \
-            --app "$APP_ID" \
-            --version "$VERSION" \
-            --locale en-US \
-            --display-type APP_IPHONE_67 \
-            --file "$screenshot"
+            --version-localization "$VERSION_LOCALIZATION_ID" \
+            --device-type "IPHONE_65" \
+            --path "$screenshot"
         done
 
 screenshots:run:
@@ -246,7 +243,7 @@ include:
       job_prefix: crashes
       asc_version: latest
       command: |
-        asc crashes \
+        asc testflight crashes list \
           --app "$APP_ID" \
           --sort -createdDate \
           --limit 20 \
@@ -266,7 +263,7 @@ crashes:run:
       job_prefix: feedback
       asc_version: latest
       command: |
-        asc feedback \
+        asc testflight feedback list \
           --app "$APP_ID" \
           --paginate \
           --output json > feedback.json
@@ -351,7 +348,7 @@ stages:
 .testflight_template:
   stage: deploy
   script:
-    - asc builds upload --app "$APP_ID" --file "build/$APP_NAME.ipa"
+    - asc builds upload --app "$APP_ID" --ipa "build/$APP_NAME.ipa"
   only:
     - main
 
@@ -423,7 +420,7 @@ include:
         # Retry up to 3 times on failure
         for i in 1 2 3; do
           echo "Upload attempt $i/3"
-          asc builds upload --app "$APP_ID" --file build/MyApp.ipa && break
+          asc builds upload --app "$APP_ID" --ipa build/MyApp.ipa && break
           if [ $i -lt 3 ]; then
             echo "Retrying in 30 seconds..."
             sleep 30
@@ -455,7 +452,7 @@ include:
       command: |
         asc builds upload \
           --app "$STAGING_APP_ID" \
-          --file build/MyApp-Staging.ipa
+          --ipa build/MyApp-Staging.ipa
 
 staging:run:
   environment:

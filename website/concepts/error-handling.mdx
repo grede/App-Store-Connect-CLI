@@ -298,16 +298,16 @@ Enable debug logging with `--debug` or `--api-debug`:
 
 ```bash  theme={null}
 # General debug output
-asc apps list --debug
+asc --debug apps list
 
 # HTTP request/response debug (redacts sensitive values)
-asc apps list --api-debug
+asc --api-debug apps list
 ```
 
 Debug output goes to stderr:
 
 ```bash  theme={null}
-asc apps list --api-debug 2> debug.log
+asc --api-debug apps list 2> debug.log
 ```
 
 ### Environment Variables

@@ -49,7 +49,7 @@ asc webhooks list --app "APP_ID" --paginate
 Get a webhook by ID:
 
 ```bash  theme={null}
-asc webhooks get --webhook-id "WEBHOOK_ID"
+asc webhooks view --webhook-id "WEBHOOK_ID"
 ```
 
 **Flags:**
@@ -185,13 +185,13 @@ asc webhooks deliveries --webhook-id "WEBHOOK_ID" --paginate
 
 **Note:** Either `--created-after` or `--created-before` is required (mutually exclusive).
 
-### webhooks deliveries relationships
+### webhooks deliveries links
 
 List webhook delivery relationships:
 
 ```bash  theme={null}
-asc webhooks deliveries relationships --webhook-id "WEBHOOK_ID"
-asc webhooks deliveries relationships --webhook-id "WEBHOOK_ID" --paginate
+asc webhooks deliveries links --webhook-id "WEBHOOK_ID"
+asc webhooks deliveries links --webhook-id "WEBHOOK_ID" --paginate
 ```
 
 **Flags:**

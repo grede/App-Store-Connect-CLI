@@ -49,7 +49,7 @@ asc app-events list \
 Retrieve details for a specific event.
 
 ```bash  theme={null}
-asc app-events get --event-id "EVENT_ID"
+asc app-events view --event-id "EVENT_ID"
 ```
 
 **Required Flags:**
@@ -283,8 +283,9 @@ Upload event screenshots to showcase your event.
 # Upload screenshot
 asc app-events screenshots create \
   --event-id "EVENT_ID" \
-  --localization-id "LOCALIZATION_ID" \
-  --file "./event-screenshot.png"
+  --locale "en-US" \
+  --path "./event-screenshot.png" \
+  --asset-type EVENT_DETAILS_PAGE
 
 # List screenshots
 asc app-events screenshots list \
@@ -312,9 +313,10 @@ Add video previews to highlight your event.
 # Create video clip
 asc app-events video-clips create \
   --event-id "EVENT_ID" \
-  --localization-id "LOCALIZATION_ID" \
-  --file "./event-preview.mov" \
-  --preview-frame-time 2.5
+  --locale "en-US" \
+  --path "./event-preview.mov" \
+  --asset-type EVENT_DETAILS_PAGE \
+  --preview-frame-time-code "00:00:02.500"
 
 # List video clips
 asc app-events video-clips list \
@@ -322,7 +324,7 @@ asc app-events video-clips list \
 
 # Delete video clip
 asc app-events video-clips delete \
-  --video-clip-id "VIDEO_ID" \
+  --clip-id "VIDEO_ID" \
   --confirm
 ```
 
@@ -339,7 +341,7 @@ asc app-events video-clips delete \
 View relationships between events and other resources.
 
 ```bash  theme={null}
-asc app-events relationships --event-id "EVENT_ID"
+asc app-events links --event-id "EVENT_ID"
 ```
 
 ## Submission
@@ -396,8 +398,9 @@ LOC_ID=$(echo "$LOC_RESPONSE" | jq -r '.data.id')
 for i in {1..3}; do
   asc app-events screenshots create \
     --event-id "$EVENT_ID" \
-    --localization-id "$LOC_ID" \
-    --file "./screenshots/event-${i}.png"
+    --locale "en-US" \
+    --path "./screenshots/event-${i}.png" \
+    --asset-type EVENT_DETAILS_PAGE
 done
 
 # 4. Submit for review

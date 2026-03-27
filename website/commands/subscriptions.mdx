@@ -49,7 +49,7 @@ asc subscriptions groups create \
 ### Get Group Details
 
 ```bash  theme={null}
-asc subscriptions groups get --id "GROUP_ID"
+asc subscriptions groups view --id "GROUP_ID"
 ```
 
 ### Update Group
@@ -104,7 +104,7 @@ asc subscriptions groups localizations delete \
 List all subscriptions in a group.
 
 ```bash  theme={null}
-asc subscriptions list --group "GROUP_ID"
+asc subscriptions list --group-id "GROUP_ID"
 ```
 
 **Optional Flags:**
@@ -119,8 +119,8 @@ Create a new subscription product.
 
 ```bash  theme={null}
 asc subscriptions create \
-  --group "GROUP_ID" \
-  --ref-name "Monthly" \
+  --group-id "GROUP_ID" \
+  --reference-name "Monthly" \
   --product-id "com.example.sub.monthly" \
   --subscription-period ONE_MONTH
 ```
@@ -147,14 +147,14 @@ asc subscriptions create \
 ```bash  theme={null}
 # Create monthly subscription
 asc subscriptions create \
-  --group "GROUP_ID" \
-  --ref-name "Monthly Premium" \
+  --group-id "GROUP_ID" \
+  --reference-name "Monthly Premium" \
   --product-id "com.example.app.monthly"
 
 # Create yearly subscription with Family Sharing
 asc subscriptions create \
-  --group "GROUP_ID" \
-  --ref-name "Yearly Premium" \
+  --group-id "GROUP_ID" \
+  --reference-name "Yearly Premium" \
   --product-id "com.example.app.yearly" \
   --subscription-period ONE_YEAR \
   --family-sharable
@@ -163,7 +163,7 @@ asc subscriptions create \
 ### Get Subscription
 
 ```bash  theme={null}
-asc subscriptions get --id "SUB_ID"
+asc subscriptions view --id "SUB_ID"
 ```
 
 ### Update Subscription
@@ -171,7 +171,7 @@ asc subscriptions get --id "SUB_ID"
 ```bash  theme={null}
 asc subscriptions update \
   --id "SUB_ID" \
-  --ref-name "Monthly Premium Plus"
+  --reference-name "Monthly Premium Plus"
 ```
 
 **Optional Flags:**
@@ -193,7 +193,7 @@ asc subscriptions delete --id "SUB_ID" --confirm
 View pricing for all subscriptions in an app.
 
 ```bash  theme={null}
-asc subscriptions pricing --app "APP_ID"
+asc subscriptions pricing summary --app "APP_ID"
 ```
 
 **Optional Flags:**
@@ -205,12 +205,12 @@ asc subscriptions pricing --app "APP_ID"
 
 ```bash  theme={null}
 # View pricing as table
-asc subscriptions pricing \
+asc subscriptions pricing summary \
   --app "APP_ID" \
   --output table
 
 # View USA pricing only
-asc subscriptions pricing \
+asc subscriptions pricing summary \
   --app "APP_ID" \
   --territory "USA" \
   --output table
@@ -221,7 +221,7 @@ asc subscriptions pricing \
 List current prices for a subscription.
 
 ```bash  theme={null}
-asc subscriptions prices list --id "SUB_ID"
+asc subscriptions pricing prices list --subscription-id "SUB_ID"
 ```
 
 **Optional Flags:**
@@ -229,19 +229,19 @@ asc subscriptions prices list --id "SUB_ID"
 * `--limit` - Results per page (1-200)
 * `--paginate` - Fetch all pages
 
-### Add Price
+### Set Price
 
 Add or change pricing for a subscription.
 
 ```bash  theme={null}
-asc subscriptions prices add \
-  --id "SUB_ID" \
+asc subscriptions pricing prices set \
+  --subscription-id "SUB_ID" \
   --price-point "PRICE_POINT_ID"
 ```
 
 **Required Flags:**
 
-* `--id` - Subscription ID
+* `--subscription-id` - Subscription ID
 
 **Price Selection (choose one):**
 
@@ -259,26 +259,26 @@ asc subscriptions prices add \
 **Examples:**
 
 ```bash  theme={null}
-# Add price using price point ID
-asc subscriptions prices add \
-  --id "SUB_ID" \
+# Set price using price point ID
+asc subscriptions pricing prices set \
+  --subscription-id "SUB_ID" \
   --price-point "abc-123-def"
 
-# Add price using tier
-asc subscriptions prices add \
-  --id "SUB_ID" \
+# Set price using tier
+asc subscriptions pricing prices set \
+  --subscription-id "SUB_ID" \
   --tier 5 \
   --territory "USA"
 
-# Add price using exact customer price
-asc subscriptions prices add \
-  --id "SUB_ID" \
+# Set price using exact customer price
+asc subscriptions pricing prices set \
+  --subscription-id "SUB_ID" \
   --price "4.99" \
   --territory "USA"
 
 # Schedule future price change
-asc subscriptions prices add \
-  --id "SUB_ID" \
+asc subscriptions pricing prices set \
+  --subscription-id "SUB_ID" \
   --tier 8 \
   --territory "USA" \
   --start-date "2026-06-01" \
@@ -297,8 +297,8 @@ The CLI automatically detects which method to use.
 Import prices for multiple territories from a CSV file.
 
 ```bash  theme={null}
-asc subscriptions prices import \
-  --id "SUB_ID" \
+asc subscriptions pricing prices import \
+  --subscription-id "SUB_ID" \
   --input "./prices.csv"
 ```
 
@@ -320,7 +320,7 @@ AUS,7.99
 ### Delete Price
 
 ```bash  theme={null}
-asc subscriptions prices delete \
+asc subscriptions pricing prices delete \
   --price-id "PRICE_ID" \
   --confirm
 ```
@@ -331,12 +331,12 @@ Work with subscription price points and tiers.
 
 ```bash  theme={null}
 # List price points for territory
-asc subscriptions price-points list \
-  --territory "USA"
+asc subscriptions pricing price-points list \
+  --subscription-id "SUB_ID"
 
 # Get price point details
-asc subscriptions price-points get \
-  --id "PRICE_POINT_ID"
+asc subscriptions pricing price-points view \
+  --price-point-id "PRICE_POINT_ID"
 ```
 
 ## Availability
@@ -346,17 +346,17 @@ Control which territories can purchase your subscriptions.
 ### Get Availability
 
 ```bash  theme={null}
-asc subscriptions availability get --id "AVAILABILITY_ID"
+asc subscriptions pricing availability view --availability-id "AVAILABILITY_ID"
 # or
-asc subscriptions availability get --subscription-id "SUB_ID"
+asc subscriptions pricing availability view --subscription-id "SUB_ID"
 ```
 
 ### Set Availability
 
 ```bash  theme={null}
-asc subscriptions availability set \
-  --id "SUB_ID" \
-  --territory "USA,CAN,GBR"
+asc subscriptions pricing availability edit \
+  --subscription-id "SUB_ID" \
+  --territories "USA,CAN,GBR"
 ```
 
 **Optional Flags:**
@@ -366,8 +366,8 @@ asc subscriptions availability set \
 ### List Available Territories
 
 ```bash  theme={null}
-asc subscriptions availability available-territories \
-  --id "AVAILABILITY_ID" \
+asc subscriptions pricing availability available-territories \
+  --availability-id "AVAILABILITY_ID" \
   --paginate
 ```
 
@@ -428,19 +428,19 @@ Offer discounted pricing to new subscribers.
 
 ```bash  theme={null}
 # Create introductory offer
-asc subscriptions introductory-offers create \
+asc subscriptions offers introductory create \
   --subscription-id "SUB_ID" \
-  --duration ONE_MONTH \
-  --offer-type FREE_TRIAL \
+  --offer-duration ONE_MONTH \
+  --offer-mode FREE_TRIAL \
   --number-of-periods 1
 
 # Update offer
-asc subscriptions introductory-offers update \
+asc subscriptions offers introductory update \
   --id "OFFER_ID" \
-  --duration ONE_WEEK
+  --end-date "2026-02-01"
 
 # Delete offer
-asc subscriptions introductory-offers delete \
+asc subscriptions offers introductory delete \
   --id "OFFER_ID" \
   --confirm
 ```
@@ -457,17 +457,17 @@ Create targeted offers for existing or lapsed subscribers.
 
 ```bash  theme={null}
 # Create promotional offer
-asc subscriptions promotional-offers create \
+asc subscriptions offers promotional create \
   --subscription-id "SUB_ID" \
   --name "Win-Back Spring 2024" \
   --offer-code "SPRING2024"
 
 # List promotional offers
-asc subscriptions promotional-offers list \
+asc subscriptions offers promotional list \
   --subscription-id "SUB_ID"
 
 # Delete promotional offer
-asc subscriptions promotional-offers delete \
+asc subscriptions offers promotional delete \
   --id "OFFER_ID" \
   --confirm
 ```
@@ -478,14 +478,18 @@ Generate subscription offer codes for marketing campaigns.
 
 ```bash  theme={null}
 # Create offer code
-asc subscriptions offer-codes create \
+asc subscriptions offers offer-codes create \
   --subscription-id "SUB_ID" \
   --name "LAUNCH50" \
-  --customer-eligibility NEW_AND_EXISTING \
-  --number-of-codes 500
+  --offer-eligibility STACK_WITH_INTRO_OFFERS \
+  --customer-eligibilities NEW \
+  --offer-duration ONE_MONTH \
+  --offer-mode FREE_TRIAL \
+  --number-of-periods 1 \
+  --prices "USA:PRICE_POINT_ID"
 
 # List offer codes
-asc subscriptions offer-codes list \
+asc subscriptions offers offer-codes list \
   --subscription-id "SUB_ID"
 ```
 
@@ -495,14 +499,13 @@ Manage review screenshots for subscription approval.
 
 ```bash  theme={null}
 # Upload review screenshot
-asc subscriptions review-screenshots create \
+asc subscriptions review screenshots create \
   --subscription-id "SUB_ID" \
   --file "./screenshot.png"
 
-# Alternative command (same functionality)
-asc subscriptions app-store-review-screenshot create \
+# View App Store review screenshot
+asc subscriptions review app-store-screenshot view \
   --subscription-id "SUB_ID" \
-  --file "./screenshot.png"
 ```
 
 ## Grace Periods
@@ -511,14 +514,15 @@ Configure billing grace periods for failed payment recovery.
 
 ```bash  theme={null}
 # Set grace period
-asc subscriptions grace-periods set \
-  --subscription-id "SUB_ID" \
+asc subscriptions grace-periods update \
+  --id "GRACE_PERIOD_ID" \
+  --duration SIXTEEN_DAYS \
   --opt-in true \
   --sandbox-opt-in true
 
-# Get grace period settings
-asc subscriptions grace-periods get \
-  --subscription-id "SUB_ID"
+# View grace period settings
+asc subscriptions grace-periods view \
+  --id "GRACE_PERIOD_ID"
 ```
 
 ## Promoted Subscriptions
@@ -526,20 +530,24 @@ asc subscriptions grace-periods get \
 Promote subscriptions on your App Store product page.
 
 ```bash  theme={null}
-# Get promoted subscription
-asc subscriptions promoted-purchase get \
-  --subscription-id "SUB_ID"
+# List promoted subscriptions
+asc subscriptions promoted-purchases list \
+  --app "APP_ID"
+
+# View promoted subscription
+asc subscriptions promoted-purchases view \
+  --promoted-purchase-id "PROMO_ID"
 
 # Create promoted subscription
-asc subscriptions promoted-purchase create \
+asc subscriptions promoted-purchases create \
   --app "APP_ID" \
-  --subscription-id "SUB_ID" \
-  --visibility SHOW
+  --product-id "SUB_ID" \
+  --visible-for-all-users true
 
-# Update promotion order
-asc subscriptions promoted-purchase update-order \
+# Link promoted subscription to the app
+asc subscriptions promoted-purchases link \
   --app "APP_ID" \
-  --subscription-ids "SUB1,SUB2,SUB3"
+  --promoted-purchase-id "PROMO_ID"
 ```
 
 ## Submission
@@ -548,13 +556,13 @@ Submit subscription groups or individual subscriptions for review.
 
 ```bash  theme={null}
 # Submit subscription group
-asc subscriptions groups submit \
-  --id "GROUP_ID" \
+asc subscriptions review submit-group \
+  --group-id "GROUP_ID" \
   --confirm
 
 # Submit individual subscription
-asc subscriptions submit \
-  --id "SUB_ID" \
+asc subscriptions review submit \
+  --subscription-id "SUB_ID" \
   --confirm
 ```
 
@@ -579,8 +587,8 @@ GROUP_ID=$(echo "$GROUP_RESPONSE" | jq -r '.data.id')
 
 # 2. Create monthly subscription
 MONTHLY_RESPONSE=$(asc subscriptions create \
-  --group "$GROUP_ID" \
-  --ref-name "Monthly Premium" \
+  --group-id "$GROUP_ID" \
+  --reference-name "Monthly Premium" \
   --product-id "${BUNDLE_ID}.monthly" \
   --subscription-period ONE_MONTH \
   --output json)
@@ -589,8 +597,8 @@ MONTHLY_ID=$(echo "$MONTHLY_RESPONSE" | jq -r '.data.id')
 
 # 3. Create yearly subscription
 YEARLY_RESPONSE=$(asc subscriptions create \
-  --group "$GROUP_ID" \
-  --ref-name "Yearly Premium" \
+  --group-id "$GROUP_ID" \
+  --reference-name "Yearly Premium" \
   --product-id "${BUNDLE_ID}.yearly" \
   --subscription-period ONE_YEAR \
   --output json)
@@ -598,13 +606,13 @@ YEARLY_RESPONSE=$(asc subscriptions create \
 YEARLY_ID=$(echo "$YEARLY_RESPONSE" | jq -r '.data.id')
 
 # 4. Set pricing
-asc subscriptions prices add \
-  --id "$MONTHLY_ID" \
+asc subscriptions pricing prices set \
+  --subscription-id "$MONTHLY_ID" \
   --tier 5 \
   --territory "USA"
 
-asc subscriptions prices add \
-  --id "$YEARLY_ID" \
+asc subscriptions pricing prices set \
+  --subscription-id "$YEARLY_ID" \
   --tier 40 \
   --territory "USA"
 
@@ -625,15 +633,15 @@ START_DATE="2026-06-01"
 
 # Get all subscriptions in group
 SUBS=$(asc subscriptions list \
-  --group "$GROUP_ID" \
+  --group-id "$GROUP_ID" \
   --paginate \
   --output json | jq -r '.data[].id')
 
 # Update each subscription
 for SUB_ID in $SUBS; do
   echo "Updating $SUB_ID"
-  asc subscriptions prices add \
-    --id "$SUB_ID" \
+  asc subscriptions pricing prices set \
+    --subscription-id "$SUB_ID" \
     --tier "$NEW_TIER" \
     --territory "USA" \
     --start-date "$START_DATE" \

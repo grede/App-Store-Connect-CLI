@@ -28,7 +28,7 @@ Switch between profiles using the `--profile` flag or `ASC_PROFILE` environment 
 
 ```bash  theme={null}
 # Use a specific profile for one command
-asc apps list --profile PersonalApp
+asc --profile PersonalApp apps list
 
 # Set a profile for the current session
 export ASC_PROFILE="PersonalApp"
@@ -41,7 +41,7 @@ asc builds list --app 123456789
 Use `asc auth switch` to change the default profile:
 
 ```bash  theme={null}
-asc auth switch WorkApp
+asc auth switch --name WorkApp
 ```
 
 This updates the `default_key_name` field in your config file.
@@ -145,7 +145,7 @@ asc auth login --name "NewProfile" --key-id KEY --issuer-id ISSUER --private-key
 ### Switch to a different profile
 
 ```bash  theme={null}
-asc auth switch ProfileName
+asc auth switch --name ProfileName
 ```
 
 ### View current profile and status
@@ -157,7 +157,7 @@ asc auth status
 ### Remove a profile
 
 ```bash  theme={null}
-asc auth logout --profile ProfileName
+asc auth logout --name ProfileName
 ```
 
 ### Remove all profiles
@@ -176,10 +176,10 @@ asc auth login --name "ClientA" --key-id KEY_A --issuer-id ISSUER_A --private-ke
 asc auth login --name "ClientB" --key-id KEY_B --issuer-id ISSUER_B --private-key /path/to/b.p8
 
 # Use Client A credentials
-asc apps list --profile ClientA
+asc --profile ClientA apps list
 
 # Switch to Client B
-asc auth switch ClientB
+asc auth switch --name ClientB
 asc apps list  # Uses ClientB by default now
 ```
 
@@ -196,7 +196,7 @@ env:
 
 steps:
   - name: Upload to TestFlight
-    run: asc builds upload --app ${{ secrets.APP_ID }} --file MyApp.ipa
+    run: asc builds upload --app ${{ secrets.APP_ID }} --ipa MyApp.ipa
 ```
 
 ### Testing with staging vs production keys
@@ -235,7 +235,7 @@ export ASC_STRICT_AUTH=true
 asc apps list
 
 # Or explicitly use a profile
-asc apps list --profile SpecificProfile
+asc --profile SpecificProfile apps list
 ```
 
 ### Keychain access denied

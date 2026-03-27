@@ -19,7 +19,7 @@ List customer reviews for an app:
 ```bash  theme={null}
 asc reviews list --app APP_ID
 asc reviews list --app APP_ID --sort -createdDate
-asc reviews list --app APP_ID --filter "rating==1"
+asc reviews list --app APP_ID --stars 1
 ```
 
 ### Get review
@@ -27,7 +27,7 @@ asc reviews list --app APP_ID --filter "rating==1"
 Get details for a specific review:
 
 ```bash  theme={null}
-asc reviews get --review-id REVIEW_ID
+asc reviews view --id REVIEW_ID
 ```
 
 ### Respond to review
@@ -108,7 +108,7 @@ asc reviews ratings --app APP_ID
 ```bash  theme={null}
 asc reviews list \
   --app 123456789 \
-  --filter "rating<=2" \
+  --stars 1,2 \
   --sort -createdDate \
   --output table
 ```
@@ -117,7 +117,7 @@ asc reviews list \
 
 ```bash  theme={null}
 # Get low-rated reviews
-asc reviews list --app 123456789 --filter "rating<=2" --output json | \
+asc reviews list --app 123456789 --stars 1,2 --output json | \
 jq -r '.data[].id' | while read review_id; do
   asc reviews respond \
     --review-id "$review_id" \

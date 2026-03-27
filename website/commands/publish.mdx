@@ -19,8 +19,8 @@ Upload and distribute to TestFlight:
 ```bash  theme={null}
 asc publish testflight \
   --app APP_ID \
-  --file /path/to/MyApp.ipa \
-  --groups "External Testers"
+  --ipa /path/to/MyApp.ipa \
+  --group "External Testers"
 ```
 
 This workflow:
@@ -37,7 +37,7 @@ Submit to App Store:
 asc publish appstore \
   --app APP_ID \
   --version 1.2.0 \
-  --file /path/to/MyApp.ipa
+  --ipa /path/to/MyApp.ipa
 ```
 
 This workflow:
@@ -84,7 +84,7 @@ This workflow:
   Path to IPA file
 </ParamField>
 
-<ParamField path="--auto-release" type="boolean">
+<ParamField path="--submit --confirm" type="boolean">
   Automatically release after approval
 
   Default: `false`
@@ -97,8 +97,8 @@ This workflow:
 ```bash  theme={null}
 asc publish testflight \
   --app 123456789 \
-  --file build/MyApp.ipa \
-  --groups "External Testers,Beta Team"
+  --ipa build/MyApp.ipa \
+  --group "External Testers,Beta Team"
 ```
 
 ### Publish to App Store
@@ -107,8 +107,8 @@ asc publish testflight \
 asc publish appstore \
   --app 123456789 \
   --version 1.2.0 \
-  --file build/MyApp.ipa \
-  --auto-release
+  --ipa build/MyApp.ipa \
+  --submit --confirm
 ```
 
 ### CI/CD integration
@@ -119,8 +119,8 @@ asc publish appstore \
   run: |
     asc publish testflight \
       --app ${{ secrets.APP_ID }} \
-      --file MyApp.ipa \
-      --groups "External Testers"
+      --ipa MyApp.ipa \
+      --group "External Testers"
 ```
 
 ## Output
@@ -148,8 +148,8 @@ If any step fails, the workflow stops and reports the error:
 You can retry individual steps using the lower-level commands:
 
 ```bash  theme={null}
-asc builds upload --app 123456789 --file MyApp.ipa
-asc builds add-groups --build BUILD_ID --group "External Testers"
+asc builds upload --app 123456789 --ipa MyApp.ipa
+asc builds add-groups --build-id BUILD_ID --group "External Testers"
 ```
 
 ## Related

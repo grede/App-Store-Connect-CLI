@@ -8,6 +8,7 @@ from pathlib import Path
 
 import check_release_docs
 import check_repo_docs
+import check_website_commands
 import check_website_docs
 import doc_links
 
@@ -161,6 +162,133 @@ class WebsiteDocsChecksTest(unittest.TestCase):
             _, routes = check_website_docs.collect_site_state(website)
             errors = check_website_docs.check_internal_links(website, routes)
             self.assertEqual(errors, [])
+
+
+class WebsiteCommandChecksTest(unittest.TestCase):
+    def test_website_command_checks_accept_valid_examples(self) -> None:
+        index = {
+            (): check_website_commands.CommandSpec(
+                path=(),
+                usage="asc <subcommand> [flags]",
+                flags={"--profile": False, "--debug": True},
+                subcommands={"apps"},
+            ),
+            ("apps",): check_website_commands.CommandSpec(
+                path=("apps",),
+                usage="asc apps list [flags]",
+                flags={"--output": False},
+                subcommands={"list"},
+            ),
+            ("apps", "list"): check_website_commands.CommandSpec(
+                path=("apps", "list"),
+                usage="asc apps list [flags]",
+                flags={"--output": False},
+                subcommands=set(),
+            ),
+        }
+        with tempfile.TemporaryDirectory() as tmpdir:
+            website = Path(tmpdir)
+            (website / "index.mdx").write_text(
+                "```bash\nasc --profile prod apps list --output json\n```\n"
+            )
+            errors = check_website_commands.collect_errors(website, index)
+            self.assertEqual(errors, [])
+
+    def test_website_command_checks_reject_unknown_subcommand(self) -> None:
+        index = {
+            (): check_website_commands.CommandSpec(
+                path=(),
+                usage="asc <subcommand> [flags]",
+                flags={},
+                subcommands={"reviews"},
+            ),
+            ("reviews",): check_website_commands.CommandSpec(
+                path=("reviews",),
+                usage="asc reviews [flags] | asc reviews <subcommand> [flags]",
+                flags={"--app": False},
+                subcommands={"list", "view"},
+            ),
+        }
+        with tempfile.TemporaryDirectory() as tmpdir:
+            website = Path(tmpdir)
+            (website / "index.mdx").write_text("```bash\nasc reviews get --id REVIEW_ID\n```\n")
+            errors = check_website_commands.collect_errors(website, index)
+            self.assertEqual(len(errors), 1)
+            self.assertIn("unknown subcommand", errors[0])
+
+    def test_website_command_checks_reject_misplaced_global_flag(self) -> None:
+        index = {
+            (): check_website_commands.CommandSpec(
+                path=(),
+                usage="asc <subcommand> [flags]",
+                flags={"--profile": False},
+                subcommands={"apps"},
+            ),
+            ("apps",): check_website_commands.CommandSpec(
+                path=("apps",),
+                usage="asc apps list [flags]",
+                flags={},
+                subcommands={"list"},
+            ),
+            ("apps", "list"): check_website_commands.CommandSpec(
+                path=("apps", "list"),
+                usage="asc apps list [flags]",
+                flags={},
+                subcommands=set(),
+            ),
+        }
+        with tempfile.TemporaryDirectory() as tmpdir:
+            website = Path(tmpdir)
+            (website / "index.mdx").write_text("```bash\nasc apps list --profile prod\n```\n")
+            errors = check_website_commands.collect_errors(website, index)
+            self.assertEqual(len(errors), 1)
+            self.assertIn("must appear before", errors[0])
+
+    def test_website_command_checks_reject_flags_after_positionals(self) -> None:
+        index = {
+            (): check_website_commands.CommandSpec(
+                path=(),
+                usage="asc <subcommand> [flags]",
+                flags={},
+                subcommands={"demo"},
+            ),
+            ("demo",): check_website_commands.CommandSpec(
+                path=("demo",),
+                usage="asc demo [flags] <name>",
+                flags={"--pretty": True},
+                subcommands=set(),
+            ),
+        }
+        with tempfile.TemporaryDirectory() as tmpdir:
+            website = Path(tmpdir)
+            (website / "index.mdx").write_text("```bash\nasc demo beta --pretty\n```\n")
+            errors = check_website_commands.collect_errors(website, index)
+            self.assertEqual(len(errors), 1)
+            self.assertIn("appears after positional", errors[0])
+
+    def test_website_command_checks_parse_deprecated_replacement(self) -> None:
+        help_text = """
+DESCRIPTION
+  DEPRECATED: use `asc analytics segments view`.
+
+USAGE
+  asc analytics segments get --segment-id "SEGMENT_ID"
+"""
+        self.assertEqual(
+            check_website_commands.deprecation_replacement(help_text),
+            "asc analytics segments view",
+        )
+
+    def test_website_command_checks_extract_single_line_command_with_quoted_value(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            website = Path(tmpdir)
+            (website / "index.mdx").write_text("```bash\nasc app-events get --event-id \"EVENT_ID\"\n```\n")
+            examples = check_website_commands.extract_examples(website)
+            self.assertEqual(len(examples), 1)
+            self.assertEqual(
+                examples[0].tokens,
+                ("asc", "app-events", "get", "--event-id", "EVENT_ID"),
+            )
 
 
 class DocLinksTest(unittest.TestCase):

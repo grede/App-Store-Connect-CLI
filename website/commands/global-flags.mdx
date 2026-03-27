@@ -11,8 +11,8 @@ Global flags are available on all `asc` commands and control cross-cutting conce
 Use a named authentication profile stored in your keychain or config file.
 
 ```bash  theme={null}
-asc apps list --profile production
-asc builds upload --app "123456789" --profile staging
+asc --profile production apps list
+asc --profile staging builds upload --app "123456789" --ipa "MyApp.ipa"
 ```
 
 **Environment variable**: `ASC_PROFILE`
@@ -24,7 +24,7 @@ asc builds upload --app "123456789" --profile staging
 Fail when credentials are resolved from multiple sources (e.g., both environment variables and keychain).
 
 ```bash  theme={null}
-asc apps list --strict-auth
+asc --strict-auth apps list
 ```
 
 **Default**: `false`
@@ -40,7 +40,7 @@ This flag helps catch configuration issues where credentials might be coming fro
 Enable debug logging to stderr for troubleshooting CLI behavior.
 
 ```bash  theme={null}
-asc apps list --debug
+asc --debug apps list
 ```
 
 **Environment variable**: `ASC_DEBUG=true`
@@ -57,7 +57,7 @@ Outputs detailed information about:
 Enable HTTP debug logging to stderr, showing full request and response details.
 
 ```bash  theme={null}
-asc apps list --api-debug
+asc --api-debug apps list
 ```
 
 **Environment variable**: `ASC_DEBUG=api`
@@ -80,7 +80,7 @@ Useful for:
 Enable retry logging to stderr to see when the CLI automatically retries failed requests.
 
 ```bash  theme={null}
-asc apps list --retry-log
+asc --retry-log apps list
 ```
 
 **Environment variable**: `ASC_RETRY_LOG=true`
@@ -100,7 +100,7 @@ Outputs information about:
 Report format for CI output. Currently supports `junit` for JUnit XML test reports.
 
 ```bash  theme={null}
-asc validate --app "123456789" --report junit --report-file results.xml
+asc --report junit --report-file results.xml validate --app "123456789" --version "1.2.3"
 ```
 
 **Valid values**: `junit`
@@ -114,7 +114,7 @@ Use this in CI pipelines to generate test reports that integrate with CI platfor
 Path to write CI report file (used with `--report`).
 
 ```bash  theme={null}
-asc validate --app "123456789" --report junit --report-file /tmp/validation-results.xml
+asc --report junit --report-file /tmp/validation-results.xml validate --app "123456789" --version "1.2.3"
 ```
 
 **Required**: `--report` must be specified when using `--report-file`
@@ -141,12 +141,11 @@ Outputs the current CLI version. Useful for:
 
 ### Flag Placement
 
-Global flags can appear before or after subcommands:
+Global flags must appear before the top-level command:
 
 ```bash  theme={null}
-# Both work identically
+# Correct
 asc --profile production apps list
-asc apps list --profile production
 ```
 
 ### Flag Priority
@@ -206,18 +205,17 @@ These environment variables don't have corresponding flags but control global be
 asc --profile staging --debug apps list
 
 # Test with strict auth to catch credential conflicts
-asc --profile production --strict-auth validate --app "123456789"
+asc --profile production --strict-auth validate --app "123456789" --version "1.2.3"
 ```
 
 ### CI Pipeline
 
 ```bash  theme={null}
 # Run validation with JUnit report
-asc validate \
+asc --report junit --report-file validation-results.xml \
+  validate \
   --app "$APP_ID" \
-  --version "$VERSION" \
-  --report junit \
-  --report-file validation-results.xml
+  --version "$VERSION"
 
 # Set environment for all commands in CI
 export ASC_PROFILE=ci
@@ -235,7 +233,7 @@ asc builds list --app "$APP_ID"
 asc --api-debug apps view --id "123456789"
 
 # Combine debug flags to see everything
-asc --debug --api-debug --retry-log builds upload --app "123456789"
+asc --debug --api-debug --retry-log builds upload --app "123456789" --ipa "MyApp.ipa"
 ```
 
 ## See Also

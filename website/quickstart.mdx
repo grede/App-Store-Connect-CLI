@@ -154,13 +154,13 @@ Sample output:
 View feedback from beta testers:
 
 ```bash  theme={null}
-asc feedback --app "123456789" --limit 10
+asc testflight feedback list --app "123456789" --limit 10
 ```
 
 ### Fetch crash reports
 
 ```bash  theme={null}
-asc crashes --app "123456789" --sort -createdDate --limit 5
+asc testflight crashes list --app "123456789" --sort -createdDate --limit 5
 ```
 
 ## Common workflows
@@ -170,7 +170,7 @@ asc crashes --app "123456789" --sort -createdDate --limit 5
 ```bash  theme={null}
 asc builds upload \
   --app "123456789" \
-  --file "/path/to/MyApp.ipa"
+  --ipa "/path/to/MyApp.ipa"
 ```
 
 <Warning>
@@ -180,14 +180,14 @@ asc builds upload \
 ### List TestFlight beta groups
 
 ```bash  theme={null}
-asc testflight beta-groups list --app "123456789"
+asc testflight groups list --app "123456789"
 ```
 
 ### Add a build to a beta group
 
 ```bash  theme={null}
 asc builds add-groups \
-  --build "abc123" \
+  --build-id "abc123" \
   --group "def456"
 ```
 
@@ -309,7 +309,7 @@ ASC_DEFAULT_OUTPUT=json asc apps list --output table
 * `2`: Usage error (invalid flags, missing arguments)
 
 ```bash  theme={null}
-if asc apps list --app "123456789" > /dev/null 2>&1; then
+if asc apps view --id "123456789" > /dev/null 2>&1; then
   echo "App found"
 else
   echo "Error: $?"
@@ -426,7 +426,7 @@ See [Environment Variables Reference](/configuration/environment-variables) for 
 
     ```bash  theme={null}
     export ASC_TIMEOUT="120s"
-    asc builds upload --app "123456789" --file large.ipa
+    asc builds upload --app "123456789" --ipa large.ipa
     ```
 
     For uploads, use `ASC_UPLOAD_TIMEOUT`:

@@ -1,8 +1,8 @@
 # testflight
 
-> Manage TestFlight resources including beta groups, testers, feedback, and crash logs
+> Manage TestFlight groups, testers, feedback, crashes, and review workflows
 
-The `testflight` command provides comprehensive management of TestFlight resources.
+The `testflight` command groups the higher-level TestFlight resources that sit around builds: groups, testers, feedback, crash submissions, review details, notifications, and exported config.
 
 ## Usage
 
@@ -10,47 +10,57 @@ The `testflight` command provides comprehensive management of TestFlight resourc
 asc testflight <subcommand> [flags]
 ```
 
-## Subcommands
+## Key subcommands
 
-### Beta groups
+### Groups
 
-Manage beta testing groups:
+Create and manage internal or external beta groups:
 
 ```bash  theme={null}
-asc testflight beta-groups list --app APP_ID
-asc testflight beta-groups get --group-id GROUP_ID
-asc testflight beta-groups create --app APP_ID --name "External Testers"
-asc testflight beta-groups update --group-id GROUP_ID --name "Updated Name"
-asc testflight beta-groups delete --group-id GROUP_ID
+asc testflight groups list --app APP_ID
+asc testflight groups create --app APP_ID --name "Beta Testers"
+asc testflight groups create --app APP_ID --name "Internal Testers" --internal
+asc testflight groups view --id GROUP_ID
 ```
 
-### Beta testers
+### Testers
 
-Manage individual beta testers:
+List testers, add new testers, and manage their group/build access:
 
 ```bash  theme={null}
-asc testflight beta-testers list --app APP_ID
-asc testflight beta-testers get --tester-id TESTER_ID
-asc testflight beta-testers create --app APP_ID --email user@example.com
-asc testflight beta-testers delete --tester-id TESTER_ID
+asc testflight testers list --app APP_ID
+asc testflight testers add --app APP_ID --email user@example.com --group "Beta"
+asc testflight testers view --id TESTER_ID
+asc testflight testers add-groups --id TESTER_ID --group GROUP_ID
 ```
 
 ### Feedback and crashes
 
-View beta tester feedback and crash logs:
+Inspect beta feedback submissions and crash reports:
 
 ```bash  theme={null}
-asc testflight beta-feedback list --app APP_ID
-asc testflight beta-crash-logs list --build BUILD_ID
-asc testflight beta-crash-logs get --id CRASH_LOG_ID
+asc testflight feedback list --app APP_ID
+asc testflight feedback view --submission-id SUBMISSION_ID
+asc testflight crashes list --app APP_ID
+asc testflight crashes log --submission-id SUBMISSION_ID
 ```
 
-### Metrics
+### Review and distribution
 
-Access TestFlight metrics:
+Manage TestFlight review details and distribution settings:
 
 ```bash  theme={null}
-asc testflight metrics beta-tester-usages --app APP_ID
+asc testflight review view --app APP_ID
+asc testflight distribution view --build-id BUILD_ID
+asc testflight notifications send --build-id BUILD_ID
+```
+
+### Metrics and config
+
+```bash  theme={null}
+asc testflight metrics group-testers --group GROUP_ID
+asc testflight metrics app-testers --app APP_ID
+asc testflight config export --app APP_ID --output ./testflight.yaml
 ```
 
 ## Common workflows
@@ -59,50 +69,32 @@ asc testflight metrics beta-tester-usages --app APP_ID
 
 ```bash  theme={null}
 # Create a new beta group
-asc testflight beta-groups create \
+asc testflight groups create \
   --app 123456789 \
-  --name "External Testers" \
-  --is-internal-group false
+  --name "External Testers"
 
 # Add testers to the group
-asc testflight beta-testers create \
+asc testflight testers add \
   --app 123456789 \
   --email tester@example.com \
-  --group-id GROUP_ID
+  --group "External Testers"
 ```
 
-### View feedback from beta testers
+### Review incoming beta feedback
 
 ```bash  theme={null}
-asc testflight beta-feedback list --app 123456789 --output table
+asc testflight feedback list --app 123456789 --output table
+asc testflight crashes list --app 123456789 --sort -createdDate --limit 10
 ```
-
-## Flags
-
-<ParamField path="--app" type="string" required>
-  App ID for TestFlight operations
-</ParamField>
-
-<ParamField path="--group-id" type="string">
-  Beta group ID
-</ParamField>
-
-<ParamField path="--tester-id" type="string">
-  Beta tester ID
-</ParamField>
-
-<ParamField path="--output" type="string">
-  Output format: `json`, `table`, or `markdown`
-</ParamField>
 
 ## Related
 
 <CardGroup cols={2}>
-  <Card title="TestFlight guide" icon="plane" href="/guides/testflight">
-    Complete TestFlight distribution guide
+  <Card title="Builds command" icon="box" href="/commands/builds">
+    Manage uploads, processing, and build distribution
   </Card>
 
-  <Card title="Builds command" icon="box" href="/commands/builds">
-    Manage builds and uploads
+  <Card title="TestFlight guide" icon="plane" href="/guides/testflight">
+    Complete TestFlight distribution guide
   </Card>
 </CardGroup>

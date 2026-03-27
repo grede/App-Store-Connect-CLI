@@ -17,7 +17,7 @@ Create a workflow file at `.asc/workflow.json`:
         "asc builds list --app $APP_ID --limit 1 --sort -uploadedDate",
         {
           "name": "add_to_group",
-          "run": "asc builds add-groups --build $BUILD_ID --group $GROUP_ID"
+          "run": "asc builds add-groups --build-id $BUILD_ID --group $GROUP_ID"
         }
       ]
     }
@@ -305,7 +305,7 @@ asc workflow run beta BUILD_ID:abc123 GROUP_ID:xyz789 --pretty
     },
     {
       "name": "add_to_group",
-      "command": "asc builds add-groups --build abc123 --group xyz789",
+      "command": "asc builds add-groups --build-id abc123 --group xyz789",
       "exit_code": 0
     }
   ],
@@ -475,12 +475,12 @@ Or on error:
         },
         {
           "name": "list_groups",
-          "run": "asc testflight beta-groups list --app $APP_ID --limit 20"
+          "run": "asc testflight groups list --app $APP_ID --limit 20"
         },
         {
           "name": "add_build_to_group",
           "if": "BUILD_ID",
-          "run": "asc builds add-groups --build $BUILD_ID --group $GROUP_ID"
+          "run": "asc builds add-groups --build-id $BUILD_ID --group $GROUP_ID"
         }
       ]
     }

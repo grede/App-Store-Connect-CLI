@@ -121,12 +121,12 @@ Common device types for screenshots:
 asc screenshots list --version-localization "LOCALIZATION_ID"
 ```
 
-Filter by device type:
+Filter client-side by device type:
 
 ```bash  theme={null}
 asc screenshots list \
   --version-localization "LOCALIZATION_ID" \
-  --device-type "IPHONE_65"
+  --output json | jq '.data[] | select(.attributes.displayType == "IPHONE_65")'
 ```
 
 ### Download Screenshots
@@ -362,8 +362,7 @@ Upload app preview videos:
 asc video-previews upload \
   --version-localization "LOCALIZATION_ID" \
   --path "./previews/app-preview.mp4" \
-  --device-type "IPHONE_65" \
-  --preview-type "APP_PREVIEW"
+  --device-type "IPHONE_65"
 ```
 
 ### Preview Video Requirements

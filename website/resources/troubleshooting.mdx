@@ -116,7 +116,7 @@ Generate a new key with appropriate permissions if needed.
 **Solution**: Ensure you're using the latest version of the CLI (0.36.3+). The UTI for PKG uploads was fixed to use `com.apple.pkg`.
 
 ```bash  theme={null}
-asc builds upload --app "123456789" --file "/path/to/App.pkg"
+asc builds upload --app "123456789" --ipa "/path/to/App.pkg"
 ```
 
 ### Build Processing Stuck
@@ -141,7 +141,7 @@ If the build shows `PROCESSING` for more than 30 minutes, check App Store Connec
 
 ```bash  theme={null}
 asc analytics view --request-id "REQUEST_ID" --date "2024-01-01" --paginate
-asc feedback --app "123456789" --paginate
+asc testflight feedback list --app "123456789" --paginate
 ```
 
 ### Incorrect Date Formats
@@ -332,7 +332,7 @@ If you've found a bug:
 
 * Sort by recent items first:
   ```bash  theme={null}
-  asc crashes --app "123456789" --sort -createdDate --limit 20
+  asc testflight crashes list --app "123456789" --sort -createdDate --limit 20
   ```
 
 ### Large File Uploads
@@ -346,5 +346,5 @@ If you've found a bug:
 export ASC_UPLOAD_TIMEOUT=10m
 
 # Monitor upload progress
-asc builds upload --app "123456789" --file "/path/to/large.ipa" --verbose
+asc --debug builds upload --app "123456789" --ipa "/path/to/large.ipa"
 ```

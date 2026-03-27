@@ -1,60 +1,56 @@
 # crashes
 
-> List and analyze TestFlight crash reports
+> Inspect TestFlight crash submissions with `asc testflight crashes`
 
-The `crashes` command retrieves crash reports from TestFlight beta testing.
+Crash-report workflows now live under `asc testflight crashes ...`. This page keeps the older `crashes` URL, but the current CLI surface is the `testflight crashes` command family.
 
 ## Usage
 
 ```bash  theme={null}
-asc crashes [flags]
+asc testflight crashes <subcommand> [flags]
 ```
 
 ## List crashes
 
-Retrieve crash reports for an app:
+Retrieve crash submissions for an app:
 
 ```bash  theme={null}
-asc crashes --app APP_ID
-asc crashes --app APP_ID --sort -createdDate
-asc crashes --app APP_ID --limit 10
+asc testflight crashes list --app APP_ID
+asc testflight crashes list --app APP_ID --sort -createdDate
+asc testflight crashes list --app APP_ID --device-model "iPhone15,3" --os-version "17.2"
+asc testflight crashes list --app APP_ID --paginate
 ```
 
-## Output example
+## View and download crash details
 
-```json  theme={null}
-{
-  "data": [
-    {
-      "id": "crash-id",
-      "type": "betaCrashReports",
-      "attributes": {
-        "crashCount": 5,
-        "createdDate": "2024-03-04T09:15:00Z",
-        "exceptionType": "NSInvalidArgumentException",
-        "symbolicated": true
-      }
-    }
-  ]
-}
+```bash  theme={null}
+asc testflight crashes view --submission-id SUBMISSION_ID
+asc testflight crashes log --submission-id SUBMISSION_ID
+asc testflight crashes log --crash-log-id CRASH_LOG_ID
 ```
 
-## Flags
+## Cleanup
+
+```bash  theme={null}
+asc testflight crashes delete --submission-id SUBMISSION_ID --confirm
+```
+
+## Useful flags
 
 <ParamField path="--app" type="string" required>
-  App ID to retrieve crashes for
+  App Store Connect app ID, bundle ID, or exact app name
 </ParamField>
 
 <ParamField path="--sort" type="string">
-  Sort order: `createdDate`, `-createdDate`, `crashCount`
+  Sort order: `createdDate` or `-createdDate`
 </ParamField>
 
-<ParamField path="--limit" type="number">
-  Maximum number of results
+<ParamField path="--device-model" type="string">
+  Filter by device model
 </ParamField>
 
-<ParamField path="--output" type="string">
-  Output format: `json`, `table`, or `markdown`
+<ParamField path="--os-version" type="string">
+  Filter by OS version
 </ParamField>
 
 <ParamField path="--paginate" type="boolean">
@@ -66,19 +62,19 @@ asc crashes --app APP_ID --limit 10
 ### View recent crashes
 
 ```bash  theme={null}
-asc crashes --app 123456789 --sort -createdDate --limit 10 --output table
+asc testflight crashes list --app 123456789 --sort -createdDate --limit 10 --output table
 ```
 
-### Export all crashes
+### Export all crash submissions
 
 ```bash  theme={null}
-asc crashes --app 123456789 --paginate > crashes.json
+asc testflight crashes list --app 123456789 --paginate > crashes.json
 ```
 
-### Count total crashes
+### Fetch a crash log for a submission
 
 ```bash  theme={null}
-asc crashes --app 123456789 --output json | jq '[.data[].attributes.crashCount] | add'
+asc testflight crashes log --submission-id SUBMISSION_ID
 ```
 
 ## Related
@@ -88,7 +84,7 @@ asc crashes --app 123456789 --output json | jq '[.data[].attributes.crashCount] 
     View beta tester feedback
   </Card>
 
-  <Card title="TestFlight guide" icon="plane" href="/guides/testflight">
-    Complete TestFlight guide
+  <Card title="TestFlight command" icon="plane" href="/commands/testflight">
+    Manage TestFlight groups, testers, feedback, and crashes
   </Card>
 </CardGroup>

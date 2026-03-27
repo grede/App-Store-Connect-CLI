@@ -86,7 +86,7 @@ Manage Xcode Cloud workflows:
 ```bash  theme={null}
 asc xcode-cloud workflows --app "APP_ID"
 asc xcode-cloud workflows list --app "APP_ID"
-asc xcode-cloud workflows get --id "WORKFLOW_ID"
+asc xcode-cloud workflows view --id "WORKFLOW_ID"
 asc xcode-cloud workflows repository --id "WORKFLOW_ID"
 asc xcode-cloud workflows create --file ./workflow.json
 asc xcode-cloud workflows update --id "WORKFLOW_ID" --file ./workflow.json
@@ -172,8 +172,8 @@ asc xcode-cloud actions --run-id "BUILD_RUN_ID" --output table
 List artifacts for a build run:
 
 ```bash  theme={null}
-asc xcode-cloud artifacts --run-id "BUILD_RUN_ID"
-asc xcode-cloud artifacts --run-id "BUILD_RUN_ID" --output table
+asc xcode-cloud artifacts list --run-id "BUILD_RUN_ID"
+asc xcode-cloud artifacts list --run-id "BUILD_RUN_ID" --output table
 ```
 
 **Flags:**
@@ -190,8 +190,8 @@ asc xcode-cloud artifacts --run-id "BUILD_RUN_ID" --output table
 List test results for a build run:
 
 ```bash  theme={null}
-asc xcode-cloud test-results --run-id "BUILD_RUN_ID"
-asc xcode-cloud test-results --run-id "BUILD_RUN_ID" --output table
+asc xcode-cloud test-results list --run-id "BUILD_RUN_ID"
+asc xcode-cloud test-results list --run-id "BUILD_RUN_ID" --output table
 ```
 
 **Flags:**
@@ -208,8 +208,8 @@ asc xcode-cloud test-results --run-id "BUILD_RUN_ID" --output table
 List issues for a build run:
 
 ```bash  theme={null}
-asc xcode-cloud issues --run-id "BUILD_RUN_ID"
-asc xcode-cloud issues --run-id "BUILD_RUN_ID" --output table
+asc xcode-cloud issues list --run-id "BUILD_RUN_ID"
+asc xcode-cloud issues list --run-id "BUILD_RUN_ID" --output table
 ```
 
 **Flags:**
@@ -227,8 +227,8 @@ Manage SCM providers and repositories:
 
 ```bash  theme={null}
 asc xcode-cloud scm providers list
-asc xcode-cloud scm repositories list --product-id "PRODUCT_ID"
-asc xcode-cloud scm git-references list --repository-id "REPO_ID"
+asc xcode-cloud scm repositories list
+asc xcode-cloud scm git-references view --id "REF_ID"
 ```
 
 **Subcommands:**
@@ -253,10 +253,10 @@ asc xcode-cloud run \
 asc xcode-cloud status --run-id "BUILD_RUN_ID"
 
 # View build artifacts
-asc xcode-cloud artifacts --run-id "BUILD_RUN_ID"
+asc xcode-cloud artifacts list --run-id "BUILD_RUN_ID"
 
 # View test results
-asc xcode-cloud test-results --run-id "BUILD_RUN_ID"
+asc xcode-cloud test-results list --run-id "BUILD_RUN_ID"
 ```
 
 ### CI Integration
@@ -281,7 +281,7 @@ echo "Build run ID: $BUILD_RUN_ID"
 asc xcode-cloud status --run-id "$BUILD_RUN_ID" --wait
 
 # Check for issues
-ISSUES=$(asc xcode-cloud issues --run-id "$BUILD_RUN_ID" --output json)
+ISSUES=$(asc xcode-cloud issues list --run-id "$BUILD_RUN_ID" --output json)
 ISSUE_COUNT=$(echo "$ISSUES" | jq '.data | length')
 
 if [ "$ISSUE_COUNT" -gt 0 ]; then

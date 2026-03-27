@@ -58,7 +58,7 @@ jobs:
           command: |
             asc builds upload \
               --app "$APP_ID" \
-              --file build/MyApp.ipa
+              --ipa build/MyApp.ipa
 
 workflows:
   deploy:
@@ -213,7 +213,7 @@ jobs:
           command: |
             asc builds upload \
               --app "$ASC_APP_ID" \
-              --file build/MyApp.ipa
+              --ipa build/MyApp.ipa
       
       - run:
           name: Add to Beta Group
@@ -222,14 +222,14 @@ jobs:
             sleep 120
             
             # Get latest build ID
-            BUILD_ID=$(asc testflight builds list \
+            BUILD_ID=$(asc builds list \
               --app "$ASC_APP_ID" \
               --output json \
               --limit 1 | jq -r '.[0].id')
             
             # Add to external testers
-            asc testflight builds add-to-group \
-              --build "$BUILD_ID" \
+            asc builds add-groups \
+              --build-id "$BUILD_ID" \
               --group "External Testers"
 
 workflows:
@@ -376,11 +376,9 @@ jobs:
           command: |
             for screenshot in metadata/en-US/screenshots/iphone67/*.png; do
               asc screenshots upload \
-                --app "$ASC_APP_ID" \
-                --version "$VERSION" \
-                --locale en-US \
-                --display-type APP_IPHONE_67 \
-                --file "$screenshot"
+                --version-localization "$VERSION_LOCALIZATION_ID" \
+                --device-type "IPHONE_65" \
+                --path "$screenshot"
             done
 
 workflows:
@@ -417,7 +415,7 @@ jobs:
       - run:
           name: Fetch Crashes
           command: |
-            asc crashes \
+            asc testflight crashes list \
               --app "$ASC_APP_ID" \
               --sort -createdDate \
               --limit 20 \
@@ -445,7 +443,7 @@ jobs:
       - run:
           name: Fetch Feedback
           command: |
-            asc feedback \
+            asc testflight feedback list \
               --app "$ASC_APP_ID" \
               --paginate \
               --output json > feedback.json
@@ -564,7 +562,7 @@ jobs:
           command: |
             asc builds upload \
               --app "<< parameters.app-id >>" \
-              --file build/<< parameters.app-name >>.ipa
+              --ipa build/<< parameters.app-name >>.ipa
 
 workflows:
   deploy-all:
@@ -612,7 +610,7 @@ jobs:
             - run:
                 name: Deploy to Staging
                 command: |
-                  asc builds upload --app "$STAGING_APP_ID" --file "build/MyApp.ipa"
+                  asc builds upload --app "$STAGING_APP_ID" --ipa "build/MyApp.ipa"
 ```
 
 ## Executors

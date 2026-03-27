@@ -177,7 +177,11 @@ asc builds list --app APP_ID --paginate
 #!/bin/bash
 NEXT=""
 while true; do
-  RESPONSE=$(asc apps list --limit 50 ${NEXT:+--next "$NEXT"} --output json)
+  if [ -n "$NEXT" ]; then
+    RESPONSE=$(asc apps list --limit 50 --next "$NEXT" --output json)
+  else
+    RESPONSE=$(asc apps list --limit 50 --output json)
+  fi
   echo "$RESPONSE" | jq '.data[] | .attributes.name'
   
   NEXT=$(echo "$RESPONSE" | jq -r '.links.next // empty')
@@ -190,7 +194,7 @@ done
 ### Count All Beta Testers
 
 ```bash  theme={null}
-asc testflight beta-testers list --paginate --output json | jq '.data | length'
+asc testflight testers list --paginate --output json | jq '.data | length'
 ```
 
 ## Implementation Details

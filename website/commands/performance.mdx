@@ -70,7 +70,7 @@ asc performance metrics list \
 Retrieve performance metrics for a specific build.
 
 ```bash  theme={null}
-asc performance metrics get --build "BUILD_ID"
+asc performance metrics view --build "BUILD_ID"
 ```
 
 **Required Flags:**
@@ -87,10 +87,10 @@ asc performance metrics get --build "BUILD_ID"
 
 ```bash  theme={null}
 # Get all metrics for a build
-asc performance metrics get --build "abc-123-def"
+asc performance metrics view --build "abc-123-def"
 
 # Filter memory metrics for specific device
-asc performance metrics get \
+asc performance metrics view \
   --build "abc-123-def" \
   --metric-type "MEMORY" \
   --device-type "iPhone15,2"
@@ -214,7 +214,7 @@ asc performance diagnostics list \
 Retrieve sample logs for a diagnostic signature.
 
 ```bash  theme={null}
-asc performance diagnostics get --id "SIGNATURE_ID"
+asc performance diagnostics view --id "SIGNATURE_ID"
 ```
 
 **Required Flags:**
@@ -229,10 +229,10 @@ asc performance diagnostics get --id "SIGNATURE_ID"
 
 ```bash  theme={null}
 # Get logs for a signature
-asc performance diagnostics get --id "SIGNATURE_ID"
+asc performance diagnostics view --id "SIGNATURE_ID"
 
 # Limit number of logs
-asc performance diagnostics get \
+asc performance diagnostics view \
   --id "SIGNATURE_ID" \
   --limit 50
 ```
@@ -301,13 +301,13 @@ CURRENT_BUILD="current-build-id"
 PREVIOUS_BUILD="previous-build-id"
 
 # Get current metrics
-asc performance metrics get \
+asc performance metrics view \
   --build "$CURRENT_BUILD" \
   --metric-type "MEMORY,LAUNCH" \
   > current_metrics.json
 
 # Get previous metrics
-asc performance metrics get \
+asc performance metrics view \
   --build "$PREVIOUS_BUILD" \
   --metric-type "MEMORY,LAUNCH" \
   > previous_metrics.json
@@ -357,7 +357,7 @@ echo "Diagnostics exported to $OUTPUT_DIR"
 
 ```bash  theme={null}
 # Analyze metrics for latest iPhone models
-asc performance metrics get \
+asc performance metrics view \
   --build "$BUILD_ID" \
   --device-type "iPhone15,2,iPhone15,3" \
   --metric-type "MEMORY,BATTERY,LAUNCH" \

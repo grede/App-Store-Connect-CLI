@@ -130,14 +130,14 @@ If Game Center is not enabled for the app, the detail lookup returns **404**.
 
 ### Releases
 
-Releases are **required** to make achievements/leaderboards/leaderboard-sets live. Create a release after creating the resource:
+Game Center resources often need a linked Game Center app version before they become active in App Store Connect:
 
 ```bash  theme={null}
 # Create achievement first
-asc game-center achievements create --app "123456789" --title "First Win"
+asc game-center achievements create --app "123456789" --reference-name "First Win" --vendor-id "com.example.firstwin" --points 10
 
-# Then create release to make it live
-asc game-center releases create --app "123456789"
+# Then create the Game Center app version that links it to your App Store version
+asc game-center app-versions create --app-store-version-id "APP_STORE_VERSION_ID"
 ```
 
 ### Image Uploads
@@ -210,7 +210,7 @@ Generate a new API key with appropriate permissions at:
 Devices can **only be enabled/disabled** via PATCH. There is no DELETE endpoint.
 
 ```bash  theme={null}
-asc devices update --device "123456789" --status DISABLED
+asc devices update --id "123456789" --status DISABLED
 ```
 
 ### Registration Requirements
@@ -221,7 +221,7 @@ asc devices update --device "123456789" --status DISABLED
 **Example**:
 
 ```bash  theme={null}
-asc devices create --name "iPhone 15 Pro" --udid "00000000-0000000000000000" --platform IOS
+asc devices register --name "iPhone 15 Pro" --udid "00000000-0000000000000000" --platform IOS
 ```
 
 ### Device Management Location
@@ -248,12 +248,10 @@ The CLI does **not expose** those parameters for `pass-type-ids certificates lis
 asc pass-type-ids certificates list --pass-type-id "123456789"
 ```
 
-**Not supported** (causes API error):
+**Not supported**:
 
-```bash  theme={null}
-# Don't use --include or --fields with certificates
-asc pass-type-ids certificates list --pass-type-id "123456789" --include passTypeId
-```
+* `--include` is not available on `asc pass-type-ids certificates list`.
+* Use supported filters like `--id`, `--certificate-type`, or `--fields` instead.
 
 ## General API Quirks
 
@@ -275,16 +273,16 @@ Without `--paginate`, only the first page is returned (default limit varies by e
 
 ### Filters and Sorting
 
-Filter syntax uses bracket notation:
+Use explicit filter flags instead of generic `--filter` expressions:
 
 ```bash  theme={null}
-asc builds list --app "123456789" --filter "preReleaseVersion.version=1.0.0"
+asc builds list --app "123456789" --version "1.0.0"
 ```
 
 Sort with `-` prefix for descending:
 
 ```bash  theme={null}
-asc crashes --app "123456789" --sort -createdDate
+asc testflight crashes list --app "123456789" --sort -createdDate
 ```
 
 ### Response Delays
