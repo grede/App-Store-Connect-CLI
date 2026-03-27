@@ -861,27 +861,27 @@ func TestBetaManagementValidationErrors(t *testing.T) {
 		},
 		{
 			name:    "beta-testers add-builds missing id",
-			args:    []string{"testflight", "beta-testers", "add-builds", "--build", "BUILD_ID"},
+			args:    []string{"testflight", "beta-testers", "add-builds", "--build-id", "BUILD_ID"},
 			wantErr: "--id is required",
 		},
 		{
 			name:    "beta-testers add-builds missing build",
 			args:    []string{"testflight", "beta-testers", "add-builds", "--id", "TESTER_ID"},
-			wantErr: "--build is required",
+			wantErr: "--build-id is required",
 		},
 		{
 			name:    "beta-testers remove-builds missing id",
-			args:    []string{"testflight", "beta-testers", "remove-builds", "--build", "BUILD_ID", "--confirm"},
+			args:    []string{"testflight", "beta-testers", "remove-builds", "--build-id", "BUILD_ID", "--confirm"},
 			wantErr: "--id is required",
 		},
 		{
 			name:    "beta-testers remove-builds missing build",
 			args:    []string{"testflight", "beta-testers", "remove-builds", "--id", "TESTER_ID", "--confirm"},
-			wantErr: "--build is required",
+			wantErr: "--build-id is required",
 		},
 		{
 			name:    "beta-testers remove-builds missing confirm",
-			args:    []string{"testflight", "beta-testers", "remove-builds", "--id", "TESTER_ID", "--build", "BUILD_ID"},
+			args:    []string{"testflight", "beta-testers", "remove-builds", "--id", "TESTER_ID", "--build-id", "BUILD_ID"},
 			wantErr: "Error: --confirm is required",
 		},
 		{
@@ -2117,11 +2117,11 @@ func TestTestFlightReviewValidationErrors(t *testing.T) {
 		{
 			name:    "review submit missing build",
 			args:    []string{"testflight", "review", "submit", "--confirm"},
-			wantErr: "--build is required",
+			wantErr: "--build-id is required",
 		},
 		{
 			name:    "review submit missing confirm",
-			args:    []string{"testflight", "review", "submit", "--build", "BUILD_ID"},
+			args:    []string{"testflight", "review", "submit", "--build-id", "BUILD_ID"},
 			wantErr: "--confirm is required",
 		},
 	}
@@ -3025,7 +3025,7 @@ func TestTestFlightBetaDetailsValidationErrors(t *testing.T) {
 		{
 			name:    "beta-details get missing build",
 			args:    []string{"testflight", "beta-details", "get"},
-			wantErr: "--build is required",
+			wantErr: "--build-id is required",
 		},
 		{
 			name:    "beta-details update missing id",
@@ -3180,8 +3180,8 @@ func TestTestFlightSyncValidationErrors(t *testing.T) {
 		},
 		{
 			name:    "testflight sync pull build filter without include",
-			args:    []string{"testflight", "sync", "pull", "--app", "APP_ID", "--output", "./testflight.yaml", "--build", "BUILD_ID"},
-			wantErr: "--build requires --include-builds",
+			args:    []string{"testflight", "sync", "pull", "--app", "APP_ID", "--output", "./testflight.yaml", "--build-id", "BUILD_ID"},
+			wantErr: "--build-id requires --include-builds",
 		},
 		{
 			name:    "testflight sync pull tester filter without include",
@@ -3262,7 +3262,7 @@ func TestBetaTestersListAcceptsBuildFilter(t *testing.T) {
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)
 
-	if err := root.Parse([]string{"testflight", "beta-testers", "list", "--app", "X", "--build", "Y"}); err != nil {
+	if err := root.Parse([]string{"testflight", "beta-testers", "list", "--app", "X", "--build-id", "Y"}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
 }
