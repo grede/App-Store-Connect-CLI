@@ -25,12 +25,8 @@ var (
 	resolvePublishNextBuildNumberFn = func(ctx context.Context, client *asc.Client, opts shared.NextBuildNumberOptions) (*asc.BuildsNextBuildNumberResult, error) {
 		return shared.ResolveNextBuildNumber(ctx, client, opts)
 	}
-	uploadBuildAndWaitForIDFn     = uploadBuildAndWaitForID
-	resolvePublishBuildUploadIDFn = func(ctx context.Context, client *asc.Client, appID, version, buildNumber, platform string, exportStartedAt, exportCompletedAt time.Time, pollInterval time.Duration) (string, error) {
-		return shared.WaitForRecentBuildUploadID(ctx, client, appID, version, buildNumber, platform, exportStartedAt, exportCompletedAt, pollInterval)
-	}
-	waitForPublishBuildByNumberOrUploadFailureFn = shared.WaitForBuildByNumberOrUploadFailure
-	resolvePublishAppIDWithLookupFn              = func(ctx context.Context, client *asc.Client, appID string) (string, error) {
+	uploadBuildAndWaitForIDFn       = uploadBuildAndWaitForID
+	resolvePublishAppIDWithLookupFn = func(ctx context.Context, client *asc.Client, appID string) (string, error) {
 		return shared.ResolveAppIDWithLookup(ctx, client, appID)
 	}
 	waitForPublishBuildProcessingFn = func(ctx context.Context, client *asc.Client, buildID string, pollInterval time.Duration) (*asc.BuildResponse, error) {
@@ -193,6 +189,9 @@ func resolveLocalBuildConfig(values *publishLocalBuildFlagValues, platform, vers
 	if err != nil {
 		return publishLocalBuildConfig{}, err
 	}
+	if localxcode.IsDirectUploadMode(exportOptionsPath) {
+		return publishLocalBuildConfig{}, shared.UsageError("--export-options with destination=upload is not supported by publish; use export options that produce a local IPA")
+	}
 	config.ExportOptionsPath = exportOptionsPath
 
 	config.ArchivePath = strings.TrimSpace(*values.archivePath)
@@ -245,7 +244,6 @@ func runPublishLocalBuild(ctx context.Context, requestCtx context.Context, clien
 		return nil, fmt.Errorf("archive local build: %w", err)
 	}
 
-	exportStartedAt := time.Now()
 	exportResult, err := runPublishExportFn(ctx, localxcode.ExportOptions{
 		ArchivePath:    archiveResult.ArchivePath,
 		ExportOptions:  config.ExportOptionsPath,
@@ -257,11 +255,6 @@ func runPublishLocalBuild(ctx context.Context, requestCtx context.Context, clien
 	if err != nil {
 		return nil, fmt.Errorf("export local build: %w", err)
 	}
-	exportCompletedAt := time.Now()
-	if exportCompletedAt.Before(exportStartedAt) {
-		exportCompletedAt = exportStartedAt
-	}
-
 	result := &publishLocalBuildExecutionResult{
 		Archive: &asc.PublishArchiveStageResult{
 			ArchivePath:   strings.TrimSpace(archiveResult.ArchivePath),
@@ -285,54 +278,37 @@ func runPublishLocalBuild(ctx context.Context, requestCtx context.Context, clien
 		Uploaded:    true,
 	}
 
-	if strings.TrimSpace(exportResult.IPAPath) != "" {
-		fileInfo, err := validatePublishIPAPathFn(exportResult.IPAPath)
-		if err != nil {
-			return nil, fmt.Errorf("validate exported IPA: %w", err)
-		}
-		uploadResult, err := uploadBuildAndWaitForIDFn(
-			requestCtx,
-			client,
-			appID,
-			exportResult.IPAPath,
-			fileInfo,
-			result.Version,
-			result.BuildNumber,
-			asc.Platform(platform),
-			pollInterval,
-			timeout,
-			timeoutOverride,
-		)
-		if err != nil {
-			return nil, err
-		}
-		result.Build = uploadResult.Build
-		result.Version = uploadResult.Version
-		result.BuildNumber = uploadResult.BuildNumber
-		result.Export.Version = uploadResult.Version
-		result.Export.BuildNumber = uploadResult.BuildNumber
-		result.Archive.Version = firstNonEmpty(result.Archive.Version, uploadResult.Version)
-		result.Archive.BuildNumber = firstNonEmpty(result.Archive.BuildNumber, uploadResult.BuildNumber)
-		return result, nil
+	if strings.TrimSpace(exportResult.IPAPath) == "" {
+		return nil, fmt.Errorf("export local build: expected a local IPA artifact for publish upload")
 	}
 
-	uploadID, err := resolvePublishBuildUploadIDFn(requestCtx, client, appID, result.Version, result.BuildNumber, platform, exportStartedAt, exportCompletedAt, pollInterval)
+	fileInfo, err := validatePublishIPAPathFn(exportResult.IPAPath)
 	if err != nil {
-		return nil, fmt.Errorf("resolve build upload for direct export: %w", err)
+		return nil, fmt.Errorf("validate exported IPA: %w", err)
 	}
-	if strings.TrimSpace(uploadID) == "" {
-		return nil, fmt.Errorf("failed to resolve build upload for version %q build %q", result.Version, result.BuildNumber)
-	}
-
-	fmt.Fprintf(os.Stderr, "Waiting for build %s (%s) to appear in App Store Connect...\n", result.BuildNumber, result.Version)
-	buildResp, err := waitForPublishBuildByNumberOrUploadFailureFn(requestCtx, client, appID, uploadID, result.Version, result.BuildNumber, platform, pollInterval)
+	uploadResult, err := uploadBuildAndWaitForIDFn(
+		requestCtx,
+		client,
+		appID,
+		exportResult.IPAPath,
+		fileInfo,
+		result.Version,
+		result.BuildNumber,
+		asc.Platform(platform),
+		pollInterval,
+		timeout,
+		timeoutOverride,
+	)
 	if err != nil {
 		return nil, err
 	}
-	if buildResp == nil {
-		return nil, fmt.Errorf("failed to resolve build for version %q build %q", result.Version, result.BuildNumber)
-	}
-	result.Build = buildResp
+	result.Build = uploadResult.Build
+	result.Version = uploadResult.Version
+	result.BuildNumber = uploadResult.BuildNumber
+	result.Export.Version = uploadResult.Version
+	result.Export.BuildNumber = uploadResult.BuildNumber
+	result.Archive.Version = firstNonEmpty(result.Archive.Version, uploadResult.Version)
+	result.Archive.BuildNumber = firstNonEmpty(result.Archive.BuildNumber, uploadResult.BuildNumber)
 	return result, nil
 }
 

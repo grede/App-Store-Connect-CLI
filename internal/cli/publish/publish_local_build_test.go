@@ -23,6 +23,7 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 	localxcode "github.com/rudrankriyam/App-Store-Connect-CLI/internal/xcode"
+	"howett.net/plist"
 )
 
 func TestPublishTestFlightLocalBuildJSONIncludesNestedStages(t *testing.T) {
@@ -237,68 +238,31 @@ func TestPublishTestFlightLocalBuildJSONIncludesNestedStages(t *testing.T) {
 	}
 }
 
-func TestPublishTestFlightLocalBuildDirectUploadUsesBuildUploadCorrelation(t *testing.T) {
+func TestPublishTestFlightLocalBuildRejectsDirectUploadExportOptions(t *testing.T) {
 	restore := overridePublishCommandTestHooks(t)
 	defer restore()
+
+	tempDir := t.TempDir()
+	exportOptionsPath := filepath.Join(tempDir, "UploadExportOptions.plist")
+	payload, err := plist.Marshal(map[string]any{"destination": "upload"}, plist.XMLFormat)
+	if err != nil {
+		t.Fatalf("plist.Marshal() error: %v", err)
+	}
+	if err := os.WriteFile(exportOptionsPath, payload, 0o600); err != nil {
+		t.Fatalf("WriteFile() error: %v", err)
+	}
 
 	getPublishASCClientFn = func() (*asc.Client, error) { return newPublishCommandTestClient(t), nil }
 	resolvePublishAppIDWithLookupFn = func(_ context.Context, _ *asc.Client, _ string) (string, error) {
 		return "app-123", nil
 	}
-	runPublishArchiveFn = func(_ context.Context, opts localxcode.ArchiveOptions) (*localxcode.ArchiveResult, error) {
-		if opts.ProjectPath != "Demo.xcodeproj" {
-			t.Fatalf("expected project path, got %q", opts.ProjectPath)
-		}
-		return &localxcode.ArchiveResult{
-			ArchivePath:   ".asc/artifacts/Demo-IOS-1.2.3-44.xcarchive",
-			BundleID:      "com.example.demo",
-			Version:       "1.2.3",
-			BuildNumber:   "44",
-			Scheme:        "Demo",
-			Configuration: "Release",
-		}, nil
-	}
-	runPublishExportFn = func(_ context.Context, opts localxcode.ExportOptions) (*localxcode.ExportResult, error) {
-		return &localxcode.ExportResult{
-			ArchivePath: ".asc/artifacts/Demo-IOS-1.2.3-44.xcarchive",
-			IPAPath:     "",
-			BundleID:    "com.example.demo",
-			Version:     "1.2.3",
-			BuildNumber: "44",
-		}, nil
-	}
-	uploadBuildAndWaitForIDFn = func(context.Context, *asc.Client, string, string, os.FileInfo, string, string, asc.Platform, time.Duration, time.Duration, bool) (*publishUploadResult, error) {
-		t.Fatal("unexpected IPA upload branch for direct-upload export")
+	runPublishArchiveFn = func(_ context.Context, _ localxcode.ArchiveOptions) (*localxcode.ArchiveResult, error) {
+		t.Fatal("did not expect archive to run for unsupported direct-upload export options")
 		return nil, nil
 	}
-	resolvePublishBuildUploadIDFn = func(_ context.Context, _ *asc.Client, appID, version, buildNumber, platform string, _, _ time.Time, pollInterval time.Duration) (string, error) {
-		if appID != "app-123" || version != "1.2.3" || buildNumber != "44" || platform != "IOS" {
-			t.Fatalf("unexpected direct-upload lookup args: app=%q version=%q build=%q platform=%q", appID, version, buildNumber, platform)
-		}
-		if pollInterval != 5*time.Second {
-			t.Fatalf("expected poll interval 5s, got %s", pollInterval)
-		}
-		return "upload-789", nil
-	}
-	waitForPublishBuildByNumberOrUploadFailureFn = func(_ context.Context, _ *asc.Client, appID, uploadID, version, buildNumber, platform string, pollInterval time.Duration) (*asc.BuildResponse, error) {
-		if appID != "app-123" || uploadID != "upload-789" {
-			t.Fatalf("unexpected build wait args: app=%q upload=%q", appID, uploadID)
-		}
-		if version != "1.2.3" || buildNumber != "44" || platform != "IOS" {
-			t.Fatalf("unexpected build wait metadata: version=%q build=%q platform=%q", version, buildNumber, platform)
-		}
-		if pollInterval != 5*time.Second {
-			t.Fatalf("expected poll interval 5s, got %s", pollInterval)
-		}
-		return &asc.BuildResponse{
-			Data: asc.Resource[asc.BuildAttributes]{
-				ID: "build-789",
-				Attributes: asc.BuildAttributes{
-					Version:         "44",
-					ProcessingState: asc.BuildProcessingStateProcessing,
-				},
-			},
-		}, nil
+	runPublishExportFn = func(_ context.Context, _ localxcode.ExportOptions) (*localxcode.ExportResult, error) {
+		t.Fatal("did not expect export to run for unsupported direct-upload export options")
+		return nil, nil
 	}
 
 	originalTransport := http.DefaultTransport
@@ -334,7 +298,7 @@ func TestPublishTestFlightLocalBuildDirectUploadUsesBuildUploadCorrelation(t *te
 		"--version", "1.2.3",
 		"--build-number", "44",
 		"--group", "group-1",
-		"--export-options", "UploadExportOptions.plist",
+		"--export-options", exportOptionsPath,
 		"--poll-interval", "5s",
 		"--output", "json",
 	}); err != nil {
@@ -346,26 +310,14 @@ func TestPublishTestFlightLocalBuildDirectUploadUsesBuildUploadCorrelation(t *te
 		runErr = cmd.Exec(context.Background(), nil)
 		return runErr
 	})
-	if runErr != nil {
-		t.Fatalf("Exec() error: %v", runErr)
+	if !errors.Is(runErr, flag.ErrHelp) {
+		t.Fatalf("expected flag.ErrHelp, got %v", runErr)
 	}
-	if !strings.Contains(stderr, "Waiting for build 44 (1.2.3) to appear in App Store Connect...") {
-		t.Fatalf("expected direct-upload wait message, got %q", stderr)
+	if stdout != "" {
+		t.Fatalf("expected empty stdout, got %q", stdout)
 	}
-
-	var payload map[string]any
-	if err := json.Unmarshal([]byte(stdout), &payload); err != nil {
-		t.Fatalf("json.Unmarshal() error: %v\nstdout=%s", err, stdout)
-	}
-	exportPayload := payload["export"].(map[string]any)
-	if exportPayload["directUpload"] != true {
-		t.Fatalf("expected directUpload=true, got %#v", exportPayload["directUpload"])
-	}
-	if _, exists := exportPayload["ipaPath"]; exists {
-		t.Fatalf("expected ipaPath to be omitted for direct upload, got %#v", exportPayload["ipaPath"])
-	}
-	if payload["mode"] != string(asc.PublishModeLocalBuild) {
-		t.Fatalf("expected local_build mode, got %#v", payload["mode"])
+	if !strings.Contains(stderr, "--export-options with destination=upload is not supported by publish") {
+		t.Fatalf("expected direct-upload rejection, got %q", stderr)
 	}
 }
 
@@ -606,82 +558,32 @@ func TestPublishAppStoreLocalBuildRequiresExportOptionsWhenDefaultMissing(t *tes
 	}
 }
 
-func TestPublishAppStoreLocalBuildDirectUploadJSONIncludesNestedStages(t *testing.T) {
+func TestPublishAppStoreLocalBuildRejectsDirectUploadExportOptions(t *testing.T) {
 	restore := overridePublishCommandTestHooks(t)
 	defer restore()
+
+	tempDir := t.TempDir()
+	exportOptionsPath := filepath.Join(tempDir, "UploadExportOptions.plist")
+	payload, err := plist.Marshal(map[string]any{"destination": "upload"}, plist.XMLFormat)
+	if err != nil {
+		t.Fatalf("plist.Marshal() error: %v", err)
+	}
+	if err := os.WriteFile(exportOptionsPath, payload, 0o600); err != nil {
+		t.Fatalf("WriteFile() error: %v", err)
+	}
 
 	getPublishASCClientFn = func() (*asc.Client, error) { return newPublishCommandTestClient(t), nil }
 	resolvePublishAppIDWithLookupFn = func(_ context.Context, _ *asc.Client, _ string) (string, error) {
 		return "app-123", nil
 	}
 	runPublishArchiveFn = func(_ context.Context, _ localxcode.ArchiveOptions) (*localxcode.ArchiveResult, error) {
-		return &localxcode.ArchiveResult{
-			ArchivePath:   ".asc/artifacts/Demo-IOS-1.2.3-42.xcarchive",
-			BundleID:      "com.example.demo",
-			Version:       "1.2.3",
-			BuildNumber:   "42",
-			Scheme:        "Demo",
-			Configuration: "Release",
-		}, nil
+		t.Fatal("did not expect archive to run for unsupported direct-upload export options")
+		return nil, nil
 	}
 	runPublishExportFn = func(_ context.Context, _ localxcode.ExportOptions) (*localxcode.ExportResult, error) {
-		return &localxcode.ExportResult{
-			ArchivePath: ".asc/artifacts/Demo-IOS-1.2.3-42.xcarchive",
-			IPAPath:     "",
-			BundleID:    "com.example.demo",
-			Version:     "1.2.3",
-			BuildNumber: "42",
-		}, nil
+		t.Fatal("did not expect export to run for unsupported direct-upload export options")
+		return nil, nil
 	}
-	resolvePublishBuildUploadIDFn = func(_ context.Context, _ *asc.Client, appID, version, buildNumber, platform string, _, _ time.Time, pollInterval time.Duration) (string, error) {
-		if appID != "app-123" || version != "1.2.3" || buildNumber != "42" || platform != "IOS" {
-			t.Fatalf("unexpected build upload lookup args: app=%q version=%q build=%q platform=%q", appID, version, buildNumber, platform)
-		}
-		if pollInterval != 5*time.Second {
-			t.Fatalf("expected poll interval 5s, got %s", pollInterval)
-		}
-		return "upload-123", nil
-	}
-	waitForPublishBuildByNumberOrUploadFailureFn = func(_ context.Context, _ *asc.Client, _ string, _ string, _ string, buildNumber, _ string, _ time.Duration) (*asc.BuildResponse, error) {
-		return &asc.BuildResponse{
-			Data: asc.Resource[asc.BuildAttributes]{
-				ID: "build-123",
-				Attributes: asc.BuildAttributes{
-					Version:         buildNumber,
-					ProcessingState: asc.BuildProcessingStateProcessing,
-				},
-			},
-		}, nil
-	}
-
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-	requestCount := 0
-	http.DefaultTransport = publishCommandRoundTripFunc(func(req *http.Request) (*http.Response, error) {
-		requestCount++
-		switch requestCount {
-		case 1:
-			if req.Method != http.MethodGet || req.URL.Path != "/v1/apps/app-123/appStoreVersions" {
-				t.Fatalf("unexpected request %d: %s %s", requestCount, req.Method, req.URL.String())
-			}
-			return publishCommandJSONResponse(http.StatusOK, `{"data":[]}`)
-		case 2:
-			if req.Method != http.MethodPost || req.URL.Path != "/v1/appStoreVersions" {
-				t.Fatalf("unexpected request %d: %s %s", requestCount, req.Method, req.URL.String())
-			}
-			return publishCommandJSONResponse(http.StatusCreated, `{"data":{"type":"appStoreVersions","id":"version-123","attributes":{"versionString":"1.2.3","platform":"IOS"}}}`)
-		case 3:
-			if req.Method != http.MethodPatch || req.URL.Path != "/v1/appStoreVersions/version-123/relationships/build" {
-				t.Fatalf("unexpected request %d: %s %s", requestCount, req.Method, req.URL.String())
-			}
-			return publishCommandJSONResponse(http.StatusNoContent, "")
-		default:
-			t.Fatalf("unexpected request count %d", requestCount)
-			return nil, nil
-		}
-	})
 
 	cmd := PublishAppStoreCommand()
 	cmd.FlagSet.SetOutput(io.Discard)
@@ -691,7 +593,7 @@ func TestPublishAppStoreLocalBuildDirectUploadJSONIncludesNestedStages(t *testin
 		"--scheme", "Demo",
 		"--version", "1.2.3",
 		"--build-number", "42",
-		"--export-options", "UploadExportOptions.plist",
+		"--export-options", exportOptionsPath,
 		"--poll-interval", "5s",
 		"--output", "json",
 	}); err != nil {
@@ -703,33 +605,14 @@ func TestPublishAppStoreLocalBuildDirectUploadJSONIncludesNestedStages(t *testin
 		runErr = cmd.Exec(context.Background(), nil)
 		return runErr
 	})
-	if runErr != nil {
-		t.Fatalf("Exec() error: %v", runErr)
+	if !errors.Is(runErr, flag.ErrHelp) {
+		t.Fatalf("expected flag.ErrHelp, got %v", runErr)
 	}
-	if !strings.Contains(stderr, "Waiting for build 42 (1.2.3) to appear in App Store Connect...") {
-		t.Fatalf("expected direct-upload wait message, got %q", stderr)
+	if stdout != "" {
+		t.Fatalf("expected empty stdout, got %q", stdout)
 	}
-
-	var payload map[string]any
-	if err := json.Unmarshal([]byte(stdout), &payload); err != nil {
-		t.Fatalf("json.Unmarshal() error: %v\nstdout=%s", err, stdout)
-	}
-	if payload["mode"] != string(asc.PublishModeLocalBuild) {
-		t.Fatalf("expected local_build mode, got %#v", payload["mode"])
-	}
-	if payload["buildId"] != "build-123" {
-		t.Fatalf("unexpected buildId: %#v", payload["buildId"])
-	}
-	if payload["versionId"] != "version-123" {
-		t.Fatalf("unexpected versionId: %#v", payload["versionId"])
-	}
-	exportPayload := payload["export"].(map[string]any)
-	if exportPayload["directUpload"] != true {
-		t.Fatalf("expected directUpload=true, got %#v", exportPayload["directUpload"])
-	}
-	publishPayload := payload["publish"].(map[string]any)
-	if publishPayload["attached"] != true {
-		t.Fatalf("expected nested publish attached=true, got %#v", publishPayload["attached"])
+	if !strings.Contains(stderr, "--export-options with destination=upload is not supported by publish") {
+		t.Fatalf("expected direct-upload rejection, got %q", stderr)
 	}
 }
 
@@ -742,8 +625,6 @@ func overridePublishCommandTestHooks(t *testing.T) func() {
 	originalResolveNextBuildNumber := resolvePublishNextBuildNumberFn
 	originalValidateIPAPath := validatePublishIPAPathFn
 	originalUploadBuildAndWait := uploadBuildAndWaitForIDFn
-	originalResolveBuildUploadID := resolvePublishBuildUploadIDFn
-	originalWaitForBuildByNumber := waitForPublishBuildByNumberOrUploadFailureFn
 	originalResolveAppID := resolvePublishAppIDWithLookupFn
 	originalWaitForProcessing := waitForPublishBuildProcessingFn
 
@@ -754,8 +635,6 @@ func overridePublishCommandTestHooks(t *testing.T) func() {
 		resolvePublishNextBuildNumberFn = originalResolveNextBuildNumber
 		validatePublishIPAPathFn = originalValidateIPAPath
 		uploadBuildAndWaitForIDFn = originalUploadBuildAndWait
-		resolvePublishBuildUploadIDFn = originalResolveBuildUploadID
-		waitForPublishBuildByNumberOrUploadFailureFn = originalWaitForBuildByNumber
 		resolvePublishAppIDWithLookupFn = originalResolveAppID
 		waitForPublishBuildProcessingFn = originalWaitForProcessing
 	}
