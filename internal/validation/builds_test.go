@@ -35,8 +35,36 @@ func TestBuildChecks_Pass(t *testing.T) {
 		ID:              "build-1",
 		ProcessingState: "VALID",
 		Expired:         false,
+		UsesNonExemptEncryption: func() *bool {
+			value := false
+			return &value
+		}(),
 	})
 	if len(checks) != 0 {
 		t.Fatalf("expected no checks, got %d (%v)", len(checks), checks)
+	}
+}
+
+func TestSubmissionBuildChecks_MissingEncryptionState(t *testing.T) {
+	checks := buildSubmissionChecks(&Build{
+		ID:              "build-1",
+		ProcessingState: "VALID",
+		Expired:         false,
+	})
+	if !hasCheckID(checks, "build.encryption.missing") {
+		t.Fatalf("expected build.encryption.missing check, got %v", checks)
+	}
+}
+
+func TestSubmissionBuildChecks_NonExemptEncryptionMissingDeclaration(t *testing.T) {
+	usesNonExemptEncryption := true
+	checks := buildSubmissionChecks(&Build{
+		ID:                      "build-1",
+		ProcessingState:         "VALID",
+		Expired:                 false,
+		UsesNonExemptEncryption: &usesNonExemptEncryption,
+	})
+	if !hasCheckID(checks, "build.encryption.declaration_missing") {
+		t.Fatalf("expected build.encryption.declaration_missing check, got %v", checks)
 	}
 }

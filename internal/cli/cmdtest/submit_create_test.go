@@ -66,7 +66,7 @@ func submitCreateDefaultReadinessResponse(req *http.Request) (*http.Response, bo
 		if buildID == "" {
 			buildID = "build-1"
 		}
-		return mustSubmitCreateOKJSONResponse(fmt.Sprintf(`{"data":{"type":"builds","id":"%s","attributes":{"version":"1.0","processingState":"VALID","expired":false}}}`, buildID)), true
+		return mustSubmitCreateOKJSONResponse(fmt.Sprintf(`{"data":{"type":"builds","id":"%s","attributes":{"version":"1.0","processingState":"VALID","expired":false,"usesNonExemptEncryption":false}}}`, buildID)), true
 
 	case req.Method == http.MethodGet && strings.HasPrefix(path, "/v1/apps/") && strings.HasSuffix(path, "/appInfos"):
 		return mustSubmitCreateOKJSONResponse(`{"data":[{"type":"appInfos","id":"info-1","attributes":{"state":"PREPARE_FOR_SUBMISSION"}}]}`), true
@@ -84,7 +84,7 @@ func submitCreateDefaultReadinessResponse(req *http.Request) (*http.Response, bo
 		return mustSubmitCreateOKJSONResponse(`{"data":[],"links":{}}`), true
 
 	case req.Method == http.MethodGet && strings.HasPrefix(path, "/v1/apps/") && !strings.Contains(strings.TrimPrefix(path, "/v1/apps/"), "/"):
-		return mustSubmitCreateOKJSONResponse(`{"data":{"type":"apps","id":"app-1","attributes":{"primaryLocale":"en-US"}}}`), true
+		return mustSubmitCreateOKJSONResponse(`{"data":{"type":"apps","id":"app-1","attributes":{"primaryLocale":"en-US","contentRightsDeclaration":"DOES_NOT_USE_THIRD_PARTY_CONTENT"}}}`), true
 
 	case req.Method == http.MethodGet && strings.HasPrefix(path, "/v1/appInfos/") && strings.HasSuffix(path, "/appInfoLocalizations"):
 		return mustSubmitCreateOKJSONResponse(`{"data":[{"type":"appInfoLocalizations","id":"info-loc-1","attributes":{"locale":"en-US","name":"My App","subtitle":"Subtitle","privacyPolicyUrl":"https://example.com/privacy"}}]}`), true
@@ -99,7 +99,7 @@ func submitCreateDefaultReadinessResponse(req *http.Request) (*http.Response, bo
 		return mustSubmitCreateOKJSONResponse(`{"data":{"type":"appStoreReviewDetails","id":"review-detail-1","attributes":{"contactFirstName":"A","contactLastName":"B","contactEmail":"a@example.com","contactPhone":"123","demoAccountName":"","demoAccountPassword":"","demoAccountRequired":false,"notes":"Review notes"}}}`), true
 
 	case req.Method == http.MethodGet && strings.HasPrefix(path, "/v1/appStoreVersions/") && strings.HasSuffix(path, "/build"):
-		return mustSubmitCreateOKJSONResponse(`{"data":{"type":"builds","id":"build-1","attributes":{"version":"1.0","processingState":"VALID","expired":false}}}`), true
+		return mustSubmitCreateOKJSONResponse(`{"data":{"type":"builds","id":"build-1","attributes":{"version":"1.0","processingState":"VALID","expired":false,"usesNonExemptEncryption":false}}}`), true
 
 	case req.Method == http.MethodGet && strings.HasPrefix(path, "/v1/appStoreVersions/") && !strings.Contains(strings.TrimPrefix(path, "/v1/appStoreVersions/"), "/"):
 		return mustSubmitCreateOKJSONResponse(`{"data":{"type":"appStoreVersions","id":"version-1","attributes":{"platform":"IOS","versionString":"1.0","appVersionState":"PREPARE_FOR_SUBMISSION","copyright":"2026 Test Company"},"relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}}}`), true
@@ -1488,7 +1488,7 @@ func TestSubmitCreatePrintsHintsWhenAnotherSubmissionIsStillInProgress(t *testin
 		"Hint: Check the active submission: asc submit status --id active-submission-1",
 		"Hint: Inspect the active submission payload: asc review submissions-get --id active-submission-1",
 		"Hint: Re-run readiness validation: asc validate --app app-1 --version-id version-1",
-		"Hint: Re-run submit preflight: asc submit preflight --app app-1 --version 1.0 --platform IOS",
+		"Hint: Re-run readiness validation: asc validate --app app-1 --version 1.0 --platform IOS",
 	} {
 		if !strings.Contains(stderr, want) {
 			t.Fatalf("expected stderr to contain %q, got %q", want, stderr)

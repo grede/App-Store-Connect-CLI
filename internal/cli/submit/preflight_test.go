@@ -674,8 +674,8 @@ func TestSubmitPreflightCommand_AllPassIncludesPrivacyAdvisory(t *testing.T) {
 	if runErr != nil {
 		t.Fatalf("expected success when only advisory is present, got %v", runErr)
 	}
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
+	if !strings.Contains(stderr, submitPreflightDeprecationWarning) {
+		t.Fatalf("expected deprecation warning on stderr, got %q", stderr)
 	}
 	if !strings.Contains(stdout, "App Privacy publish state is not verifiable via the public App Store Connect API") {
 		t.Fatalf("expected App Privacy advisory in stdout, got %q", stdout)
@@ -710,8 +710,8 @@ func TestSubmitPreflightCommand_JSONAllPassIncludesPrivacyAdvisoryAsPassed(t *te
 	if runErr != nil {
 		t.Fatalf("expected success when only advisory is present, got %v", runErr)
 	}
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
+	if !strings.Contains(stderr, submitPreflightDeprecationWarning) {
+		t.Fatalf("expected deprecation warning on stderr, got %q", stderr)
 	}
 	if err := json.Unmarshal([]byte(stdout), &result); err != nil {
 		t.Fatalf("failed to parse JSON output %q: %v", stdout, err)
@@ -753,14 +753,6 @@ func TestSubmitPreflightCommand_JSONOutput(t *testing.T) {
 		switch {
 		case req.Method == http.MethodGet && strings.Contains(req.URL.Path, "/appStoreVersions"):
 			return submitJSONResponse(http.StatusOK, `{"data":[]}`)
-		case req.Method == http.MethodGet && strings.HasSuffix(req.URL.Path, "/appInfos"):
-			return submitJSONResponse(http.StatusOK, `{"data":[{"type":"appInfos","id":"info-1","attributes":{"appStoreState":"PREPARE_FOR_SUBMISSION"}}]}`)
-		case req.Method == http.MethodGet && strings.HasSuffix(req.URL.Path, "/ageRatingDeclaration"):
-			return submitJSONResponse(http.StatusNotFound, `{"errors":[{"status":"404","code":"NOT_FOUND","title":"Not Found"}]}`)
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/123":
-			return submitJSONResponse(http.StatusOK, `{"data":{"type":"apps","id":"123","attributes":{"name":"Test","bundleId":"com.test","sku":"test"}}}`)
-		case req.Method == http.MethodGet && strings.HasSuffix(req.URL.Path, "/primaryCategory"):
-			return submitJSONResponse(http.StatusNotFound, `{"errors":[{"status":"404","code":"NOT_FOUND","title":"Not Found"}]}`)
 		}
 		return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.Path)
 	})
@@ -775,8 +767,8 @@ func TestSubmitPreflightCommand_JSONOutput(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error when version not found")
 	}
-	if !strings.Contains(err.Error(), "issue(s) found") {
-		t.Fatalf("expected preflight failure error, got: %v", err)
+	if !strings.Contains(err.Error(), `app store version not found for version "1.0"`) {
+		t.Fatalf("expected version lookup failure, got: %v", err)
 	}
 }
 
@@ -792,14 +784,6 @@ func TestSubmitPreflightCommand_TextOutput(t *testing.T) {
 		switch {
 		case req.Method == http.MethodGet && strings.Contains(req.URL.Path, "/appStoreVersions"):
 			return submitJSONResponse(http.StatusOK, `{"data":[]}`)
-		case req.Method == http.MethodGet && strings.HasSuffix(req.URL.Path, "/appInfos"):
-			return submitJSONResponse(http.StatusOK, `{"data":[{"type":"appInfos","id":"info-1","attributes":{"appStoreState":"PREPARE_FOR_SUBMISSION"}}]}`)
-		case req.Method == http.MethodGet && strings.HasSuffix(req.URL.Path, "/ageRatingDeclaration"):
-			return submitJSONResponse(http.StatusNotFound, `{"errors":[{"status":"404","code":"NOT_FOUND","title":"Not Found"}]}`)
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/123":
-			return submitJSONResponse(http.StatusOK, `{"data":{"type":"apps","id":"123","attributes":{"name":"Test","bundleId":"com.test","sku":"test"}}}`)
-		case req.Method == http.MethodGet && strings.HasSuffix(req.URL.Path, "/primaryCategory"):
-			return submitJSONResponse(http.StatusNotFound, `{"errors":[{"status":"404","code":"NOT_FOUND","title":"Not Found"}]}`)
 		}
 		return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.Path)
 	})
@@ -817,17 +801,11 @@ func TestSubmitPreflightCommand_TextOutput(t *testing.T) {
 	if runErr == nil {
 		t.Fatal("expected error when version not found")
 	}
-	if !strings.Contains(runErr.Error(), "issue(s) found") {
-		t.Fatalf("expected preflight failure error, got: %v", runErr)
+	if !strings.Contains(runErr.Error(), `app store version not found for version "1.0"`) {
+		t.Fatalf("expected version lookup failure, got: %v", runErr)
 	}
-	if !strings.Contains(stdout, "Preflight check for app 123 v1.0 (IOS)") {
-		t.Fatalf("expected text output header, got %q", stdout)
-	}
-	if !strings.Contains(stdout, "asc age-rating edit --app 123 --gambling false --violence-realistic NONE ...") {
-		t.Fatalf("expected text output to suggest age-rating edit, got %q", stdout)
-	}
-	if strings.Contains(stdout, "asc age-rating set --app 123") {
-		t.Fatalf("expected text output to avoid stale age-rating set hint, got %q", stdout)
+	if stdout != "" {
+		t.Fatalf("expected no text output when readiness report cannot be built, got %q", stdout)
 	}
 }
 
@@ -918,8 +896,36 @@ func submitAllPassTransport() http.RoundTripper {
 				"data": {
 					"type": "appStoreVersions",
 					"id": "version-1",
-					"attributes": {"appStoreState": "PREPARE_FOR_SUBMISSION", "platform": "IOS", "versionString": "1.0"},
+					"attributes": {"appStoreState": "PREPARE_FOR_SUBMISSION", "platform": "IOS", "versionString": "1.0", "copyright":"2026 Test Company"},
 					"relationships": {"app": {"data": {"type": "apps", "id": "app-1"}}}
+				}
+			}`)
+		case req.Method == http.MethodGet && path == "/v1/appInfos/info-1/appInfoLocalizations":
+			return submitJSONResponse(http.StatusOK, `{
+				"data": [{
+					"type": "appInfoLocalizations",
+					"id": "info-loc-1",
+					"attributes": {
+						"locale": "en-US",
+						"name": "Test App",
+						"subtitle": "Subtitle",
+						"privacyPolicyUrl": "https://example.com/privacy"
+					}
+				}]
+			}`)
+		case req.Method == http.MethodGet && path == "/v1/appStoreVersions/version-1/appStoreReviewDetail":
+			return submitJSONResponse(http.StatusOK, `{
+				"data": {
+					"type": "appStoreReviewDetails",
+					"id": "review-detail-1",
+					"attributes": {
+						"contactFirstName": "A",
+						"contactLastName": "B",
+						"contactEmail": "a@example.com",
+						"contactPhone": "123",
+						"demoAccountRequired": false,
+						"notes": "Ready for review"
+					}
 				}
 			}`)
 		case req.Method == http.MethodGet && strings.HasSuffix(path, "/build"):
@@ -928,15 +934,35 @@ func submitAllPassTransport() http.RoundTripper {
 			return submitJSONResponse(http.StatusOK, `{"data":[{"type":"appInfos","id":"info-1","attributes":{"appStoreState":"PREPARE_FOR_SUBMISSION"}}]}`)
 		case req.Method == http.MethodGet && strings.HasSuffix(path, "/ageRatingDeclaration"):
 			return submitJSONResponse(http.StatusOK, `{"data":{"type":"ageRatingDeclarations","id":"rating-1","attributes":{
-				"gambling": false, "lootBox": false, "unrestrictedWebAccess": false,
-				"alcoholTobaccoOrDrugUseOrReferences": "NONE", "gamblingSimulated": "NONE",
-				"horrorOrFearThemes": "NONE", "matureOrSuggestiveThemes": "NONE",
-				"profanityOrCrudeHumor": "NONE", "sexualContentGraphicAndNudity": "NONE",
-				"sexualContentOrNudity": "NONE", "violenceCartoonOrFantasy": "NONE",
-				"violenceRealistic": "NONE", "violenceRealisticProlongedGraphicOrSadistic": "NONE"
+				"advertising": false,
+				"gambling": false,
+				"healthOrWellnessTopics": false,
+				"lootBox": false,
+				"messagingAndChat": true,
+				"parentalControls": true,
+				"ageAssurance": false,
+				"unrestrictedWebAccess": false,
+				"userGeneratedContent": true,
+				"alcoholTobaccoOrDrugUseOrReferences": "NONE",
+				"contests": "NONE",
+				"gamblingSimulated": "NONE",
+				"gunsOrOtherWeapons": "NONE",
+				"medicalOrTreatmentInformation": "NONE",
+				"horrorOrFearThemes": "NONE",
+				"matureOrSuggestiveThemes": "NONE",
+				"profanityOrCrudeHumor": "NONE",
+				"sexualContentGraphicAndNudity": "NONE",
+				"sexualContentOrNudity": "NONE",
+				"violenceCartoonOrFantasy": "NONE",
+				"violenceRealistic": "NONE",
+				"violenceRealisticProlongedGraphicOrSadistic": "NONE"
 			}}}`)
 		case req.Method == http.MethodGet && path == "/v1/apps/app-1":
 			return submitJSONResponse(http.StatusOK, `{"data":{"type":"apps","id":"app-1","attributes":{"name":"Test","bundleId":"com.test","sku":"test","contentRightsDeclaration":"DOES_NOT_USE_THIRD_PARTY_CONTENT"}}}`)
+		case req.Method == http.MethodGet && path == "/v1/apps/app-1/subscriptionGroups":
+			return submitJSONResponse(http.StatusOK, `{"data":[]}`)
+		case req.Method == http.MethodGet && path == "/v1/apps/app-1/inAppPurchasesV2":
+			return submitJSONResponse(http.StatusOK, `{"data":[]}`)
 		case req.Method == http.MethodGet && strings.HasSuffix(path, "/primaryCategory"):
 			return submitJSONResponse(http.StatusOK, `{"data":{"type":"appCategories","id":"SPORTS","attributes":{}}}`)
 		case req.Method == http.MethodGet && strings.Contains(path, "/appStoreVersionLocalizations"):
@@ -959,6 +985,17 @@ func submitAllPassTransport() http.RoundTripper {
 					"type": "appScreenshotSets",
 					"id": "ss-1",
 					"attributes": {"screenshotDisplayType": "APP_IPHONE_67"}
+				}]
+			}`)
+		case req.Method == http.MethodGet && path == "/v1/appScreenshotSets/ss-1/appScreenshots":
+			return submitJSONResponse(http.StatusOK, `{
+				"data": [{
+					"type": "appScreenshots",
+					"id": "shot-1",
+					"attributes": {
+						"fileName": "shot.png",
+						"imageAsset": {"width": 1290, "height": 2796}
+					}
 				}]
 			}`)
 		}

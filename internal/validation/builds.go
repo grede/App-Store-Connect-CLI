@@ -47,3 +47,9 @@ func buildChecks(build *Build) []CheckResult {
 
 	return checks
 }
+
+func buildSubmissionChecks(build *Build) []CheckResult {
+	checks := buildChecks(build)
+	checks = append(checks, buildEncryptionChecks(build)...)
+	return checks
+}

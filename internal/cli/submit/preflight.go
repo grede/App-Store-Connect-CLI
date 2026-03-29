@@ -12,6 +12,7 @@ import (
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
+	validatecli "github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/validate"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/validation"
 )
 
@@ -41,6 +42,8 @@ func defaultSubmitPreflightOutputFormat() string {
 	return "text"
 }
 
+const submitPreflightDeprecationWarning = "Warning: `asc submit preflight` is deprecated. Use `asc validate`."
+
 // SubmitPreflightCommand returns the "submit preflight" subcommand.
 func SubmitPreflightCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("submit preflight", flag.ExitOnError)
@@ -53,15 +56,20 @@ func SubmitPreflightCommand() *ffcli.Command {
 	return &ffcli.Command{
 		Name:       "preflight",
 		ShortUsage: "asc submit preflight [flags]",
-		ShortHelp:  "Check submission readiness without submitting.",
-		LongHelp: `Check all submission requirements upfront and report issues with fix commands.
+		ShortHelp:  "DEPRECATED: use `asc validate` for App Store submission readiness.",
+		LongHelp: `Deprecated compatibility command for ` + "`asc validate`" + `.
+
+Use ` + "`asc validate`" + ` for the canonical, more comprehensive App Store
+submission readiness report. This compatibility command keeps the older
+preflight-style text/json output for existing scripts while delegating to the
+same shared readiness engine.
 
 Examples:
-  asc submit preflight --app "123456789" --version "1.0"
-  asc submit preflight --app "123456789" --version "1.0" --platform TV_OS
+  asc validate --app "123456789" --version "1.0"
+  asc validate --app "123456789" --version "1.0" --platform TV_OS
   asc submit preflight --app "123456789" --version "2.0" --output json`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: shared.DeprecatedUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if len(args) > 0 {
 				return shared.UsageErrorf("unexpected argument(s): %s", strings.Join(args, " "))
@@ -86,12 +94,12 @@ Examples:
 				return shared.UsageError(err.Error())
 			}
 
-			client, err := shared.GetASCClient()
+			fmt.Fprintln(os.Stderr, submitPreflightDeprecationWarning)
+
+			result, err := runSubmitPreflightCompatibility(ctx, resolvedAppID, strings.TrimSpace(*version), normalizedPlatform)
 			if err != nil {
 				return fmt.Errorf("submit preflight: %w", err)
 			}
-
-			result := runPreflight(ctx, client, resolvedAppID, strings.TrimSpace(*version), normalizedPlatform)
 
 			if normalizedOutput == "text" {
 				printPreflightText(os.Stdout, result)
@@ -109,6 +117,77 @@ Examples:
 			}
 			return nil
 		},
+	}
+}
+
+func runSubmitPreflightCompatibility(ctx context.Context, appID, version, platform string) (*preflightResult, error) {
+	report, err := validatecli.BuildReadinessReport(ctx, validatecli.ReadinessOptions{
+		AppID:    appID,
+		Version:  version,
+		Platform: platform,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return preflightResultFromReport(appID, version, report), nil
+}
+
+func preflightResultFromReport(appID, version string, report validation.Report) *preflightResult {
+	result := &preflightResult{
+		AppID:    appID,
+		Version:  version,
+		Platform: report.Platform,
+		Checks:   make([]checkResult, 0, len(report.Checks)),
+	}
+
+	for _, check := range report.Checks {
+		name := preflightCheckName(check)
+		passed := check.Severity != validation.SeverityError && check.Severity != validation.SeverityWarning
+		advisory := check.Severity == validation.SeverityInfo
+		if check.Severity == validation.SeverityWarning {
+			passed = true
+		}
+		result.Checks = append(result.Checks, checkResult{
+			Name:     name,
+			Passed:   passed,
+			Advisory: advisory,
+			Message:  check.Message,
+			Hint:     check.Remediation,
+		})
+	}
+
+	tallyCounts(result)
+	return result
+}
+
+func preflightCheckName(check validation.CheckResult) string {
+	switch {
+	case strings.HasPrefix(check.ID, "version."):
+		return "Version state"
+	case strings.HasPrefix(check.ID, "review_details."):
+		return "App Store review details"
+	case strings.HasPrefix(check.ID, "categories."):
+		return "Primary category"
+	case strings.HasPrefix(check.ID, "build.encryption."):
+		return "Encryption compliance"
+	case strings.HasPrefix(check.ID, "build."):
+		return "Build"
+	case strings.HasPrefix(check.ID, "pricing."):
+		return "Pricing"
+	case strings.HasPrefix(check.ID, "availability."):
+		return "Availability"
+	case strings.HasPrefix(check.ID, "screenshots."):
+		return "Screenshots"
+	case strings.HasPrefix(check.ID, "age_rating."):
+		return "Age rating"
+	case strings.HasPrefix(check.ID, "legal.content_rights"):
+		return "Content rights"
+	case strings.HasPrefix(check.ID, "privacy."):
+		return "App Privacy"
+	case strings.HasPrefix(check.ID, "metadata."), strings.HasPrefix(check.ID, "required_fields."):
+		return "Metadata"
+	default:
+		return "Readiness"
 	}
 }
 

@@ -62,6 +62,12 @@ func BuildReadinessReport(ctx context.Context, opts ReadinessOptions) (validatio
 		return validation.Report{}, fmt.Errorf("failed to fetch app: %w", err)
 	}
 
+	var contentRightsDeclaration *string
+	if appResp.Data.Attributes.ContentRightsDeclaration != nil {
+		value := strings.TrimSpace(string(*appResp.Data.Attributes.ContentRightsDeclaration))
+		contentRightsDeclaration = &value
+	}
+
 	versionLocsResp, err := client.GetAppStoreVersionLocalizations(requestCtx, resolvedVersionID)
 	if err != nil {
 		return validation.Report{}, fmt.Errorf("failed to fetch version localizations: %w", err)
@@ -126,10 +132,11 @@ func BuildReadinessReport(ctx context.Context, opts ReadinessOptions) (validatio
 	var attachedBuild *validation.Build
 	if opts.Build != nil {
 		attachedBuild = &validation.Build{
-			ID:              strings.TrimSpace(opts.Build.ID),
-			Version:         opts.Build.Version,
-			ProcessingState: opts.Build.ProcessingState,
-			Expired:         opts.Build.Expired,
+			ID:                      strings.TrimSpace(opts.Build.ID),
+			Version:                 opts.Build.Version,
+			ProcessingState:         opts.Build.ProcessingState,
+			Expired:                 opts.Build.Expired,
+			UsesNonExemptEncryption: opts.Build.UsesNonExemptEncryption,
 		}
 	} else {
 		buildResp, err := client.GetAppStoreVersionBuild(requestCtx, resolvedVersionID)
@@ -140,10 +147,22 @@ func BuildReadinessReport(ctx context.Context, opts ReadinessOptions) (validatio
 		} else if strings.TrimSpace(buildResp.Data.ID) != "" {
 			attrs := buildResp.Data.Attributes
 			attachedBuild = &validation.Build{
-				ID:              buildResp.Data.ID,
-				Version:         attrs.Version,
-				ProcessingState: attrs.ProcessingState,
-				Expired:         attrs.Expired,
+				ID:                      buildResp.Data.ID,
+				Version:                 attrs.Version,
+				ProcessingState:         attrs.ProcessingState,
+				Expired:                 attrs.Expired,
+				UsesNonExemptEncryption: attrs.UsesNonExemptEncryption,
+			}
+			if attrs.UsesNonExemptEncryption != nil && *attrs.UsesNonExemptEncryption {
+				declarationResp, declarationErr := client.GetBuildAppEncryptionDeclaration(requestCtx, buildResp.Data.ID)
+				if declarationErr != nil {
+					if !asc.IsNotFound(declarationErr) {
+						return validation.Report{}, fmt.Errorf("failed to fetch build encryption declaration: %w", declarationErr)
+					}
+				} else {
+					attachedBuild.AppEncryptionDeclarationID = strings.TrimSpace(declarationResp.Data.ID)
+					attachedBuild.AppEncryptionDeclarationState = strings.TrimSpace(string(declarationResp.Data.Attributes.AppEncryptionDeclarationState))
+				}
 			}
 		}
 	}
@@ -271,6 +290,7 @@ func BuildReadinessReport(ctx context.Context, opts ReadinessOptions) (validatio
 		AppInfoLocalizations:        appInfoLocalizations,
 		ReviewDetails:               reviewDetails,
 		PrimaryCategoryID:           primaryCategoryID,
+		ContentRightsDeclaration:    contentRightsDeclaration,
 		Build:                       attachedBuild,
 		PriceScheduleID:             priceScheduleID,
 		PricingFetchSkipReason:      pricingFetchSkipReason,

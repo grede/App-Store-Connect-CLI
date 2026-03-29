@@ -90,6 +90,7 @@ asc status --app "APP_ID" --watch
 Lower-level alternatives for scripting or partial workflows:
 
 ```bash
+# Canonical readiness check before submission
 asc versions list --app "APP_ID"
 asc versions attach-build --version-id "VERSION_ID" --build "BUILD_ID"
 asc validate --app "APP_ID" --version "1.0.0"
