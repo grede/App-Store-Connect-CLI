@@ -207,3 +207,88 @@ func TestSubscriptionsIntroductoryOffersImport_PartialFailureReturnsReportedErro
 		t.Fatalf("expected 3 requests, got %d", requestCount)
 	}
 }
+
+func TestSubscriptionsIntroductoryOffersImport_StopOnFirstFailureWhenRequested(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+
+	requestCount := 0
+	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		requestCount++
+		if req.Method != http.MethodPost || req.URL.Path != "/v1/subscriptionIntroductoryOffers" {
+			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.Path)
+		}
+
+		switch requestCount {
+		case 1:
+			body := `{"data":{"type":"subscriptionIntroductoryOffers","id":"offer-1"}}`
+			return &http.Response{
+				StatusCode: http.StatusCreated,
+				Body:       io.NopCloser(strings.NewReader(body)),
+				Header:     http.Header{"Content-Type": []string{"application/json"}},
+			}, nil
+		case 2:
+			body := `{"errors":[{"status":"422","title":"Unprocessable Entity","detail":"invalid intro offer"}]}`
+			return &http.Response{
+				StatusCode: http.StatusUnprocessableEntity,
+				Body:       io.NopCloser(strings.NewReader(body)),
+				Header:     http.Header{"Content-Type": []string{"application/json"}},
+			}, nil
+		default:
+			t.Fatalf("unexpected request count %d", requestCount)
+			return nil, nil
+		}
+	})
+
+	csvPath := writeTempIntroOffersCSV(t, "territory\nUSA\nAFG\nCAN\n")
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	type importSummary struct {
+		Created int `json:"created"`
+		Failed  int `json:"failed"`
+	}
+
+	var runErr error
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{
+			"subscriptions", "offers", "introductory", "import",
+			"--subscription-id", "SUB_ID",
+			"--input", csvPath,
+			"--offer-duration", "ONE_WEEK",
+			"--offer-mode", "FREE_TRIAL",
+			"--number-of-periods", "1",
+			"--continue-on-error=false",
+		}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		runErr = root.Run(context.Background())
+	})
+
+	if runErr == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if _, ok := errors.AsType[ReportedError](runErr); !ok {
+		t.Fatalf("expected ReportedError, got %v", runErr)
+	}
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+
+	var summary importSummary
+	if err := json.Unmarshal([]byte(stdout), &summary); err != nil {
+		t.Fatalf("parse JSON summary: %v", err)
+	}
+	if summary.Created != 1 || summary.Failed != 1 {
+		t.Fatalf("unexpected summary: %+v", summary)
+	}
+	if requestCount != 2 {
+		t.Fatalf("expected 2 requests before stop, got %d", requestCount)
+	}
+}
