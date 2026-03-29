@@ -237,3 +237,66 @@ func TestSubscriptionsIntroductoryOffersImport_UnknownCSVColumnReturnsUsage(t *t
 		t.Fatalf("expected unknown column error, got %q", stderr)
 	}
 }
+
+func TestSubscriptionsIntroductoryOffersImport_InvalidCSVSchemaReturnsUsage(t *testing.T) {
+	setupAuth(t)
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		t.Fatalf("unexpected HTTP request: %s %s", req.Method, req.URL.String())
+		return nil, nil
+	})
+
+	tests := []struct {
+		name    string
+		body    string
+		wantErr string
+	}{
+		{
+			name:    "empty file",
+			body:    "",
+			wantErr: "CSV file is empty",
+		},
+		{
+			name:    "missing territory header",
+			body:    "offer_mode\nFREE_TRIAL\n",
+			wantErr: `CSV header must include required column "territory"`,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			csvPath := filepath.Join(t.TempDir(), "offers.csv")
+			if err := os.WriteFile(csvPath, []byte(test.body), 0o600); err != nil {
+				t.Fatalf("WriteFile() error: %v", err)
+			}
+
+			root := RootCommand("1.2.3")
+			root.FlagSet.SetOutput(io.Discard)
+
+			stdout, stderr := captureOutput(t, func() {
+				if err := root.Parse([]string{
+					"subscriptions", "offers", "introductory", "import",
+					"--subscription-id", "SUB_ID",
+					"--input", csvPath,
+				}); err != nil {
+					t.Fatalf("parse error: %v", err)
+				}
+				err := root.Run(context.Background())
+				if !errors.Is(err, flag.ErrHelp) {
+					t.Fatalf("expected ErrHelp, got %v", err)
+				}
+			})
+
+			if stdout != "" {
+				t.Fatalf("expected empty stdout, got %q", stdout)
+			}
+			if !strings.Contains(stderr, test.wantErr) {
+				t.Fatalf("expected %q in stderr, got %q", test.wantErr, stderr)
+			}
+		})
+	}
+}
