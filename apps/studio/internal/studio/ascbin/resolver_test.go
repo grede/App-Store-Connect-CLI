@@ -3,6 +3,7 @@ package ascbin
 import (
 	"errors"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"testing"
 )
@@ -75,6 +76,31 @@ func TestResolveErrorsWhenNothingAvailable(t *testing.T) {
 	})
 	if err == nil {
 		t.Fatal("Resolve() error = nil, want error")
+	}
+}
+
+func TestResolveFallsBackToBundledWhenLookPathReturnsExecErrNotFound(t *testing.T) {
+	tmp := t.TempDir()
+	bundled := filepath.Join(tmp, "bundled-asc")
+	if err := os.WriteFile(bundled, []byte("binary"), 0o755); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+
+	got, err := Resolve(ResolveOptions{
+		BundledPath:   bundled,
+		PreferBundled: false,
+		LookPath: func(string) (string, error) {
+			return "", exec.ErrNotFound
+		},
+	})
+	if err != nil {
+		t.Fatalf("Resolve() error = %v", err)
+	}
+	if got.Source != "bundled-fallback" {
+		t.Fatalf("Source = %q, want bundled-fallback", got.Source)
+	}
+	if got.Path != bundled {
+		t.Fatalf("Path = %q, want %q", got.Path, bundled)
 	}
 }
 

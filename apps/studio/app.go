@@ -32,13 +32,21 @@ type App struct {
 	approvals   *approvals.Queue
 	environment *environment.Service
 
-	mu       sync.Mutex
-	sessions map[string]*threadSession
+	mu           sync.Mutex
+	sessions     map[string]*threadSession
+	sessionInits map[string]chan struct{}
+	startAgent   func(context.Context, acp.LaunchSpec) (agentClient, error)
 }
 
 type threadSession struct {
-	client    *acp.Client
+	client    agentClient
 	sessionID string
+}
+
+type agentClient interface {
+	Bootstrap(context.Context, acp.SessionConfig) (string, error)
+	Prompt(context.Context, string, string) (acp.PromptResult, []acp.Event, error)
+	Close() error
 }
 
 type BootstrapData struct {
@@ -201,6 +209,16 @@ type ScreenshotsResponse struct {
 	Error string          `json:"error,omitempty"`
 }
 
+type rawASCApp struct {
+	Type       string `json:"type"`
+	ID         string `json:"id"`
+	Attributes struct {
+		Name     string `json:"name"`
+		BundleID string `json:"bundleId"`
+		SKU      string `json:"sku"`
+	} `json:"attributes"`
+}
+
 func NewApp() (*App, error) {
 	rootDir, err := settings.DefaultRoot()
 	if err != nil {
@@ -214,6 +232,8 @@ func NewApp() (*App, error) {
 		approvals:   approvals.NewQueue(),
 		environment: environment.NewService(),
 		sessions:    make(map[string]*threadSession),
+		sessionInits: make(map[string]chan struct{}),
+		startAgent:  startACPClient,
 	}, nil
 }
 
@@ -284,8 +304,7 @@ func (a *App) CheckAuthStatus() (AuthStatus, error) {
 	ctx, cancel := context.WithTimeout(a.contextOrBackground(), 10*time.Second)
 	defer cancel()
 
-	cmd := exec.CommandContext(ctx, ascPath, "auth", "status", "--output", "json")
-	cmd.Env = append(os.Environ(), "ASC_BYPASS_KEYCHAIN=1")
+	cmd := a.newASCCommand(ctx, ascPath, "auth", "status", "--output", "json")
 	out, err := cmd.CombinedOutput()
 	output := strings.TrimSpace(string(out))
 
@@ -334,33 +353,14 @@ func (a *App) ListApps() (ListAppsResponse, error) {
 	ctx, cancel := context.WithTimeout(a.contextOrBackground(), 30*time.Second)
 	defer cancel()
 
-	cmd := exec.CommandContext(ctx, ascPath, "apps", "list", "--output", "json")
-	cmd.Env = append(os.Environ(), "ASC_BYPASS_KEYCHAIN=1")
+	cmd := a.newASCCommand(ctx, ascPath, "apps", "list", "--output", "json")
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		return ListAppsResponse{Error: strings.TrimSpace(string(out))}, nil
 	}
 
-	// asc apps list --output json returns {"data":[...]} or a bare array
-	type rawApp struct {
-		Type       string `json:"type"`
-		ID         string `json:"id"`
-		Attributes struct {
-			Name     string `json:"name"`
-			BundleID string `json:"bundleId"`
-			SKU      string `json:"sku"`
-		} `json:"attributes"`
-	}
-
-	var rawApps []rawApp
-
-	// Try {"data":[...]} envelope first
-	var envelope struct {
-		Data []rawApp `json:"data"`
-	}
-	if err := json.Unmarshal(out, &envelope); err == nil && len(envelope.Data) > 0 {
-		rawApps = envelope.Data
-	} else if err := json.Unmarshal(out, &rawApps); err != nil {
+	rawApps, err := parseAppsListOutput(out)
+	if err != nil {
 		return ListAppsResponse{Error: "Failed to parse apps list: " + err.Error()}, nil
 	}
 
@@ -398,9 +398,8 @@ func (a *App) ListApps() (ListAppsResponse, error) {
 }
 
 func (a *App) fetchSubtitle(ctx context.Context, ascPath, appID string) string {
-	cmd := exec.CommandContext(ctx, ascPath, "localizations", "list",
+	cmd := a.newASCCommand(ctx, ascPath, "localizations", "list",
 		"--app", appID, "--type", "app-info", "--locale", "en-US", "--output", "json")
-	cmd.Env = append(os.Environ(), "ASC_BYPASS_KEYCHAIN=1")
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		return ""
@@ -437,8 +436,7 @@ func (a *App) GetSubscriptions(appID string) (SubscriptionsResponse, error) {
 	defer cancel()
 
 	// Step 1: get groups
-	cmd := exec.CommandContext(ctx, ascPath, "subscriptions", "groups", "list", "--app", appID, "--output", "json")
-	cmd.Env = append(os.Environ(), "ASC_BYPASS_KEYCHAIN=1")
+	cmd := a.newASCCommand(ctx, ascPath, "subscriptions", "groups", "list", "--app", appID, "--output", "json")
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		return SubscriptionsResponse{Error: strings.TrimSpace(string(out))}, nil
@@ -464,8 +462,7 @@ func (a *App) GetSubscriptions(appID string) (SubscriptionsResponse, error) {
 	ch := make(chan subResult, len(groupEnv.Data))
 	for _, g := range groupEnv.Data {
 		go func(groupID, groupName string) {
-			cmd := exec.CommandContext(ctx, ascPath, "subscriptions", "list", "--group-id", groupID, "--output", "json")
-			cmd.Env = append(os.Environ(), "ASC_BYPASS_KEYCHAIN=1")
+			cmd := a.newASCCommand(ctx, ascPath, "subscriptions", "list", "--group-id", groupID, "--output", "json")
 			out, err := cmd.CombinedOutput()
 			if err != nil {
 				ch <- subResult{groupName: groupName}
@@ -546,8 +543,13 @@ func (a *App) GetPricingOverview(appID string) (PricingOverview, error) {
 
 	// Current app price (first manual price → decode base64 ID to get price point, then look up tier)
 	go func() {
-		cmd := exec.CommandContext(ctx, ascPath, "pricing", "schedule", "manual-prices", "--schedule", appID, "--output", "json")
-		cmd.Env = append(os.Environ(), "ASC_BYPASS_KEYCHAIN=1")
+		scheduleID, err := a.fetchPricingScheduleID(ctx, ascPath, appID)
+		if err != nil || scheduleID == "" {
+			priceCh <- priceResult{}
+			return
+		}
+
+		cmd := a.newASCCommand(ctx, ascPath, "pricing", "schedule", "manual-prices", "--schedule", scheduleID, "--output", "json")
 		out, err := cmd.CombinedOutput()
 		if err != nil {
 			priceCh <- priceResult{}
@@ -578,8 +580,7 @@ func (a *App) GetPricingOverview(appID string) (PricingOverview, error) {
 			return
 		}
 		// Use price-points endpoint which includes the free tier ($0.00)
-		cmd2 := exec.CommandContext(ctx, ascPath, "pricing", "price-points", "--app", appID, "--territory", priceInfo.Territory, "--output", "json")
-		cmd2.Env = append(os.Environ(), "ASC_BYPASS_KEYCHAIN=1")
+		cmd2 := a.newASCCommand(ctx, ascPath, "pricing", "price-points", "--app", appID, "--territory", priceInfo.Territory, "--output", "json")
 		out2, err := cmd2.CombinedOutput()
 		if err != nil {
 			priceCh <- priceResult{}
@@ -618,33 +619,26 @@ func (a *App) GetPricingOverview(appID string) (PricingOverview, error) {
 
 	// Availability + territories (sequential: need avail ID first, but it's the app ID)
 	go func() {
-		// 1. Get availability flag
-		cmd := exec.CommandContext(ctx, ascPath, "pricing", "availability", "view", "--app", appID, "--output", "json")
-		cmd.Env = append(os.Environ(), "ASC_BYPASS_KEYCHAIN=1")
+		// 1. Get availability flag and resource ID
+		cmd := a.newASCCommand(ctx, ascPath, "pricing", "availability", "view", "--app", appID, "--output", "json")
 		out, err := cmd.CombinedOutput()
 		if err != nil {
 			availCh <- availResult{err: fmt.Errorf("%s", strings.TrimSpace(string(out)))}
 			return
 		}
-		var env struct {
-			Data struct {
-				Attributes struct {
-					AvailableInNewTerritories bool `json:"availableInNewTerritories"`
-				} `json:"attributes"`
-			} `json:"data"`
-		}
-		if err := json.Unmarshal(out, &env); err != nil {
+		availabilityID, availableInNewTerritories, err := parseAvailabilityViewOutput(out)
+		if err != nil {
 			availCh <- availResult{err: fmt.Errorf("failed to parse availability: %w", err)}
 			return
 		}
 
 		// 2. Get territory availabilities
-		cmd2 := exec.CommandContext(ctx, ascPath, "pricing", "availability", "territory-availabilities",
-			"--availability", appID, "--paginate", "--output", "json")
-		cmd2.Env = append(os.Environ(), "ASC_BYPASS_KEYCHAIN=1")
-		out2, err := cmd2.CombinedOutput()
 		var territories []TerritoryAvailability
-		if err == nil {
+		if availabilityID != "" {
+			cmd2 := a.newASCCommand(ctx, ascPath, "pricing", "availability", "territory-availabilities",
+				"--availability", availabilityID, "--paginate", "--output", "json")
+			out2, err := cmd2.CombinedOutput()
+			if err == nil {
 			type rawTerrItem struct {
 				Attributes struct {
 					Available   bool   `json:"available"`
@@ -671,17 +665,17 @@ func (a *App) GetPricingOverview(appID string) (PricingOverview, error) {
 				}
 			}
 		}
+		}
 
 		availCh <- availResult{
-			available:   env.Data.Attributes.AvailableInNewTerritories,
+			available:   availableInNewTerritories,
 			territories: territories,
 		}
 	}()
 
 	// Subscription pricing summary
 	go func() {
-		cmd := exec.CommandContext(ctx, ascPath, "subscriptions", "pricing", "summary", "--app", appID, "--output", "json")
-		cmd.Env = append(os.Environ(), "ASC_BYPASS_KEYCHAIN=1")
+		cmd := a.newASCCommand(ctx, ascPath, "subscriptions", "pricing", "summary", "--app", appID, "--output", "json")
 		out, err := cmd.CombinedOutput()
 		if err != nil {
 			pricingCh <- pricingResult{} // not an error — app may have no subscriptions
@@ -757,8 +751,7 @@ func (a *App) RunASCCommand(args string) (ASCCommandResponse, error) {
 	defer cancel()
 
 	parts := strings.Fields(args)
-	cmd := exec.CommandContext(ctx, ascPath, parts...)
-	cmd.Env = append(os.Environ(), "ASC_BYPASS_KEYCHAIN=1")
+	cmd := a.newASCCommand(ctx, ascPath, parts...)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		return ASCCommandResponse{Error: strings.TrimSpace(string(out))}, nil
@@ -801,8 +794,7 @@ func (a *App) GetAppDetail(appID string) (AppDetail, error) {
 	subtitleCh := make(chan subtitleRes, 1)
 
 	go func() {
-		cmd := exec.CommandContext(ctx, ascPath, "apps", "view", "--id", appID, "--output", "json")
-		cmd.Env = append(os.Environ(), "ASC_BYPASS_KEYCHAIN=1")
+		cmd := a.newASCCommand(ctx, ascPath, "apps", "view", "--id", appID, "--output", "json")
 		out, err := cmd.CombinedOutput()
 		if err != nil {
 			attrsCh <- attrsResult{err: err}
@@ -827,8 +819,7 @@ func (a *App) GetAppDetail(appID string) (AppDetail, error) {
 	}()
 
 	go func() {
-		cmd := exec.CommandContext(ctx, ascPath, "versions", "list", "--app", appID, "--output", "json")
-		cmd.Env = append(os.Environ(), "ASC_BYPASS_KEYCHAIN=1")
+		cmd := a.newASCCommand(ctx, ascPath, "versions", "list", "--app", appID, "--output", "json")
 		out, err := cmd.CombinedOutput()
 		if err != nil {
 			versionsCh <- versionsResult{err: err}
@@ -906,9 +897,8 @@ func (a *App) GetVersionMetadata(versionID string) (VersionMetadataResponse, err
 	ctx, cancel := context.WithTimeout(a.contextOrBackground(), 20*time.Second)
 	defer cancel()
 
-	cmd := exec.CommandContext(ctx, ascPath, "localizations", "list",
+	cmd := a.newASCCommand(ctx, ascPath, "localizations", "list",
 		"--version", versionID, "--output", "json")
-	cmd.Env = append(os.Environ(), "ASC_BYPASS_KEYCHAIN=1")
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		return VersionMetadataResponse{Error: strings.TrimSpace(string(out))}, nil
@@ -967,9 +957,8 @@ func (a *App) GetScreenshots(localizationID string) (ScreenshotsResponse, error)
 	ctx, cancel := context.WithTimeout(a.contextOrBackground(), 20*time.Second)
 	defer cancel()
 
-	cmd := exec.CommandContext(ctx, ascPath, "screenshots", "list",
+	cmd := a.newASCCommand(ctx, ascPath, "screenshots", "list",
 		"--version-localization", localizationID, "--output", "json")
-	cmd.Env = append(os.Environ(), "ASC_BYPASS_KEYCHAIN=1")
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		return ScreenshotsResponse{Error: strings.TrimSpace(string(out))}, nil
@@ -1067,13 +1056,85 @@ func base64Decode(s string) ([]byte, error) {
 	return base64.RawURLEncoding.DecodeString(s)
 }
 
+func parseAppsListOutput(out []byte) ([]rawASCApp, error) {
+	var envelope struct {
+		Data json.RawMessage `json:"data"`
+	}
+	if err := json.Unmarshal(out, &envelope); err == nil && envelope.Data != nil {
+		var rawApps []rawASCApp
+		if err := json.Unmarshal(envelope.Data, &rawApps); err != nil {
+			return nil, err
+		}
+		return rawApps, nil
+	}
+
+	var rawApps []rawASCApp
+	if err := json.Unmarshal(out, &rawApps); err != nil {
+		return nil, err
+	}
+	return rawApps, nil
+}
+
+func parseResourceIDOutput(out []byte) (string, error) {
+	var envelope struct {
+		Data struct {
+			ID string `json:"id"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(out, &envelope); err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(envelope.Data.ID), nil
+}
+
+func parseAvailabilityViewOutput(out []byte) (string, bool, error) {
+	var envelope struct {
+		Data struct {
+			ID         string `json:"id"`
+			Attributes struct {
+				AvailableInNewTerritories bool `json:"availableInNewTerritories"`
+			} `json:"attributes"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(out, &envelope); err != nil {
+		return "", false, err
+	}
+	return strings.TrimSpace(envelope.Data.ID), envelope.Data.Attributes.AvailableInNewTerritories, nil
+}
+
+func (a *App) newASCCommand(ctx context.Context, ascPath string, args ...string) *exec.Cmd {
+	return exec.CommandContext(ctx, ascPath, args...)
+}
+
+func (a *App) fetchPricingScheduleID(ctx context.Context, ascPath, appID string) (string, error) {
+	cmd := a.newASCCommand(ctx, ascPath, "pricing", "schedule", "view", "--app", appID, "--output", "json")
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return "", err
+	}
+	return parseResourceIDOutput(out)
+}
+
+func (a *App) bundledASCPath() string {
+	candidates := bundledASCCandidates()
+	for _, candidate := range candidates {
+		if fileExists(candidate) {
+			return candidate
+		}
+	}
+	if len(candidates) > 0 {
+		return candidates[0]
+	}
+	return ""
+}
+
 func (a *App) resolveASCPath() (string, error) {
 	cfg, err := a.settings.Load()
 	if err != nil {
 		return "", err
 	}
 
-	bundled := filepath.Join(a.rootDir, "bin", "asc")
+	bundled := a.bundledASCPath()
 	resolution, err := ascbin.Resolve(ascbin.ResolveOptions{
 		BundledPath:    bundled,
 		SystemOverride: cfg.SystemASCPath,
@@ -1114,7 +1175,7 @@ func (a *App) ResolveASC() (ResolutionResponse, error) {
 		return ResolutionResponse{}, err
 	}
 
-	bundled := filepath.Join(a.rootDir, "bin", "asc")
+	bundled := a.bundledASCPath()
 	resolution, err := ascbin.Resolve(ascbin.ResolveOptions{
 		BundledPath:    bundled,
 		SystemOverride: cfg.SystemASCPath,
@@ -1234,56 +1295,37 @@ func (a *App) ensureThread(id string) (threads.Thread, error) {
 }
 
 func (a *App) ensureSession(thread threads.Thread) (*threadSession, error) {
-	a.mu.Lock()
-	existing := a.sessions[thread.ID]
-	a.mu.Unlock()
-	if existing != nil {
-		return existing, nil
-	}
+	for {
+		a.mu.Lock()
+		if existing := a.sessions[thread.ID]; existing != nil {
+			a.mu.Unlock()
+			return existing, nil
+		}
+		if waitCh, ok := a.sessionInits[thread.ID]; ok {
+			a.mu.Unlock()
+			<-waitCh
+			continue
+		}
 
-	cfg, err := a.settings.Load()
-	if err != nil {
-		return nil, err
-	}
-	launch, err := cfg.ResolveAgentLaunch()
-	if err != nil {
-		return nil, err
-	}
+		waitCh := make(chan struct{})
+		a.sessionInits[thread.ID] = waitCh
+		a.mu.Unlock()
 
-	client, err := acp.Start(a.contextOrBackground(), acp.LaunchSpec{
-		Command: launch.Command,
-		Args:    launch.Args,
-		Dir:     launch.Dir,
-		Env:     launch.Env,
-	})
-	if err != nil {
-		return nil, err
+		session, err := a.startThreadSession(thread)
+
+		a.mu.Lock()
+		delete(a.sessionInits, thread.ID)
+		if err == nil {
+			a.sessions[thread.ID] = session
+		}
+		close(waitCh)
+		a.mu.Unlock()
+
+		if err != nil {
+			return nil, err
+		}
+		return session, nil
 	}
-
-	workspaceRoot := cfg.WorkspaceRoot
-	if strings.TrimSpace(workspaceRoot) == "" {
-		workspaceRoot, _ = os.Getwd()
-	}
-
-	sessionID, err := client.Bootstrap(a.contextOrBackground(), acp.SessionConfig{
-		CWD:       workspaceRoot,
-		SessionID: thread.SessionID,
-	})
-	if err != nil {
-		_ = client.Close()
-		return nil, err
-	}
-
-	session := &threadSession{
-		client:    client,
-		sessionID: sessionID,
-	}
-
-	a.mu.Lock()
-	a.sessions[thread.ID] = session
-	a.mu.Unlock()
-
-	return session, nil
 }
 
 func (a *App) contextOrBackground() context.Context {
@@ -1310,4 +1352,91 @@ func execLookPath(file string) (string, error) {
 
 var execLookPathFunc = func(file string) (string, error) {
 	return exec.LookPath(file)
+}
+
+var startACPClient = func(ctx context.Context, spec acp.LaunchSpec) (agentClient, error) {
+	return acp.Start(ctx, spec)
+}
+
+var osExecutableFunc = os.Executable
+var getwdFunc = os.Getwd
+
+func (a *App) startThreadSession(thread threads.Thread) (*threadSession, error) {
+	cfg, err := a.settings.Load()
+	if err != nil {
+		return nil, err
+	}
+	launch, err := cfg.ResolveAgentLaunch()
+	if err != nil {
+		return nil, err
+	}
+
+	client, err := a.startAgent(a.contextOrBackground(), acp.LaunchSpec{
+		Command: launch.Command,
+		Args:    launch.Args,
+		Dir:     launch.Dir,
+		Env:     launch.Env,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	workspaceRoot := cfg.WorkspaceRoot
+	if strings.TrimSpace(workspaceRoot) == "" {
+		workspaceRoot, _ = getwdFunc()
+	}
+
+	sessionID, err := client.Bootstrap(a.contextOrBackground(), acp.SessionConfig{
+		CWD:       workspaceRoot,
+		SessionID: thread.SessionID,
+	})
+	if err != nil {
+		_ = client.Close()
+		return nil, err
+	}
+
+	return &threadSession{
+		client:    client,
+		sessionID: sessionID,
+	}, nil
+}
+
+func bundledASCCandidates() []string {
+	var candidates []string
+	if executable, err := osExecutableFunc(); err == nil && strings.TrimSpace(executable) != "" {
+		execDir := filepath.Dir(executable)
+		candidates = append(candidates,
+			filepath.Clean(filepath.Join(execDir, "..", "Resources", "bin", "asc")),
+			filepath.Clean(filepath.Join(execDir, "bin", "asc")),
+		)
+	}
+
+	if workingDir, err := getwdFunc(); err == nil && strings.TrimSpace(workingDir) != "" {
+		candidates = append(candidates,
+			filepath.Join(workingDir, "bin", "asc"),
+			filepath.Join(workingDir, "apps", "studio", "bin", "asc"),
+		)
+	}
+
+	seen := make(map[string]struct{}, len(candidates))
+	deduped := make([]string, 0, len(candidates))
+	for _, candidate := range candidates {
+		if candidate == "" {
+			continue
+		}
+		if _, ok := seen[candidate]; ok {
+			continue
+		}
+		seen[candidate] = struct{}{}
+		deduped = append(deduped, candidate)
+	}
+	return deduped
+}
+
+func fileExists(path string) bool {
+	if strings.TrimSpace(path) == "" {
+		return false
+	}
+	info, err := os.Stat(filepath.Clean(path))
+	return err == nil && !info.IsDir()
 }

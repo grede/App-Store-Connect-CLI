@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 )
@@ -61,7 +62,7 @@ func Resolve(opts ResolveOptions) (Resolution, error) {
 				BundledEligible: fileExists(bundled),
 			}, nil
 		}
-		if !errors.Is(err, os.ErrNotExist) && !errors.Is(err, execErrNotFound) {
+		if !errors.Is(err, os.ErrNotExist) && !errors.Is(err, exec.ErrNotFound) && !errors.Is(err, execErrNotFound) {
 			return Resolution{}, err
 		}
 	}

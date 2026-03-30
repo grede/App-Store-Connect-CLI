@@ -65,6 +65,7 @@ type Client struct {
 	cmd    *exec.Cmd
 	stdin  io.WriteCloser
 	stdout io.ReadCloser
+	stderr io.ReadCloser
 
 	events chan Event
 
@@ -94,7 +95,8 @@ func Start(ctx context.Context, spec LaunchSpec) (*Client, error) {
 	if err != nil {
 		return nil, fmt.Errorf("create stdout pipe: %w", err)
 	}
-	if _, err := cmd.StderrPipe(); err != nil {
+	stderr, err := cmd.StderrPipe()
+	if err != nil {
 		return nil, fmt.Errorf("create stderr pipe: %w", err)
 	}
 
@@ -102,6 +104,7 @@ func Start(ctx context.Context, spec LaunchSpec) (*Client, error) {
 		cmd:     cmd,
 		stdin:   stdin,
 		stdout:  stdout,
+		stderr:  stderr,
 		events:  make(chan Event, 32),
 		done:    make(chan struct{}),
 		pending: make(map[int64]chan rpcResponse),
@@ -111,6 +114,7 @@ func Start(ctx context.Context, spec LaunchSpec) (*Client, error) {
 	}
 
 	go client.readLoop()
+	go client.drainStderr()
 	return client, nil
 }
 
@@ -120,6 +124,9 @@ func (c *Client) Close() error {
 		close(c.done)
 		if c.stdin != nil {
 			_ = c.stdin.Close()
+		}
+		if c.stderr != nil {
+			_ = c.stderr.Close()
 		}
 		if c.cmd != nil && c.cmd.Process != nil {
 			err = c.cmd.Process.Kill()
@@ -217,8 +224,16 @@ func (c *Client) Call(ctx context.Context, method string, params interface{}, ou
 	}
 }
 
+func (c *Client) drainStderr() {
+	if c.stderr == nil {
+		return
+	}
+	_, _ = io.Copy(io.Discard, c.stderr)
+}
+
 func (c *Client) readLoop() {
 	scanner := bufio.NewScanner(c.stdout)
+	scanner.Buffer(make([]byte, 64*1024), 8*1024*1024)
 	for scanner.Scan() {
 		line := append([]byte(nil), scanner.Bytes()...)
 
