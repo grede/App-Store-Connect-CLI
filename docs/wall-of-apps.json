@@ -348,6 +348,11 @@
     "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/1c/5a/13/1c5a13a5-02e5-30c8-a359-e49972d11582/AppIcon-0-0-1x_U007epad-0-1-85-220.png/512x512bb.jpg"
   },
   {
+    "app": "Hands Time - Minimalist Widget",
+    "link": "https://apps.apple.com/us/app/hands-time-minimalist-widget/id6462440720?uo=4",
+    "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/ea/cd/e9/eacde9d6-4e33-e631-55fc-05aa961523a5/AppIcon-0-0-1x_U007ephone-0-0-0-1-0-0-85-220.png/512x512bb.jpg"
+  },
+  {
     "app": "HRM Battery",
     "link": "https://apps.apple.com/app/id6758920011",
     "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/7b/43/73/7b4373fc-26e2-030b-7162-2f0ab0a7681d/AppIcon-0-0-1x_U007ewatch-0-1-P3-85-220.png/512x512bb.jpg"
@@ -939,6 +944,11 @@
     "app": "TV Show Tracker",
     "link": "https://apps.apple.com/us/app/tv-show-tracker-tv-club/id6497563903",
     "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/43/b8/67/43b86702-f67b-c314-f65b-cd60980205b0/Icon-0-1x_U007epad-0-1-85-220-0.png/512x512bb.jpg"
+  },
+  {
+    "app": "TypeSafe: Verify & Protect",
+    "link": "https://apps.apple.com/us/app/typesafe-verify-protect/id6754827519?uo=4",
+    "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/5e/d6/b3/5ed6b308-6268-474d-1009-5ba153d05266/AppIcon-0-0-1x_U007ephone-0-1-85-220.png/512x512bb.jpg"
   },
   {
     "app": "ulives: Gamify Tasks & Habits",
