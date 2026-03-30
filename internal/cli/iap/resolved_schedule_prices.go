@@ -40,7 +40,6 @@ func fetchResolvedIAPSchedulePrices(
 	case "manual":
 		if err := consumeResolvedIAPSchedulePrices(
 			ctx,
-			client,
 			scheduleID,
 			nextURL,
 			limit,
@@ -53,7 +52,6 @@ func fetchResolvedIAPSchedulePrices(
 		if includeSibling {
 			if err := consumeResolvedIAPSchedulePrices(
 				ctx,
-				client,
 				scheduleID,
 				"",
 				limit,
@@ -67,7 +65,6 @@ func fetchResolvedIAPSchedulePrices(
 	case "automatic":
 		if err := consumeResolvedIAPSchedulePrices(
 			ctx,
-			client,
 			scheduleID,
 			nextURL,
 			limit,
@@ -80,7 +77,6 @@ func fetchResolvedIAPSchedulePrices(
 		if includeSibling {
 			if err := consumeResolvedIAPSchedulePrices(
 				ctx,
-				client,
 				scheduleID,
 				"",
 				limit,
@@ -105,7 +101,6 @@ func fetchResolvedIAPSchedulePrices(
 
 func consumeResolvedIAPSchedulePrices(
 	ctx context.Context,
-	client *asc.Client,
 	scheduleID string,
 	nextURL string,
 	limit int,

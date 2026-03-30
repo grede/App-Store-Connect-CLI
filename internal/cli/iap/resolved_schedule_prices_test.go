@@ -13,8 +13,8 @@ func TestConsumeResolvedIAPPricePage_PrefersManualSameDay(t *testing.T) {
 
 	page := &asc.InAppPurchasePricesResponse{
 		Data: []asc.Resource[asc.InAppPurchasePriceAttributes]{
-			newResolvedIAPPriceResource("auto-price", "USA", "pp-auto", "2025-01-01", "", false),
-			newResolvedIAPPriceResource("manual-price", "USA", "pp-manual", "2025-01-01", "", true),
+			newResolvedIAPPriceResource("auto-price", "pp-auto", "2025-01-01", "", false),
+			newResolvedIAPPriceResource("manual-price", "pp-manual", "2025-01-01", "", true),
 		},
 		Included: mustMarshalResolvedIAPJSON(t, []map[string]any{
 			inAppPurchasePricePointIncluded("pp-auto", "4.99", "3.49"),
@@ -42,8 +42,8 @@ func TestConsumeResolvedIAPPricePage_SkipsFutureAndExpiredRows(t *testing.T) {
 
 	page := &asc.InAppPurchasePricesResponse{
 		Data: []asc.Resource[asc.InAppPurchasePriceAttributes]{
-			newResolvedIAPPriceResource("expired-price", "USA", "pp-expired", "2024-01-01", "2025-01-01", true),
-			newResolvedIAPPriceResource("future-price", "USA", "pp-future", "2030-01-01", "", true),
+			newResolvedIAPPriceResource("expired-price", "pp-expired", "2024-01-01", "2025-01-01", true),
+			newResolvedIAPPriceResource("future-price", "pp-future", "2030-01-01", "", true),
 		},
 		Included: mustMarshalResolvedIAPJSON(t, []map[string]any{
 			inAppPurchasePricePointIncluded("pp-expired", "1.99", "1.40"),
@@ -64,7 +64,6 @@ func TestConsumeResolvedIAPPricePage_SkipsFutureAndExpiredRows(t *testing.T) {
 
 func newResolvedIAPPriceResource(
 	priceID string,
-	territoryID string,
 	pricePointID string,
 	startDate string,
 	endDate string,
@@ -74,7 +73,7 @@ func newResolvedIAPPriceResource(
 		"territory": map[string]any{
 			"data": map[string]any{
 				"type": "territories",
-				"id":   territoryID,
+				"id":   "USA",
 			},
 		},
 		"inAppPurchasePricePoint": map[string]any{

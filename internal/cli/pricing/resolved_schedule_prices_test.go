@@ -13,8 +13,8 @@ func TestConsumeResolvedAppPricePage_PrefersManualSameDay(t *testing.T) {
 
 	page := &asc.AppPricesResponse{
 		Data: []asc.Resource[asc.AppPriceAttributes]{
-			newResolvedAppPriceResource("automatic-price", "USA", "pp-auto", "2025-01-01", "", false),
-			newResolvedAppPriceResource("manual-price", "USA", "pp-manual", "2025-01-01", "", true),
+			newResolvedAppPriceResource("automatic-price", "pp-auto", "2025-01-01", "", false),
+			newResolvedAppPriceResource("manual-price", "pp-manual", "2025-01-01", "", true),
 		},
 		Included: mustMarshalResolvedAppJSON(t, []map[string]any{
 			appPricePointIncluded("pp-auto", "4.99", "3.49"),
@@ -42,8 +42,8 @@ func TestConsumeResolvedAppPricePage_SkipsFutureAndExpiredRows(t *testing.T) {
 
 	page := &asc.AppPricesResponse{
 		Data: []asc.Resource[asc.AppPriceAttributes]{
-			newResolvedAppPriceResource("expired-price", "USA", "pp-expired", "2024-01-01", "2025-01-01", true),
-			newResolvedAppPriceResource("future-price", "USA", "pp-future", "2030-01-01", "", true),
+			newResolvedAppPriceResource("expired-price", "pp-expired", "2024-01-01", "2025-01-01", true),
+			newResolvedAppPriceResource("future-price", "pp-future", "2030-01-01", "", true),
 		},
 		Included: mustMarshalResolvedAppJSON(t, []map[string]any{
 			appPricePointIncluded("pp-expired", "1.99", "1.40"),
@@ -64,7 +64,6 @@ func TestConsumeResolvedAppPricePage_SkipsFutureAndExpiredRows(t *testing.T) {
 
 func newResolvedAppPriceResource(
 	priceID string,
-	territoryID string,
 	pricePointID string,
 	startDate string,
 	endDate string,
@@ -74,7 +73,7 @@ func newResolvedAppPriceResource(
 		"territory": map[string]any{
 			"data": map[string]any{
 				"type": "territories",
-				"id":   territoryID,
+				"id":   "USA",
 			},
 		},
 		"appPricePoint": map[string]any{
