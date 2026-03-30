@@ -52,12 +52,6 @@ textarea {
 
 /* ── Shell ──────────────────────────────────────── */
 
-.titlebar {
-  height: 38px;
-  flex-shrink: 0;
-  --wails-draggable: drag;
-}
-
 .studio-shell {
   height: 100vh;
   display: grid;
@@ -133,6 +127,7 @@ textarea {
   width: 100%;
   padding: 6px 10px;
   border: none;
+  border-left: 2px solid transparent;
   border-radius: var(--radius-sm);
   background: transparent;
   text-align: left;
@@ -149,6 +144,7 @@ textarea {
 .sidebar-row.is-active {
   background: var(--accent-bg);
   color: var(--accent);
+  border-left-color: var(--accent);
 }
 
 .sidebar-row.is-active .sidebar-row-icon {
@@ -207,61 +203,83 @@ textarea {
   background: rgba(255, 255, 255, 0.82);
 }
 
-/* ── Toolbar ────────────────────────────────────── */
+/* ── Context bar ────────────────────────────────── */
 
-.toolbar {
-  height: 44px;
+.context-bar {
+  height: 48px;
   padding: 0 20px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  background: rgba(0, 0, 0, 0.02);
   border-bottom: 1px solid var(--separator);
   flex-shrink: 0;
   --wails-draggable: drag;
 }
 
-.toolbar-left {
+.context-app {
   display: flex;
-  align-items: baseline;
-  gap: 8px;
+  align-items: center;
+  gap: 10px;
 }
 
-.toolbar-breadcrumb {
-  font-size: 12px;
+.context-app-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.context-badge {
+  font-size: 11px;
+  font-weight: 500;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.05);
   color: var(--text-secondary);
 }
 
-.toolbar-breadcrumb span {
-  color: var(--text-tertiary);
+.context-version {
+  font-size: 13px;
+  font-family: var(--font-mono);
+  color: var(--text-secondary);
 }
 
-.toolbar-heading {
-  margin: 0;
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--text-primary);
+.context-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.context-status::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+.context-status.state-processing::before {
+  background: var(--orange);
+}
+
+.context-status.state-processing {
+  color: var(--orange);
+}
+
+.context-status.state-ready::before {
+  background: var(--green);
+}
+
+.context-status.state-ready {
+  color: var(--green);
 }
 
 .toolbar-right {
   display: flex;
   align-items: center;
   gap: 6px;
-}
-
-.toolbar-status {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  font-size: 12px;
-  color: var(--text-secondary);
-}
-
-.status-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--green);
 }
 
 .toolbar-btn {
@@ -292,53 +310,44 @@ textarea {
 .workspace-main {
   display: flex;
   flex-direction: column;
-  gap: 1px;
-  background: var(--separator);
+  background: var(--surface);
   overflow-y: auto;
-}
-
-.workspace-main .panel:last-child {
-  flex: 1;
 }
 
 .workspace-inspector {
   border-left: 1px solid var(--separator);
   display: flex;
   flex-direction: column;
-  gap: 1px;
-  background: var(--separator);
+  background: rgba(0, 0, 0, 0.015);
   overflow-y: auto;
 }
 
-.workspace-inspector .panel:last-child {
+/* ── Workspace sections ─────────────────────────── */
+
+.workspace-section {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--separator);
+}
+
+.workspace-section:last-child {
+  border-bottom: none;
   flex: 1;
 }
 
-/* ── Panels ─────────────────────────────────────── */
-
-.panel {
-  background: rgba(255, 255, 255, 0.72);
-  padding: 16px 20px;
+.section-label {
+  margin: 0 0 10px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
-.panel-heading {
+.section-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 12px;
-}
-
-.panel-title {
-  margin: 0;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text-primary);
-}
-
-.panel-subtitle {
-  margin: 2px 0 0;
-  font-size: 11px;
-  color: var(--text-secondary);
+  margin-bottom: 10px;
 }
 
 /* ── Segmented control ──────────────────────────── */
@@ -392,6 +401,12 @@ textarea {
   vertical-align: middle;
 }
 
+.data-table td:first-child,
+.data-table td:nth-child(2) {
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
 .data-table .col-trailing {
   text-align: right;
   color: var(--text-secondary);
@@ -411,6 +426,7 @@ textarea {
   justify-content: space-between;
   padding: 8px 0;
   border: none;
+  border-left: 3px solid transparent;
   background: transparent;
   text-align: left;
   cursor: pointer;
@@ -422,6 +438,9 @@ textarea {
 }
 
 .app-row.is-current {
+  border-left-color: var(--accent);
+  padding-left: 10px;
+  background: var(--accent-bg);
   color: var(--accent);
 }
 
@@ -433,6 +452,11 @@ textarea {
   color: var(--text-secondary);
   font-size: 12px;
   margin-left: 6px;
+}
+
+.app-row.is-current small {
+  color: var(--accent);
+  opacity: 0.7;
 }
 
 .app-row-status {
@@ -479,6 +503,23 @@ textarea {
 
 .state-expired {
   color: var(--gray);
+}
+
+/* ── Readiness progress ─────────────────────────── */
+
+.readiness-progress {
+  height: 3px;
+  background: var(--separator);
+  border-radius: 2px;
+  margin-bottom: 14px;
+  overflow: hidden;
+}
+
+.readiness-bar {
+  height: 100%;
+  background: var(--green);
+  border-radius: 2px;
+  transition: width 0.3s ease;
 }
 
 /* ── Checklist ──────────────────────────────────── */
@@ -538,7 +579,7 @@ textarea {
 .command-preview {
   margin: 0;
   padding: 12px;
-  background: var(--surface-secondary);
+  background: rgba(0, 0, 0, 0.03);
   border: 1px solid var(--separator);
   border-radius: var(--radius-md);
   font-family: var(--font-mono);
@@ -553,8 +594,10 @@ textarea {
 /* ── Chat dock ──────────────────────────────────── */
 
 .dock {
-  border-top: 1px solid var(--separator);
-  background: rgba(255, 255, 255, 0.72);
+  border-top: 1px solid rgba(255, 255, 255, 0.5);
+  background: rgba(255, 255, 255, 0.65);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
@@ -564,7 +607,7 @@ textarea {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 20px;
+  padding: 6px 20px;
   border-bottom: 1px solid var(--separator);
 }
 
@@ -574,36 +617,40 @@ textarea {
   color: var(--text-secondary);
 }
 
-.dock-toggle {
-  padding: 2px 8px;
+.dock-collapse {
+  width: 24px;
+  height: 24px;
   border: none;
   border-radius: var(--radius-sm);
   background: transparent;
-  font-size: 11px;
-  font-weight: 500;
-  color: var(--accent);
+  color: var(--text-secondary);
+  font-size: 14px;
   cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.dock-toggle:hover {
-  background: var(--accent-bg);
+.dock-collapse:hover {
+  background: rgba(0, 0, 0, 0.04);
 }
 
 .dock-body {
-  display: flex;
-  gap: 0;
-  min-height: 0;
-  max-height: 220px;
+  max-height: 0;
   overflow: hidden;
+  transition: max-height 0.25s ease;
+}
+
+.dock-expanded .dock-body {
+  max-height: 280px;
+  overflow-y: auto;
 }
 
 .message-list {
-  flex: 1;
   display: flex;
   flex-direction: column;
   gap: 2px;
   padding: 8px 20px;
-  overflow-y: auto;
 }
 
 .message-row {
@@ -656,9 +703,10 @@ textarea {
 .composer-card {
   border: 1px solid rgba(0, 0, 0, 0.10);
   border-radius: 16px;
-  background: var(--surface);
+  background: rgba(255, 255, 255, 0.9);
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
   overflow: hidden;
+  cursor: text;
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
@@ -731,18 +779,6 @@ textarea {
   background: var(--accent);
 }
 
-.composer-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 6px 20px 0;
-}
-
-.composer-footer span {
-  font-size: 11px;
-  color: var(--text-tertiary);
-}
-
 /* ── Responsive ─────────────────────────────────── */
 
 @media (max-width: 1200px) {
@@ -751,16 +787,6 @@ textarea {
   }
 
   .workspace-inspector {
-    border-left: none;
-    border-top: 1px solid var(--separator);
-  }
-
-  .dock-body {
-    flex-direction: column;
-  }
-
-  .logs-pane {
-    width: 100%;
     border-left: none;
     border-top: 1px solid var(--separator);
   }

@@ -21,12 +21,10 @@ const sectionIcons: Record<string, string> = {
   threads: "≡",
 };
 
-const initialMessages: ChatMessage[] = [];
-
 const apps = [
-  { name: "MusadoraKit", platform: "iOS", version: "2.3.0", status: "Ready for validation" },
-  { name: "ASC Test", platform: "iOS", version: "1.7.2", status: "Safe sandbox app" },
-  { name: "Composer Pad", platform: "macOS", version: "0.9.5", status: "Metadata drift" },
+  { name: "MusadoraKit", platform: "iOS", version: "2.3.0", build: "451", status: "Processing" },
+  { name: "ASC Test", platform: "iOS", version: "1.7.2", build: "389", status: "Ready for Sale" },
+  { name: "Composer Pad", platform: "macOS", version: "0.9.5", build: "112", status: "Metadata drift" },
 ];
 
 const releaseChecklist = [
@@ -37,6 +35,9 @@ const releaseChecklist = [
   { label: "IAP readiness", status: "done", detail: "2 items approved" },
   { label: "Submission approval", status: "pending", detail: "Waiting on Studio confirmation" },
 ];
+
+const doneCount = releaseChecklist.filter((i) => i.status === "done").length;
+const readinessPercent = Math.round((doneCount / releaseChecklist.length) * 100);
 
 const buildRows = [
   { version: "2.3.0", build: "451", state: "Processing", age: "9m ago" },
@@ -55,11 +56,13 @@ const checkIcon: Record<string, { char: string; cls: string }> = {
   pending: { char: "○", cls: "check-pending" },
 };
 
+const selectedApp = apps[0];
+
 export default function App() {
   const [activeSection, setActiveSection] = useState<NavSection>(sections[0]);
-  const [messages, setMessages] = useState<ChatMessage[]>(initialMessages);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [draft, setDraft] = useState("");
-  const [showLogs, setShowLogs] = useState(false);
+  const [dockExpanded, setDockExpanded] = useState(false);
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -79,6 +82,7 @@ export default function App() {
       },
     ]);
     setDraft("");
+    setDockExpanded(true);
   }
 
   return (
@@ -124,55 +128,25 @@ export default function App() {
 
       {/* Main area */}
       <div className="main-area">
-        <header className="toolbar">
-          <div className="toolbar-left">
-            <span className="toolbar-breadcrumb">
-              App Store Connect <span>/</span> {activeSection.label}
-            </span>
+        {/* Context bar */}
+        <header className="context-bar">
+          <div className="context-app">
+            <strong className="context-app-name">{selectedApp.name}</strong>
+            <span className="context-badge">{selectedApp.platform}</span>
+            <span className="context-version">v{selectedApp.version} ({selectedApp.build})</span>
+            <span className="context-status state-processing">{selectedApp.status}</span>
           </div>
           <div className="toolbar-right">
-            <span className="toolbar-status">
-              <span className="status-dot" />
-              Ready
-            </span>
             <button className="toolbar-btn" type="button">Refresh</button>
           </div>
         </header>
 
         <section className="workspace">
           <div className="workspace-main">
-            {/* Apps panel */}
-            <div className="panel">
-              <div className="panel-heading">
-                <div>
-                  <h3 className="panel-title">Apps</h3>
-                  <p className="panel-subtitle">Release cockpit</p>
-                </div>
-              </div>
-              <div className="app-list">
-                {apps.map((app) => (
-                  <button
-                    key={app.name}
-                    className={`app-row ${app.name === "MusadoraKit" ? "is-current" : ""}`}
-                    type="button"
-                  >
-                    <div>
-                      <strong>{app.name}</strong>
-                      <small>{app.platform} {app.version}</small>
-                    </div>
-                    <span className="app-row-status">{app.status}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Builds panel */}
-            <div className="panel">
-              <div className="panel-heading">
-                <div>
-                  <h3 className="panel-title">Builds</h3>
-                  <p className="panel-subtitle">Current release candidates</p>
-                </div>
+            {/* Builds section */}
+            <div className="workspace-section">
+              <div className="section-header">
+                <h3 className="section-label">Builds</h3>
                 <div className="segmented">
                   <button className="is-active" type="button">TestFlight</button>
                   <button type="button">App Store</button>
@@ -207,12 +181,10 @@ export default function App() {
 
           {/* Inspector */}
           <div className="workspace-inspector">
-            <div className="panel">
-              <div className="panel-heading">
-                <div>
-                  <h3 className="panel-title">Submission readiness</h3>
-                  <p className="panel-subtitle">2 blockers</p>
-                </div>
+            <div className="workspace-section">
+              <h3 className="section-label">Submission readiness</h3>
+              <div className="readiness-progress">
+                <div className="readiness-bar" style={{ width: `${readinessPercent}%` }} />
               </div>
               <div className="checklist">
                 {releaseChecklist.map((item) => {
@@ -230,19 +202,27 @@ export default function App() {
               </div>
             </div>
 
-            <div className="panel">
-              <div className="panel-heading">
-                <h3 className="panel-title">Mutation preview</h3>
-              </div>
-              <pre className="command-preview">{approvalPreview.join("\n")}</pre>
-            </div>
           </div>
         </section>
 
         {/* Chat dock */}
-        <section className="dock">
-          {messages.length > 0 && (
-            <div className="dock-body">
+        <section className={`dock ${dockExpanded ? "dock-expanded" : ""}`}>
+          {dockExpanded && (
+            <div className="dock-header">
+              <span className="dock-title">ACP Chat</span>
+              <button
+                className="dock-collapse"
+                type="button"
+                onClick={() => setDockExpanded(false)}
+                aria-label="Collapse chat"
+              >
+                ▾
+              </button>
+            </div>
+          )}
+
+          <div className="dock-body">
+            {messages.length > 0 && (
               <div className="message-list" aria-label="Chat messages">
                 {messages.map((message) => (
                   <article key={message.id} className={`message-row role-${message.role}`}>
@@ -250,21 +230,11 @@ export default function App() {
                   </article>
                 ))}
               </div>
-
-              {showLogs ? (
-                <div className="logs-pane" data-testid="log-drawer">
-                  <pre>
-                    {`session/new {"cwd":"/Users/rudrank/Developer/CLIs/App-Store-Connect-CLI"}\n`}
-                    {`session/prompt {"role":"user","content":"Validate version 2.3.0"}\n`}
-                    {`session/update {"kind":"message","role":"assistant","content":"Validation in progress"}\n`}
-                  </pre>
-                </div>
-              ) : null}
-            </div>
-          )}
+            )}
+          </div>
 
           <form className="composer" onSubmit={handleSubmit}>
-            <div className="composer-card">
+            <div className="composer-card" onClick={() => !dockExpanded && setDockExpanded(true)}>
               <textarea
                 aria-label="Chat prompt"
                 value={draft}
