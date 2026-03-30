@@ -15,6 +15,7 @@ import (
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/validation"
 )
 
 func TestSubmitPreflightCommand_MissingApp(t *testing.T) {
@@ -486,6 +487,26 @@ func TestCheckContentRights_Set(t *testing.T) {
 	check := checkContentRights(context.Background(), client, "app-123")
 	if !check.Passed {
 		t.Fatalf("expected check to pass, got message: %s", check.Message)
+	}
+}
+
+func TestPreflightResultFromReport_MapsContentRightsCheckName(t *testing.T) {
+	result := preflightResultFromReport("app-123", "1.0", validation.Report{
+		Platform: "IOS",
+		Checks: []validation.CheckResult{
+			{
+				ID:       "content_rights.missing",
+				Severity: validation.SeverityError,
+				Message:  "content rights declaration is not set",
+			},
+		},
+	})
+
+	if len(result.Checks) != 1 {
+		t.Fatalf("expected one check, got %+v", result.Checks)
+	}
+	if result.Checks[0].Name != "Content rights" {
+		t.Fatalf("expected content rights label, got %+v", result.Checks[0])
 	}
 }
 

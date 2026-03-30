@@ -180,7 +180,7 @@ func preflightCheckName(check validation.CheckResult) string {
 		return "Screenshots"
 	case strings.HasPrefix(check.ID, "age_rating."):
 		return "Age rating"
-	case strings.HasPrefix(check.ID, "legal.content_rights"):
+	case strings.HasPrefix(check.ID, "content_rights."):
 		return "Content rights"
 	case strings.HasPrefix(check.ID, "privacy."):
 		return "App Privacy"

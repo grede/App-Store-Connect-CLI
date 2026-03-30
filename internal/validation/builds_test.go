@@ -2,6 +2,16 @@ package validation
 
 import "testing"
 
+func countCheckID(checks []CheckResult, id string) int {
+	count := 0
+	for _, check := range checks {
+		if check.ID == id {
+			count++
+		}
+	}
+	return count
+}
+
 func TestBuildChecks_MissingBuild(t *testing.T) {
 	checks := buildChecks(nil)
 	if !hasCheckID(checks, "build.required.missing") {
@@ -66,5 +76,23 @@ func TestSubmissionBuildChecks_NonExemptEncryptionMissingDeclaration(t *testing.
 	})
 	if !hasCheckID(checks, "build.encryption.declaration_missing") {
 		t.Fatalf("expected build.encryption.declaration_missing check, got %v", checks)
+	}
+}
+
+func TestValidate_DoesNotDuplicateBuildChecks(t *testing.T) {
+	usesNonExemptEncryption := true
+	report := Validate(Input{
+		Build: &Build{
+			ID:                      "build-1",
+			ProcessingState:         "PROCESSING",
+			UsesNonExemptEncryption: &usesNonExemptEncryption,
+		},
+	}, false)
+
+	if got := countCheckID(report.Checks, "build.invalid.processing_state"); got != 1 {
+		t.Fatalf("expected one build.invalid.processing_state check, got %d (%v)", got, report.Checks)
+	}
+	if got := countCheckID(report.Checks, "build.encryption.declaration_missing"); got != 1 {
+		t.Fatalf("expected one build.encryption.declaration_missing check, got %d (%v)", got, report.Checks)
 	}
 }
