@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useCallback, useEffect, useState } from "react";
 
 import "./styles.css";
 import { ChatMessage, NavSection } from "./types";
@@ -350,6 +350,24 @@ export default function App() {
     setDockExpanded(true);
   }
 
+  const handleRefresh = useCallback(() => {
+    if (selectedAppId) {
+      handleSelectApp(selectedAppId);
+    }
+  }, [selectedAppId]);
+
+  // Cmd+R to refresh
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.key === "r") {
+        e.preventDefault();
+        handleRefresh();
+      }
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [handleRefresh]);
+
   const authConfigured = authStatus.authenticated;
 
   return (
@@ -461,6 +479,16 @@ export default function App() {
             )}
           </div>
           <div className="toolbar-right">
+            {selectedAppId && (
+              <button
+                className="toolbar-btn"
+                type="button"
+                onClick={handleRefresh}
+                title="Refresh (⌘R)"
+              >
+                ↻
+              </button>
+            )}
             {!authConfigured && (
               <button
                 className="toolbar-btn"
