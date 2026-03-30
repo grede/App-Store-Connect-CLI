@@ -226,14 +226,14 @@ func NewApp() (*App, error) {
 	}
 
 	return &App{
-		rootDir:     rootDir,
-		settings:    settings.NewStore(rootDir),
-		threads:     threads.NewStore(rootDir),
-		approvals:   approvals.NewQueue(),
-		environment: environment.NewService(),
-		sessions:    make(map[string]*threadSession),
+		rootDir:      rootDir,
+		settings:     settings.NewStore(rootDir),
+		threads:      threads.NewStore(rootDir),
+		approvals:    approvals.NewQueue(),
+		environment:  environment.NewService(),
+		sessions:     make(map[string]*threadSession),
 		sessionInits: make(map[string]chan struct{}),
-		startAgent:  startACPClient,
+		startAgent:   startACPClient,
 	}, nil
 }
 
@@ -639,32 +639,32 @@ func (a *App) GetPricingOverview(appID string) (PricingOverview, error) {
 				"--availability", availabilityID, "--paginate", "--output", "json")
 			out2, err := cmd2.CombinedOutput()
 			if err == nil {
-			type rawTerrItem struct {
-				Attributes struct {
-					Available   bool   `json:"available"`
-					ReleaseDate string `json:"releaseDate"`
-				} `json:"attributes"`
-				Relationships struct {
-					Territory struct {
-						Data struct {
-							ID string `json:"id"`
-						} `json:"data"`
-					} `json:"territory"`
-				} `json:"relationships"`
-			}
-			var terrEnv struct {
-				Data []rawTerrItem `json:"data"`
-			}
-			if json.Unmarshal(out2, &terrEnv) == nil {
-				for _, t := range terrEnv.Data {
-					territories = append(territories, TerritoryAvailability{
-						Territory:   t.Relationships.Territory.Data.ID,
-						Available:   t.Attributes.Available,
-						ReleaseDate: t.Attributes.ReleaseDate,
-					})
+				type rawTerrItem struct {
+					Attributes struct {
+						Available   bool   `json:"available"`
+						ReleaseDate string `json:"releaseDate"`
+					} `json:"attributes"`
+					Relationships struct {
+						Territory struct {
+							Data struct {
+								ID string `json:"id"`
+							} `json:"data"`
+						} `json:"territory"`
+					} `json:"relationships"`
+				}
+				var terrEnv struct {
+					Data []rawTerrItem `json:"data"`
+				}
+				if json.Unmarshal(out2, &terrEnv) == nil {
+					for _, t := range terrEnv.Data {
+						territories = append(territories, TerritoryAvailability{
+							Territory:   t.Relationships.Territory.Data.ID,
+							Available:   t.Attributes.Available,
+							ReleaseDate: t.Attributes.ReleaseDate,
+						})
+					}
 				}
 			}
-		}
 		}
 
 		availCh <- availResult{
@@ -1358,8 +1358,10 @@ var startACPClient = func(ctx context.Context, spec acp.LaunchSpec) (agentClient
 	return acp.Start(ctx, spec)
 }
 
-var osExecutableFunc = os.Executable
-var getwdFunc = os.Getwd
+var (
+	osExecutableFunc = os.Executable
+	getwdFunc        = os.Getwd
+)
 
 func (a *App) startThreadSession(thread threads.Thread) (*threadSession, error) {
 	cfg, err := a.settings.Load()

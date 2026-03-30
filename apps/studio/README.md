@@ -22,7 +22,7 @@ npm install
 npm run test -- --run
 npm run build
 
-cd /Users/rudrank/Developer/CLIs/App-Store-Connect-CLI
+cd ../..
 go test ./apps/studio/...
 go build ./apps/studio
 ```

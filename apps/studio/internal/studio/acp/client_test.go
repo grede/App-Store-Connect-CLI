@@ -122,7 +122,42 @@ func TestACPStderrHelperProcess(*testing.T) {
 		fmt.Fprintln(os.Stderr, strings.Repeat("stderr-noise-", 32))
 	}
 
-	TestACPHelperProcess(nil)
+	scanner := bufio.NewScanner(os.Stdin)
+	for scanner.Scan() {
+		var req map[string]any
+		if err := json.Unmarshal(scanner.Bytes(), &req); err != nil {
+			os.Exit(2)
+		}
+		id := int64(req["id"].(float64))
+		method := req["method"].(string)
+		switch method {
+		case "initialize":
+			respond(id, map[string]any{
+				"protocolVersion": "0.1.0",
+				"capabilities": map[string]any{
+					"sessionUpdates": true,
+				},
+			})
+		case "session/new":
+			respond(id, map[string]any{
+				"sessionId": "session-1",
+			})
+		case "session/prompt":
+			notify("session/update", map[string]any{
+				"sessionId": "session-1",
+				"kind":      "message",
+				"role":      "assistant",
+				"content":   "Validating in progress",
+			})
+			respond(id, map[string]any{
+				"status":  "completed",
+				"summary": "Validation completed in bootstrap mode.",
+			})
+		default:
+			respondError(id, -32601, "method not found")
+		}
+	}
+	os.Exit(0)
 }
 
 func TestPromptRoundTripHandlesLargeEvents(t *testing.T) {

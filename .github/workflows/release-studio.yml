@@ -55,7 +55,10 @@ jobs:
       - name: Build bundled asc helper
         run: |
           mkdir -p apps/studio/bin
-          go build -o apps/studio/bin/asc .
+          GOOS=darwin GOARCH=arm64 go build -o apps/studio/bin/asc-arm64 .
+          GOOS=darwin GOARCH=amd64 go build -o apps/studio/bin/asc-amd64 .
+          lipo -create -output apps/studio/bin/asc apps/studio/bin/asc-arm64 apps/studio/bin/asc-amd64
+          chmod +x apps/studio/bin/asc
 
       - name: Build ASC Studio app
         working-directory: apps/studio
