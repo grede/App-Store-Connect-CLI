@@ -398,7 +398,24 @@ def deprecation_replacement(help_text: str) -> str | None:
     return None
 
 
-def validate_example(example: Example, index: dict[tuple[str, ...], CommandSpec]) -> list[str]:
+def hidden_deprecated_alias_replacement(binary_path: Path, example: Example) -> str | None:
+    return deprecation_replacement(example_help(binary_path, example.tokens))
+
+
+def token_command_path(tokens: tuple[str, ...]) -> tuple[str, ...]:
+    path: list[str] = []
+    for token in tokens[1:]:
+        if token == "--help" or token.startswith("--"):
+            break
+        path.append(token)
+    return tuple(path)
+
+
+def validate_example(
+    example: Example,
+    index: dict[tuple[str, ...], CommandSpec],
+    binary_path: Path | None = None,
+) -> list[str]:
     errors: list[str] = []
     root = index[()]
     tokens = example.tokens
@@ -432,6 +449,8 @@ def validate_example(example: Example, index: dict[tuple[str, ...], CommandSpec]
                 return errors
             pending_root_flag = flag if "=" not in token and not root.flags[flag] else None
             continue
+        if binary_path is not None and hidden_deprecated_alias_replacement(binary_path, example) is not None:
+            return errors
         errors.append(
             f"{example.path.relative_to(example.path.parents[1])}:{example.line_number}: "
             f"could not resolve top-level command in {example.raw!r}"
@@ -465,6 +484,8 @@ def validate_example(example: Example, index: dict[tuple[str, ...], CommandSpec]
         i += 1
 
     if i < len(tokens) and current.subcommands and not tokens[i].startswith("--"):
+        if binary_path is not None and hidden_deprecated_alias_replacement(binary_path, example) is not None:
+            return errors
         errors.append(
             f"{example.path.relative_to(example.path.parents[1])}:{example.line_number}: "
             f"unknown subcommand {tokens[i]!r} for {' '.join(current.path)!r} in {example.raw!r}"
@@ -566,9 +587,15 @@ def tokens_are_root_only_invocation(
     return not pending_value
 
 
-def validate_not_deprecated(example: Example, binary_path: Path) -> list[str]:
-    replacement = deprecation_replacement(example_help(binary_path, example.tokens))
+def validate_not_deprecated(
+    example: Example,
+    binary_path: Path,
+    index: dict[tuple[str, ...], CommandSpec],
+) -> list[str]:
+    replacement = hidden_deprecated_alias_replacement(binary_path, example)
     if replacement is None:
+        return []
+    if token_command_path(example.tokens) not in index:
         return []
     return [
         f"{example.path.relative_to(example.path.parents[1])}:{example.line_number}: "
@@ -588,13 +615,13 @@ def collect_errors(
         if key in seen:
             continue
         seen.add(key)
-        example_errors = validate_example(example, index)
+        example_errors = validate_example(example, index, binary_path)
         errors.extend(example_errors)
         if example_errors or binary_path is None:
             continue
         if example.source != "fenced":
             continue
-        errors.extend(validate_not_deprecated(example, binary_path))
+        errors.extend(validate_not_deprecated(example, binary_path, index))
     return errors
 
 
