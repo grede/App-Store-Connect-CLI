@@ -1609,7 +1609,7 @@ textarea {
   display: flex;
   gap: 6px;
   padding: 8px 20px 12px;
-  justify-content: center;
+  justify-content: flex-start;
   flex-shrink: 0;
 }
 
