@@ -7,13 +7,13 @@ linters:
   enable:
     # Baseline "industry standard" Go checks.
     - govet
-    - staticcheck
     - errcheck
     - ineffassign
-    - unused
     - misspell
-    - unparam
     - errorlint
+    - staticcheck
+    - unused
+    - unparam
 linters-settings:
   errcheck:
     # These are intentionally ignored across the codebase:

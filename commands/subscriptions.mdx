@@ -434,6 +434,14 @@ asc subscriptions offers introductory create \
   --offer-mode FREE_TRIAL \
   --number-of-periods 1
 
+# Import introductory offers from CSV
+asc subscriptions offers introductory import \
+  --subscription-id "SUB_ID" \
+  --input "./offers.csv" \
+  --offer-duration ONE_WEEK \
+  --offer-mode FREE_TRIAL \
+  --number-of-periods 1
+
 # Update offer
 asc subscriptions offers introductory update \
   --id "OFFER_ID" \
@@ -444,6 +452,14 @@ asc subscriptions offers introductory delete \
   --id "OFFER_ID" \
   --confirm
 ```
+
+**CSV format:**
+
+* Required column: `territory`
+* Optional columns: `offer_mode`, `offer_duration`, `number_of_periods`, `start_date`, `end_date`, `price_point_id`
+* Header alias: `price_point` -> `price_point_id`
+* Territory values may be 3-letter ASC IDs, 2-letter country codes, or English territory names
+* Row values override command-level defaults, so a territory-only CSV can inherit a shared offer shape from flags
 
 **Offer Types:**
 
