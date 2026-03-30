@@ -3125,12 +3125,14 @@ func TestPrintSubmissionErrorHintsUsesAssociatedErrorsForSubmissionStateConflict
 		"Hint: Check the active submission: asc submit status --id active-submission-1",
 		"Hint: Inspect the active submission payload: asc review submissions-get --id active-submission-1",
 		"Hint: Re-run readiness validation: asc validate --app app-1 --version-id version-1",
-		"Hint: Re-run submit preflight: asc submit preflight --app app-1 --version 1.0 --platform MAC_OS",
 		"Hint: Review the release dashboard: asc status --app app-1 --include submission,appstore,review",
 	} {
 		if !strings.Contains(stderr, want) {
 			t.Fatalf("expected hint %q in stderr, got %q", want, stderr)
 		}
+	}
+	if strings.Contains(stderr, "Hint: Re-run readiness validation: asc validate --app app-1 --version 1.0 --platform MAC_OS") {
+		t.Fatalf("did not expect duplicate version-string readiness hint, got %q", stderr)
 	}
 }
 

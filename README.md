@@ -217,6 +217,7 @@ asc status --app "123456789" --watch
 Lower-level alternatives (for scripting or partial workflows):
 
 ```bash
+# Canonical readiness check (preferred over deprecated `asc submit preflight`)
 asc validate --app "123456789" --version "1.2.3"
 asc submit create --app "123456789" --version "1.2.3" --build "BUILD_ID" --confirm
 ```

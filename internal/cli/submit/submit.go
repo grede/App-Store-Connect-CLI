@@ -315,10 +315,11 @@ func submitCreateReadinessBuild(ctx context.Context, client *asc.Client, buildID
 
 	attrs := buildResp.Data.Attributes
 	return &validation.Build{
-		ID:              strings.TrimSpace(buildResp.Data.ID),
-		Version:         attrs.Version,
-		ProcessingState: attrs.ProcessingState,
-		Expired:         attrs.Expired,
+		ID:                      strings.TrimSpace(buildResp.Data.ID),
+		Version:                 attrs.Version,
+		ProcessingState:         attrs.ProcessingState,
+		Expired:                 attrs.Expired,
+		UsesNonExemptEncryption: attrs.UsesNonExemptEncryption,
 	}, nil
 }
 
@@ -1720,9 +1721,8 @@ func printSubmissionErrorHints(err error, ctx submissionErrorHintContext) {
 	if signals.versionNotReady {
 		if strings.TrimSpace(ctx.AppID) != "" && strings.TrimSpace(ctx.VersionID) != "" {
 			hints = appendUniqueHints(hints, fmt.Sprintf("Re-run readiness validation: asc validate --app %s --version-id %s", ctx.AppID, ctx.VersionID))
-		}
-		if strings.TrimSpace(ctx.AppID) != "" && strings.TrimSpace(ctx.VersionString) != "" {
-			preflightHint := fmt.Sprintf("Re-run submit preflight: asc submit preflight --app %s --version %s", ctx.AppID, ctx.VersionString)
+		} else if strings.TrimSpace(ctx.AppID) != "" && strings.TrimSpace(ctx.VersionString) != "" {
+			preflightHint := fmt.Sprintf("Re-run readiness validation: asc validate --app %s --version %s", ctx.AppID, ctx.VersionString)
 			if strings.TrimSpace(ctx.Platform) != "" {
 				preflightHint = fmt.Sprintf("%s --platform %s", preflightHint, strings.TrimSpace(ctx.Platform))
 			}
