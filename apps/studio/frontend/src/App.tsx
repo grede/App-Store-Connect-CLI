@@ -83,6 +83,11 @@ const scopes: Scope[] = [
         label: "Platform",
         items: [
           { id: "game-center", label: "Game Center", description: "Game Center resources" },
+          { id: "app-clips", label: "App Clips", description: "App Clip experiences" },
+          { id: "android-ios-mapping", label: "Android to iOS", description: "Android app mapping" },
+          { id: "marketplace", label: "Marketplace", description: "Marketplace search" },
+          { id: "alt-distribution", label: "Alternative Distribution", description: "Alt distribution keys" },
+          { id: "routing-coverage", label: "Routing Coverage", description: "Routing app coverage" },
         ],
       },
     ],
@@ -165,6 +170,11 @@ const sectionCommands: Record<string, string> = {
   "pre-orders": "pre-orders view --app APP_ID --output json",
   "app-tags": "app-tags list --app APP_ID --output json",
   "app-setup": "app-setup info list --app APP_ID --output json",
+  "app-clips": "app-clips list --app APP_ID --output json",
+  "android-ios-mapping": "android-ios-mapping list --app APP_ID --output json",
+  "marketplace": "marketplace search-details view --app APP_ID --output json",
+  "alt-distribution": "alternative-distribution domains list --output json",
+  "routing-coverage": "routing-coverage list --app APP_ID --output json",
 };
 
 // Human-readable field labels for known attribute keys
