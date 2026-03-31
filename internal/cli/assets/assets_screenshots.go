@@ -861,7 +861,7 @@ func uploadScreenshotsWithConfig[T any](ctx context.Context, cfg screenshotUploa
 	}
 	reqCancel()
 	if err != nil {
-		return asc.AppScreenshotUploadResult{}, err
+		return zero, err
 	}
 
 	existingScreenshots := make([]asc.Resource[asc.AppScreenshotAttributes], 0)
