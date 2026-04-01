@@ -364,7 +364,7 @@ func TestEnsureSessionSingleFlightsConcurrentCalls(t *testing.T) {
 		threads:      threads.NewStore(tmp),
 		approvals:    approvals.NewQueue(),
 		sessions:     make(map[string]*threadSession),
-		sessionInits: make(map[string]chan struct{}),
+		sessionInits: make(map[string]*sessionInit),
 		startAgent: func(context.Context, acp.LaunchSpec) (agentClient, error) {
 			startCalls.Add(1)
 			return &fakeAgentClient{
@@ -448,7 +448,7 @@ func TestEnsureSessionRecoversAfterPanicDuringInitialization(t *testing.T) {
 		threads:      threads.NewStore(tmp),
 		approvals:    approvals.NewQueue(),
 		sessions:     make(map[string]*threadSession),
-		sessionInits: make(map[string]chan struct{}),
+		sessionInits: make(map[string]*sessionInit),
 		startAgent: func(context.Context, acp.LaunchSpec) (agentClient, error) {
 			if startCalls.Add(1) == 1 {
 				panic("boom")
@@ -495,6 +495,112 @@ func TestEnsureSessionRecoversAfterPanicDuringInitialization(t *testing.T) {
 	}
 }
 
+func TestEnsureSessionSharesInitErrorWithConcurrentWaiters(t *testing.T) {
+	tmp := t.TempDir()
+	settingsStore := settings.NewStore(tmp)
+	if err := settingsStore.Save(settings.StudioSettings{
+		AgentCommand:     "fake-agent",
+		WorkspaceRoot:    "/tmp/workspace",
+		PreferBundledASC: true,
+	}); err != nil {
+		t.Fatalf("Save() error = %v", err)
+	}
+
+	started := make(chan struct{}, 1)
+	release := make(chan struct{})
+
+	var startCalls atomic.Int32
+	app := &App{
+		rootDir:      tmp,
+		settings:     settingsStore,
+		threads:      threads.NewStore(tmp),
+		approvals:    approvals.NewQueue(),
+		sessions:     make(map[string]*threadSession),
+		sessionInits: make(map[string]*sessionInit),
+		startAgent: func(context.Context, acp.LaunchSpec) (agentClient, error) {
+			call := startCalls.Add(1)
+			return &fakeAgentClient{
+				bootstrapFn: func(context.Context, acp.SessionConfig) (string, error) {
+					if call == 1 {
+						select {
+						case started <- struct{}{}:
+						default:
+						}
+						<-release
+						return "", errors.New("bootstrap failed")
+					}
+					return "session-2", nil
+				},
+			}, nil
+		},
+	}
+
+	thread := threads.Thread{ID: "thread-error"}
+	errCh := make(chan error, 2)
+
+	go func() {
+		_, err := app.ensureSession(thread)
+		errCh <- err
+	}()
+
+	select {
+	case <-started:
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for first agent bootstrap")
+	}
+
+	go func() {
+		_, err := app.ensureSession(thread)
+		errCh <- err
+	}()
+
+	deadline := time.Now().Add(2 * time.Second)
+	for {
+		app.mu.Lock()
+		init := app.sessionInits[thread.ID]
+		waiters := 0
+		if init != nil {
+			waiters = init.waiters
+		}
+		app.mu.Unlock()
+		if waiters == 1 {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("timed out waiting for concurrent ensureSession waiter")
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	close(release)
+
+	for range 2 {
+		select {
+		case err := <-errCh:
+			if err == nil || err.Error() != "bootstrap failed" {
+				t.Fatalf("ensureSession() error = %v, want bootstrap failed", err)
+			}
+		case <-time.After(2 * time.Second):
+			t.Fatal("timed out waiting for ensureSession error")
+		}
+	}
+
+	if got := startCalls.Load(); got != 1 {
+		t.Fatalf("startCalls after shared error = %d, want 1", got)
+	}
+
+	session, err := app.ensureSession(thread)
+	if err != nil {
+		t.Fatalf("ensureSession() retry error = %v", err)
+	}
+	if session == nil {
+		t.Fatal("ensureSession() retry returned nil session")
+	}
+	if got := startCalls.Load(); got != 2 {
+		t.Fatalf("startCalls after retry = %d, want 2", got)
+	}
+}
+
 func TestStartThreadSessionTimesOutBootstrap(t *testing.T) {
 	tmp := t.TempDir()
 	settingsStore := settings.NewStore(tmp)
@@ -525,7 +631,7 @@ func TestStartThreadSessionTimesOutBootstrap(t *testing.T) {
 		threads:      threads.NewStore(tmp),
 		approvals:    approvals.NewQueue(),
 		sessions:     make(map[string]*threadSession),
-		sessionInits: make(map[string]chan struct{}),
+		sessionInits: make(map[string]*sessionInit),
 		startAgent: func(context.Context, acp.LaunchSpec) (agentClient, error) {
 			return client, nil
 		},

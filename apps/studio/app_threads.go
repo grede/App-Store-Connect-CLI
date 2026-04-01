@@ -178,33 +178,86 @@ func (a *App) ensureSession(thread threads.Thread) (*threadSession, error) {
 			a.mu.Unlock()
 			return existing, nil
 		}
-		if waitCh, ok := a.sessionInits[thread.ID]; ok {
+		if init, ok := a.sessionInits[thread.ID]; ok {
+			if init.err != nil || init.panicValue != nil {
+				panicValue := init.panicValue
+				err := init.err
+				if init.waiters == 0 {
+					delete(a.sessionInits, thread.ID)
+				}
+				a.mu.Unlock()
+				if panicValue != nil {
+					panic(panicValue)
+				}
+				return nil, err
+			}
+
+			init.waiters++
+			done := init.done
 			a.mu.Unlock()
-			<-waitCh
+			<-done
+
+			a.mu.Lock()
+			current := a.sessionInits[thread.ID]
+			if current == init {
+				panicValue := init.panicValue
+				err := init.err
+				if init.waiters > 0 {
+					init.waiters--
+				}
+				if init.waiters == 0 {
+					delete(a.sessionInits, thread.ID)
+				}
+				a.mu.Unlock()
+				if panicValue != nil {
+					panic(panicValue)
+				}
+				if err != nil {
+					return nil, err
+				}
+			} else {
+				a.mu.Unlock()
+			}
 			continue
 		}
 
-		waitCh := make(chan struct{})
-		a.sessionInits[thread.ID] = waitCh
+		init := &sessionInit{done: make(chan struct{})}
+		a.sessionInits[thread.ID] = init
 		a.mu.Unlock()
 
-		session, err := func() (session *threadSession, err error) {
+		var (
+			session    *threadSession
+			err        error
+			panicValue any
+		)
+		func() {
 			defer func() {
-				a.mu.Lock()
-				delete(a.sessionInits, thread.ID)
-				if err == nil && session != nil {
-					a.sessions[thread.ID] = session
-				}
-				close(waitCh)
-				a.mu.Unlock()
-
 				if recovered := recover(); recovered != nil {
-					panic(recovered)
+					panicValue = recovered
 				}
 			}()
-
-			return a.startThreadSession(thread)
+			session, err = a.startThreadSession(thread)
 		}()
+
+		a.mu.Lock()
+		if current := a.sessionInits[thread.ID]; current == init {
+			if err == nil && panicValue == nil && session != nil {
+				a.sessions[thread.ID] = session
+				delete(a.sessionInits, thread.ID)
+			} else {
+				init.err = err
+				init.panicValue = panicValue
+				if init.waiters == 0 {
+					delete(a.sessionInits, thread.ID)
+				}
+			}
+			close(init.done)
+		}
+		a.mu.Unlock()
+
+		if panicValue != nil {
+			panic(panicValue)
+		}
 		if err != nil {
 			return nil, err
 		}

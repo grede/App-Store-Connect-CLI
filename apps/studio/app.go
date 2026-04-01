@@ -24,7 +24,7 @@ type App struct {
 
 	mu           sync.Mutex
 	sessions     map[string]*threadSession
-	sessionInits map[string]chan struct{}
+	sessionInits map[string]*sessionInit
 	startAgent   func(context.Context, acp.LaunchSpec) (agentClient, error)
 
 	// Cached auth credentials — read once from config on startup, immune to wipes
@@ -93,6 +93,13 @@ type threadSession struct {
 	sessionID string
 }
 
+type sessionInit struct {
+	done       chan struct{}
+	waiters    int
+	err        error
+	panicValue any
+}
+
 type agentClient interface {
 	Bootstrap(context.Context, acp.SessionConfig) (string, error)
 	Prompt(context.Context, string, string) (acp.PromptResult, []acp.Event, error)
@@ -112,7 +119,7 @@ func NewApp() (*App, error) {
 		approvals:    approvals.NewQueue(),
 		environment:  environment.NewService(),
 		sessions:     make(map[string]*threadSession),
-		sessionInits: make(map[string]chan struct{}),
+		sessionInits: make(map[string]*sessionInit),
 		startAgent:   startACPClient,
 	}, nil
 }
