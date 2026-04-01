@@ -551,14 +551,14 @@ func buildSuggestedCommands(signals migrationSignals, resolver MigrationSuggesti
 	}
 
 	hasAuthSignal := containsAction(signals.detectedActions, "app_store_connect_api_key")
-	hasMetadataSignal := len(signals.appfiles) > 0 || len(signals.deliverfiles) > 0 || containsAction(signals.detectedActions, "deliver")
+	hasMetadataSignal := len(signals.deliverfiles) > 0 || containsAction(signals.detectedActions, "deliver")
 	hasBuildSignal := containsAction(signals.detectedActions, "app_store_build_number") ||
 		containsAction(signals.detectedActions, "latest_testflight_build_number")
 	hasTestflightSignal := containsAction(signals.detectedActions, "upload_to_testflight") || containsAction(signals.detectedActions, "pilot")
 	hasAppStoreSignal := containsAction(signals.detectedActions, "upload_to_app_store") || containsAction(signals.detectedActions, "precheck")
 	needsAppID := hasMetadataSignal || hasBuildSignal || hasTestflightSignal || hasAppStoreSignal
 	needsVersionString := hasAppStoreSignal
-	needsVersionID := hasMetadataSignal
+	needsVersionID := hasMetadataSignal || hasAppStoreSignal
 	needsBuildID := hasAppStoreSignal
 	values := resolveMigrationCommandValues(signals, resolver, needsAppID, needsVersionString, needsVersionID, needsBuildID)
 	values = fallbackMigrationCommandValues(values)
@@ -578,7 +578,13 @@ func buildSuggestedCommands(signals migrationSignals, resolver MigrationSuggesti
 		add(fmt.Sprintf(`asc publish testflight --app %q --ipa app.ipa --group "GROUP_ID"`, values.appID))
 	}
 	if hasAppStoreSignal {
-		add(fmt.Sprintf(`asc release run --app %q --version %q --build %q --metadata-dir "./metadata/version/%s" --confirm`, values.appID, values.versionString, values.buildID, values.versionString))
+		if hasMetadataSignal {
+			metadataDir := fmt.Sprintf("./metadata/version/%s", values.versionString)
+			add(fmt.Sprintf(`asc release run --app %q --version %q --build %q --metadata-dir %q --confirm`, values.appID, values.versionString, values.buildID, metadataDir))
+		} else {
+			add(fmt.Sprintf(`asc versions create --app %q --version %q`, values.appID, values.versionString))
+			add(fmt.Sprintf(`asc versions attach-build --version-id %q --build %q`, values.versionID, values.buildID))
+		}
 		add(fmt.Sprintf(`asc validate --app %q --version %q`, values.appID, values.versionString))
 	}
 

@@ -373,6 +373,9 @@ func TestDoctorMigrationHintsPrefillsVersionFromXcodeAndAppID(t *testing.T) {
 	if err := os.MkdirAll(fastlaneDir, 0o755); err != nil {
 		t.Fatalf("mkdir fastlane error: %v", err)
 	}
+	if err := os.WriteFile(filepath.Join(fastlaneDir, "Appfile"), []byte(`app_identifier "com.example.app"`), 0o644); err != nil {
+		t.Fatalf("write Appfile error: %v", err)
+	}
 	if err := os.WriteFile(filepath.Join(fastlaneDir, "Fastfile"), []byte("upload_to_app_store\napp_store_build_number\n"), 0o644); err != nil {
 		t.Fatalf("write Fastfile error: %v", err)
 	}
@@ -418,11 +421,23 @@ func TestDoctorMigrationHintsPrefillsVersionFromXcodeAndAppID(t *testing.T) {
 	if !sliceContains(report.Migration.SuggestedCommands, `asc builds info --app "123456789" --latest`) {
 		t.Fatalf("expected personalized app id in builds info latest suggestion, got %#v", report.Migration.SuggestedCommands)
 	}
-	if !sliceContains(report.Migration.SuggestedCommands, `asc release run --app "123456789" --version "2.3.4" --build "BUILD_ID" --metadata-dir "./metadata/version/2.3.4" --confirm`) {
-		t.Fatalf("expected personalized release command, got %#v", report.Migration.SuggestedCommands)
+	if sliceContains(report.Migration.SuggestedCommands, `asc release run --app "123456789" --version "2.3.4" --build "BUILD_ID" --metadata-dir "./metadata/version/2.3.4" --confirm`) {
+		t.Fatalf("expected upload-only migration hints to avoid non-actionable release run guidance, got %#v", report.Migration.SuggestedCommands)
 	}
 	if !sliceContains(report.Migration.SuggestedCommands, `asc validate --app "123456789" --version "2.3.4"`) {
-		t.Fatalf("expected personalized readiness validation command, got %#v", report.Migration.SuggestedCommands)
+		t.Fatalf("expected personalized validate command, got %#v", report.Migration.SuggestedCommands)
+	}
+	if !sliceContains(report.Migration.SuggestedCommands, `asc versions create --app "123456789" --version "2.3.4"`) {
+		t.Fatalf("expected personalized version create command, got %#v", report.Migration.SuggestedCommands)
+	}
+	if !sliceContains(report.Migration.SuggestedCommands, `asc versions attach-build --version-id "VERSION_ID" --build "BUILD_ID"`) {
+		t.Fatalf("expected personalized attach-build command, got %#v", report.Migration.SuggestedCommands)
+	}
+	if sliceContains(report.Migration.SuggestedCommands, `asc submit create --app "123456789" --version "2.3.4" --build "BUILD_ID" --confirm`) {
+		t.Fatalf("expected upload-only migration hints to avoid deprecated submit create guidance, got %#v", report.Migration.SuggestedCommands)
+	}
+	if sliceContains(report.Migration.SuggestedCommands, `asc submit preflight --app "123456789" --version "2.3.4"`) {
+		t.Fatalf("expected upload-only migration hints to avoid deprecated submit preflight guidance, got %#v", report.Migration.SuggestedCommands)
 	}
 }
 
@@ -492,6 +507,20 @@ func TestDoctorMigrationHintsUsesResolvedIDsWhenLookupSucceeds(t *testing.T) {
 	}
 	if !sliceContains(report.Migration.SuggestedCommands, `asc release run --app "987654321" --version "4.5.6" --build "build-id-456" --metadata-dir "./metadata/version/4.5.6" --confirm`) {
 		t.Fatalf("expected personalized release command with resolved build ID, got %#v", report.Migration.SuggestedCommands)
+	}
+}
+
+func TestBuildSuggestedCommandsQuotesDerivedMetadataDir(t *testing.T) {
+	t.Setenv("ASC_APP_ID", "")
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "config.json"))
+
+	commands := buildSuggestedCommands(migrationSignals{
+		detectedActions:  []string{"deliver", "upload_to_app_store"},
+		marketingVersion: `1.2.3 beta "1"`,
+	}, nil)
+
+	if !sliceContains(commands, `asc release run --app "APP_ID" --version "1.2.3 beta \"1\"" --build "BUILD_ID" --metadata-dir "./metadata/version/1.2.3 beta \"1\"" --confirm`) {
+		t.Fatalf("expected quoted metadata-dir derived from version string, got %#v", commands)
 	}
 }
 
