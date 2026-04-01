@@ -526,6 +526,65 @@ USAGE
             errors = check_website_commands.collect_errors(website, index)
             self.assertEqual(errors, [])
 
+    def test_website_command_checks_reject_deprecated_inline_alias_examples(self) -> None:
+        index = {
+            (): check_website_commands.CommandSpec(
+                path=(),
+                usage="asc <subcommand> [flags]",
+                flags={},
+                subcommands={"submit"},
+            ),
+            ("submit",): check_website_commands.CommandSpec(
+                path=("submit",),
+                usage="asc submit <subcommand> [flags]",
+                flags={},
+                subcommands={"status", "cancel"},
+            ),
+        }
+
+        original_hidden_alias = check_website_commands.hidden_deprecated_alias_replacement
+        self.addCleanup(
+            setattr,
+            check_website_commands,
+            "hidden_deprecated_alias_replacement",
+            original_hidden_alias,
+        )
+        check_website_commands.hidden_deprecated_alias_replacement = (
+            lambda _binary_path, _example, _root_flags: "asc publish appstore --submit"
+        )
+        original_path_help = check_website_commands.path_help
+        self.addCleanup(
+            setattr,
+            check_website_commands,
+            "path_help",
+            original_path_help,
+        )
+        check_website_commands.path_help = (
+            lambda _binary_path, path: (
+                "DESCRIPTION\n"
+                "  DEPRECATED: use `asc publish appstore --submit`.\n\n"
+                "USAGE\n"
+                "  asc submit create [flags]\n"
+            )
+            if path == ("submit", "create")
+            else ""
+        )
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            website = Path(tmpdir)
+            (website / "index.mdx").write_text(
+                "Use `asc submit create --app 123456789 --version-id version-123 --build 42 --confirm` to submit.\n"
+            )
+            errors = check_website_commands.collect_errors(
+                website,
+                index,
+                Path(tmpdir) / "asc-doc-check",
+            )
+
+        self.assertEqual(len(errors), 1)
+        self.assertIn("deprecated alias", errors[0])
+        self.assertIn("asc publish appstore --submit", errors[0])
+
     def test_website_command_checks_ignore_ellipsis_inline_references(self) -> None:
         index = {
             (): check_website_commands.CommandSpec(

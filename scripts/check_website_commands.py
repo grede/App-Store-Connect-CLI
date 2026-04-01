@@ -697,8 +697,6 @@ def collect_errors(
         errors.extend(example_errors)
         if example_errors or binary_path is None:
             continue
-        if example.source != "fenced":
-            continue
         errors.extend(validate_not_deprecated(example, binary_path, index[()].flags))
     return errors
 
