@@ -51,5 +51,4 @@ worktrees/
 
 # ASC Studio generated artifacts
 /apps/studio/build/bin/
-/apps/studio/build/darwin/Info.dev.plist
 /apps/studio/frontend/package.json.md5
