@@ -18,9 +18,9 @@ func setupStableSelectorAuth(t *testing.T) {
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 }
 
-func selectorJSONResponse(status int, body string) *http.Response {
+func selectorJSONResponse(body string) *http.Response {
 	return &http.Response{
-		StatusCode: status,
+		StatusCode: http.StatusOK,
 		Body:       io.NopCloser(strings.NewReader(body)),
 		Header:     http.Header{"Content-Type": []string{"application/json"}},
 	}
@@ -41,9 +41,9 @@ func TestIAPContentGetResolvesStableSelectorViaASCAppID(t *testing.T) {
 			if req.URL.Query().Get("filter[productId]") != "com.example.pro" {
 				t.Fatalf("expected product filter on lookup request, got %q", req.URL.Query().Get("filter[productId]"))
 			}
-			return selectorJSONResponse(http.StatusOK, `{"data":[{"type":"inAppPurchases","id":"iap-1","attributes":{"name":"Pro","productId":"com.example.pro","inAppPurchaseType":"CONSUMABLE"}}]}`), nil
+			return selectorJSONResponse(`{"data":[{"type":"inAppPurchases","id":"iap-1","attributes":{"name":"Pro","productId":"com.example.pro","inAppPurchaseType":"CONSUMABLE"}}]}`), nil
 		case "/v2/inAppPurchases/iap-1/content":
-			return selectorJSONResponse(http.StatusOK, `{"data":{"type":"inAppPurchaseContents","id":"content-1"}}`), nil
+			return selectorJSONResponse(`{"data":{"type":"inAppPurchaseContents","id":"content-1"}}`), nil
 		default:
 			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
 			return nil, nil
@@ -86,14 +86,14 @@ func TestSubscriptionReviewScreenshotGetResolvesStableSelectorWithAppFlag(t *tes
 		requests++
 		switch req.URL.Path {
 		case "/v1/apps/app-1/subscriptionGroups":
-			return selectorJSONResponse(http.StatusOK, `{"data":[{"type":"subscriptionGroups","id":"group-1","attributes":{"referenceName":"Premium"}}]}`), nil
+			return selectorJSONResponse(`{"data":[{"type":"subscriptionGroups","id":"group-1","attributes":{"referenceName":"Premium"}}]}`), nil
 		case "/v1/subscriptionGroups/group-1/subscriptions":
 			if req.URL.Query().Get("filter[productId]") != "com.example.monthly" {
 				t.Fatalf("expected product filter on lookup request, got %q", req.URL.Query().Get("filter[productId]"))
 			}
-			return selectorJSONResponse(http.StatusOK, `{"data":[{"type":"subscriptions","id":"sub-1","attributes":{"name":"Monthly","productId":"com.example.monthly"}}]}`), nil
+			return selectorJSONResponse(`{"data":[{"type":"subscriptions","id":"sub-1","attributes":{"name":"Monthly","productId":"com.example.monthly"}}]}`), nil
 		case "/v1/subscriptions/sub-1/appStoreReviewScreenshot":
-			return selectorJSONResponse(http.StatusOK, `{"data":{"type":"subscriptionAppStoreReviewScreenshots","id":"shot-1"}}`), nil
+			return selectorJSONResponse(`{"data":{"type":"subscriptionAppStoreReviewScreenshots","id":"shot-1"}}`), nil
 		default:
 			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
 			return nil, nil
@@ -143,7 +143,7 @@ func TestIAPOfferCodesCreateStopsBeforeMutationWhenLookupFails(t *testing.T) {
 		if req.URL.Path != "/v1/apps/app-1/inAppPurchasesV2" {
 			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
 		}
-		return selectorJSONResponse(http.StatusOK, `{"data":[]}`), nil
+		return selectorJSONResponse(`{"data":[]}`), nil
 	})
 
 	_, _, runErr := runRootCommand(t, []string{
@@ -178,9 +178,9 @@ func TestSubscriptionsOfferCodesCreateStopsBeforeMutationWhenLookupFails(t *test
 		}
 		switch req.URL.Path {
 		case "/v1/apps/app-1/subscriptionGroups":
-			return selectorJSONResponse(http.StatusOK, `{"data":[{"type":"subscriptionGroups","id":"group-1","attributes":{"referenceName":"Premium"}}]}`), nil
+			return selectorJSONResponse(`{"data":[{"type":"subscriptionGroups","id":"group-1","attributes":{"referenceName":"Premium"}}]}`), nil
 		case "/v1/subscriptionGroups/group-1/subscriptions":
-			return selectorJSONResponse(http.StatusOK, `{"data":[]}`), nil
+			return selectorJSONResponse(`{"data":[]}`), nil
 		default:
 			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
 			return nil, nil
@@ -221,14 +221,14 @@ func TestWinBackOffersLinksResolvesStableSelector(t *testing.T) {
 		requests++
 		switch req.URL.Path {
 		case "/v1/apps/app-1/subscriptionGroups":
-			return selectorJSONResponse(http.StatusOK, `{"data":[{"type":"subscriptionGroups","id":"group-1","attributes":{"referenceName":"Premium"}}]}`), nil
+			return selectorJSONResponse(`{"data":[{"type":"subscriptionGroups","id":"group-1","attributes":{"referenceName":"Premium"}}]}`), nil
 		case "/v1/subscriptionGroups/group-1/subscriptions":
 			if req.URL.Query().Get("filter[productId]") != "com.example.monthly" {
 				t.Fatalf("expected product filter on lookup request, got %q", req.URL.Query().Get("filter[productId]"))
 			}
-			return selectorJSONResponse(http.StatusOK, `{"data":[{"type":"subscriptions","id":"sub-1","attributes":{"name":"Monthly","productId":"com.example.monthly"}}]}`), nil
+			return selectorJSONResponse(`{"data":[{"type":"subscriptions","id":"sub-1","attributes":{"name":"Monthly","productId":"com.example.monthly"}}]}`), nil
 		case "/v1/subscriptions/sub-1/relationships/winBackOffers":
-			return selectorJSONResponse(http.StatusOK, `{"data":[]}`), nil
+			return selectorJSONResponse(`{"data":[]}`), nil
 		default:
 			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
 			return nil, nil
@@ -288,7 +288,7 @@ func TestStableSelectorNextBypassesLookup(t *testing.T) {
 				if req.URL.Query().Get("cursor") != "abc" {
 					t.Fatalf("expected cursor query, got %q", req.URL.RawQuery)
 				}
-				return selectorJSONResponse(http.StatusOK, `{"data":[]}`), nil
+				return selectorJSONResponse(`{"data":[]}`), nil
 			})
 
 			stdout, stderr, runErr := runRootCommand(t, test.args)
@@ -354,7 +354,7 @@ func TestStableSelectorAlternateSelectorsBypassLookup(t *testing.T) {
 				if req.URL.Path != test.path {
 					t.Fatalf("expected direct resource request to %s, got %s", test.path, req.URL.Path)
 				}
-				return selectorJSONResponse(http.StatusOK, test.body), nil
+				return selectorJSONResponse(test.body), nil
 			})
 
 			_, stderr, runErr := runRootCommand(t, test.args)

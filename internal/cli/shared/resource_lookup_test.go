@@ -85,9 +85,9 @@ func (s *sequenceSubscriptionLookupStub) GetSubscriptions(_ context.Context, gro
 	return responses[idx], nil
 }
 
-func iapResponse(next string, items ...iapLookupFixture) *asc.InAppPurchasesV2Response {
+func iapResponse(items ...iapLookupFixture) *asc.InAppPurchasesV2Response {
 	resp := &asc.InAppPurchasesV2Response{
-		Links: asc.Links{Next: next},
+		Links: asc.Links{},
 		Data:  make([]asc.Resource[asc.InAppPurchaseV2Attributes], 0, len(items)),
 	}
 	for _, item := range items {
@@ -115,9 +115,9 @@ func subscriptionGroupsResponse(next string, groupIDs ...string) *asc.Subscripti
 	return resp
 }
 
-func subscriptionsResponse(next string, items ...subscriptionLookupFixture) *asc.SubscriptionsResponse {
+func subscriptionsResponse(items ...subscriptionLookupFixture) *asc.SubscriptionsResponse {
 	resp := &asc.SubscriptionsResponse{
-		Links: asc.Links{Next: next},
+		Links: asc.Links{},
 		Data:  make([]asc.Resource[asc.SubscriptionAttributes], 0, len(items)),
 	}
 	for _, item := range items {
@@ -170,7 +170,7 @@ func TestResolveIAPID_NumericPassthroughSkipsLookup(t *testing.T) {
 func TestResolveIAPID_ResolvesExactProductID(t *testing.T) {
 	stub := &sequenceIAPLookupStub{
 		responses: []*asc.InAppPurchasesV2Response{
-			iapResponse("", iapLookupFixture{id: "iap-1", productID: "com.example.pro", name: "Pro"}),
+			iapResponse(iapLookupFixture{id: "iap-1", productID: "com.example.pro", name: "Pro"}),
 		},
 	}
 
@@ -186,9 +186,9 @@ func TestResolveIAPID_ResolvesExactProductID(t *testing.T) {
 func TestResolveIAPID_FallsBackToFullScanForExactName(t *testing.T) {
 	stub := &sequenceIAPLookupStub{
 		responses: []*asc.InAppPurchasesV2Response{
-			iapResponse(""),
-			iapResponse("", iapLookupFixture{id: "iap-fuzzy", productID: "com.example.fuzzy", name: "Premium Plus"}),
-			iapResponse("", iapLookupFixture{id: "iap-exact", productID: "com.example.exact", name: "Premium"}),
+			iapResponse(),
+			iapResponse(iapLookupFixture{id: "iap-fuzzy", productID: "com.example.fuzzy", name: "Premium Plus"}),
+			iapResponse(iapLookupFixture{id: "iap-exact", productID: "com.example.exact", name: "Premium"}),
 		},
 	}
 
@@ -207,8 +207,8 @@ func TestResolveIAPID_FallsBackToFullScanForExactName(t *testing.T) {
 func TestResolveIAPID_AmbiguousExactNameFails(t *testing.T) {
 	stub := &sequenceIAPLookupStub{
 		responses: []*asc.InAppPurchasesV2Response{
-			iapResponse(""),
-			iapResponse("",
+			iapResponse(),
+			iapResponse(
 				iapLookupFixture{id: "iap-1", productID: "com.example.one", name: "Pro"},
 				iapLookupFixture{id: "iap-2", productID: "com.example.two", name: "Pro"},
 			),
@@ -219,7 +219,7 @@ func TestResolveIAPID_AmbiguousExactNameFails(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected ambiguous error")
 	}
-	if !strings.Contains(err.Error(), "Use the explicit ASC ID to disambiguate.") {
+	if !strings.Contains(err.Error(), "Use the explicit ASC ID to disambiguate") {
 		t.Fatalf("expected disambiguation guidance, got %v", err)
 	}
 }
@@ -230,8 +230,8 @@ func TestResolveSubscriptionID_DedupesAcrossGroups(t *testing.T) {
 			subscriptionGroupsResponse("", "group-1", "group-2"),
 		},
 		subscriptionResponses: map[string][]*asc.SubscriptionsResponse{
-			"group-1": {subscriptionsResponse("", subscriptionLookupFixture{id: "sub-1", productID: "com.example.monthly", name: "Monthly"})},
-			"group-2": {subscriptionsResponse("", subscriptionLookupFixture{id: "sub-1", productID: "com.example.monthly", name: "Monthly"})},
+			"group-1": {subscriptionsResponse(subscriptionLookupFixture{id: "sub-1", productID: "com.example.monthly", name: "Monthly"})},
+			"group-2": {subscriptionsResponse(subscriptionLookupFixture{id: "sub-1", productID: "com.example.monthly", name: "Monthly"})},
 		},
 	}
 
@@ -251,9 +251,9 @@ func TestResolveSubscriptionID_FallsBackToFullScanForExactName(t *testing.T) {
 		},
 		subscriptionResponses: map[string][]*asc.SubscriptionsResponse{
 			"group-1": {
-				subscriptionsResponse(""),
-				subscriptionsResponse("", subscriptionLookupFixture{id: "sub-fuzzy", productID: "com.example.plus", name: "Premium Plus"}),
-				subscriptionsResponse("", subscriptionLookupFixture{id: "sub-exact", productID: "com.example.premium", name: "Premium"}),
+				subscriptionsResponse(),
+				subscriptionsResponse(subscriptionLookupFixture{id: "sub-fuzzy", productID: "com.example.plus", name: "Premium Plus"}),
+				subscriptionsResponse(subscriptionLookupFixture{id: "sub-exact", productID: "com.example.premium", name: "Premium"}),
 			},
 		},
 	}

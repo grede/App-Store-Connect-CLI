@@ -262,7 +262,7 @@ func findReviewSubscription(subscriptions []webcore.ReviewSubscription, selector
 				Name:      strings.TrimSpace(match.Name),
 			})
 		}
-		return nil, fmt.Errorf("%q matches %d subscriptions by id:\n  %s\nUse the explicit ASC ID to disambiguate.", selector, len(idMatches), strings.Join(func() []string {
+		return nil, fmt.Errorf("%q matches %d subscriptions by id:\n  %s\nUse the explicit ASC ID to disambiguate", selector, len(idMatches), strings.Join(func() []string {
 			lines := make([]string, 0, len(candidates))
 			for _, candidate := range candidates {
 				lines = append(lines, fmt.Sprintf("%s, productId=%s, name=%s", candidate.ID, candidate.ProductID, candidate.Name))

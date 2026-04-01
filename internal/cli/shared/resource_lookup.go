@@ -391,7 +391,7 @@ func resolveUniqueSelectorCandidate(
 	case 1:
 		return matches[0], nil
 	default:
-		return ExactSelectorCandidate{}, fmt.Errorf("%s\nUse the explicit ASC ID to disambiguate.", formatAmbiguousSelectorError(resourceName, fieldName, selector, matches))
+		return ExactSelectorCandidate{}, fmt.Errorf("%s\nUse the explicit ASC ID to disambiguate", formatAmbiguousSelectorError(resourceName, fieldName, selector, matches))
 	}
 }
 
