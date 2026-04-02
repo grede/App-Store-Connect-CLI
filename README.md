@@ -1,4 +1,4 @@
-# Unofficial App Store Connect CLI
+# App Store Connect CLI and ASC Studio
 
 <p align="center">
   <a href="https://github.com/rudrankriyam/App-Store-Connect-CLI/releases/latest"><img src="https://img.shields.io/github/v/release/rudrankriyam/App-Store-Connect-CLI?style=for-the-badge&color=blue" alt="Latest Release"></a>
@@ -15,6 +15,8 @@
 
 A fast, lightweight, and scriptable CLI for the App Store Connect API.
 Automate iOS, macOS, tvOS, and visionOS release workflows from your terminal, IDE, or CI/CD pipeline.
+
+And ASC Studio, an App Store Connect client built on top of ASC CLI.
 
 ## Table of Contents
 
