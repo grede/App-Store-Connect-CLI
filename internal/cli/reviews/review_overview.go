@@ -467,7 +467,8 @@ func buildReviewStatusResult(snapshot reviewSnapshot) reviewStatusResult {
 	if strings.TrimSpace(snapshot.ReviewDetailID) == "" {
 		result.Blockers = append(result.Blockers, "No App Store review detail is configured for the current version")
 	}
-	if reviewSnapshotHasOnlyRemovedItems(snapshot) {
+	hasOnlyRemovedItems := reviewSnapshotHasOnlyRemovedItems(snapshot)
+	if hasOnlyRemovedItems {
 		result.Blockers = append(result.Blockers, staleReviewSubmissionBlocker())
 	}
 
@@ -486,11 +487,7 @@ func buildReviewStatusResult(snapshot reviewSnapshot) reviewStatusResult {
 		case "READY_FOR_REVIEW":
 			result.NextAction = "Submit the prepared review submission."
 		case "COMPLETE":
-			if reviewSnapshotHasOnlyRemovedItems(snapshot) {
-				result.NextAction = staleReviewSubmissionNextAction()
-			} else {
-				result.NextAction = reviewPostCompleteAction(snapshot.Version.State)
-			}
+			result.NextAction = reviewPostCompleteAction(snapshot.Version.State)
 		default:
 			result.NextAction = "Review the latest submission state in App Store Connect."
 		}
@@ -498,7 +495,7 @@ func buildReviewStatusResult(snapshot reviewSnapshot) reviewStatusResult {
 
 	if len(result.Blockers) > 0 {
 		switch {
-		case reviewSnapshotHasOnlyRemovedItems(snapshot):
+		case hasOnlyRemovedItems:
 			result.NextAction = staleReviewSubmissionNextAction()
 		case strings.Contains(result.Blockers[0], "review detail"):
 			result.NextAction = "Create or update the App Store review detail for the current version."
