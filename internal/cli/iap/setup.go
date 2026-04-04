@@ -10,6 +10,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/ascterritory"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
@@ -148,6 +149,13 @@ Examples:
 			if err != nil {
 				return shared.UsageError(err.Error())
 			}
+			baseTerritoryValue := strings.TrimSpace(*baseTerritory)
+			if baseTerritoryValue != "" {
+				baseTerritoryValue, err = ascterritory.Normalize(baseTerritoryValue)
+				if err != nil {
+					return shared.UsageError(err.Error())
+				}
+			}
 
 			opts := iapSetupOptions{
 				AppID:            shared.ResolveAppID(*appID),
@@ -157,7 +165,7 @@ Examples:
 				Locale:           strings.TrimSpace(*locale),
 				DisplayName:      displayNameValue,
 				Description:      strings.TrimSpace(*description),
-				BaseTerritory:    strings.ToUpper(strings.TrimSpace(*baseTerritory)),
+				BaseTerritory:    baseTerritoryValue,
 				PricePointID:     strings.TrimSpace(*pricePointID),
 				Tier:             *tier,
 				Price:            strings.TrimSpace(*price),
