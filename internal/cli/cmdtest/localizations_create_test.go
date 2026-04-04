@@ -110,6 +110,122 @@ func TestLocalizationsCreateSuccess(t *testing.T) {
 	}
 }
 
+func TestLocalizationsCreateWarnsForIncompleteCreate(t *testing.T) {
+	setupAuth(t)
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+
+	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		if req.Method != http.MethodPost || req.URL.Path != "/v1/appStoreVersionLocalizations" {
+			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
+		}
+
+		body := `{"data":{"type":"appStoreVersionLocalizations","id":"loc-3","attributes":{"locale":"ja","description":"Hello"}}}`
+		return &http.Response{
+			StatusCode: http.StatusCreated,
+			Body:       io.NopCloser(strings.NewReader(body)),
+			Header:     http.Header{"Content-Type": []string{"application/json"}},
+		}, nil
+	})
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{
+			"localizations", "create",
+			"--version", "version-1",
+			"--locale", "ja",
+			"--description", "Hello",
+		}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("run error: %v", err)
+		}
+	})
+
+	if !strings.Contains(stderr, "created locale ja now participates in submission validation") {
+		t.Fatalf("expected create warning on stderr, got %q", stderr)
+	}
+	if !strings.Contains(stderr, "keywords, supportUrl") {
+		t.Fatalf("expected missing fields in warning, got %q", stderr)
+	}
+
+	var out struct {
+		Data struct {
+			ID string `json:"id"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal([]byte(stdout), &out); err != nil {
+		t.Fatalf("stdout should be valid json: %v\nstdout=%q", err, stdout)
+	}
+	if out.Data.ID != "loc-3" {
+		t.Fatalf("expected localization id loc-3, got %q", out.Data.ID)
+	}
+}
+
+func TestLocalizationsCreateCompleteCreateDoesNotWarn(t *testing.T) {
+	setupAuth(t)
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+
+	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		if req.Method != http.MethodPost || req.URL.Path != "/v1/appStoreVersionLocalizations" {
+			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
+		}
+
+		body := `{"data":{"type":"appStoreVersionLocalizations","id":"loc-2","attributes":{"locale":"ja","description":"Hello","keywords":"foo,bar","supportUrl":"https://example.com/support","whatsNew":"Fixes"}}}`
+		return &http.Response{
+			StatusCode: http.StatusCreated,
+			Body:       io.NopCloser(strings.NewReader(body)),
+			Header:     http.Header{"Content-Type": []string{"application/json"}},
+		}, nil
+	})
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{
+			"localizations", "create",
+			"--version", "version-1",
+			"--locale", "ja",
+			"--description", "Hello",
+			"--keywords", "foo,bar",
+			"--support-url", "https://example.com/support",
+			"--whats-new", "Fixes",
+		}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("run error: %v", err)
+		}
+	})
+
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+
+	var out struct {
+		Data struct {
+			ID string `json:"id"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal([]byte(stdout), &out); err != nil {
+		t.Fatalf("stdout should be valid json: %v\nstdout=%q", err, stdout)
+	}
+	if out.Data.ID != "loc-2" {
+		t.Fatalf("expected localization id loc-2, got %q", out.Data.ID)
+	}
+}
+
 func TestLocalizationsCreate_InvalidLocaleReturnsUsageError(t *testing.T) {
 	setupAuth(t)
 
