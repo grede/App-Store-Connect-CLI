@@ -64,7 +64,7 @@ asc --help
 
 ```bash
 # Homebrew (recommended)
-brew install rudrankriyam/tap/asc
+brew install asc
 
 # Install script (macOS/Linux)
 curl -fsSL https://asccli.sh/install | bash
