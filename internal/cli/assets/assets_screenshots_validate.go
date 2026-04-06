@@ -121,10 +121,10 @@ Examples:
 }
 
 func validateScreenshotAssets(pathValue, displayType string) (*screenshotValidateResult, error) {
-	cleanPath := filepath.Clean(strings.TrimSpace(pathValue))
+	rawPath := strings.TrimSpace(pathValue)
 	apiDisplayType := asc.CanonicalScreenshotDisplayTypeForAPI(displayType)
 	result := &screenshotValidateResult{
-		Path:        cleanPath,
+		Path:        rawPath,
 		DisplayType: displayType,
 		Files:       make([]screenshotValidateFile, 0),
 		Issues:      make([]screenshotValidateIssue, 0),
@@ -133,7 +133,7 @@ func validateScreenshotAssets(pathValue, displayType string) (*screenshotValidat
 		result.APIDisplayType = apiDisplayType
 	}
 
-	paths, err := collectAssetPaths(cleanPath)
+	paths, err := collectAssetPaths(rawPath)
 	if err != nil {
 		return nil, err
 	}
@@ -142,7 +142,7 @@ func validateScreenshotAssets(pathValue, displayType string) (*screenshotValidat
 		appendScreenshotValidateIssue(result, screenshotValidateIssue{
 			Code:        "no_files",
 			Severity:    screenshotValidateSeverityError,
-			Message:     fmt.Sprintf("no files found in %q", cleanPath),
+			Message:     fmt.Sprintf("no files found in %q", rawPath),
 			Remediation: "Add screenshot image files or point --path at a specific screenshot.",
 		})
 		return result, nil

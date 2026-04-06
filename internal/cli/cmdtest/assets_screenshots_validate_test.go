@@ -193,3 +193,32 @@ func TestAssetsScreenshotsValidateRejectsInvalidDeviceTypeAsUsageError(t *testin
 		t.Fatalf("expected invalid device-type error, got %q", stderr)
 	}
 }
+
+func TestAssetsScreenshotsValidatePreservesRawPathSemanticsForFileWithTrailingSeparator(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "shot.png")
+	writePNG(t, path, 1242, 2688)
+
+	stdout, stderr, runErr := runRootCommand(t, []string{
+		"screenshots", "validate",
+		"--path", path + string(filepath.Separator),
+		"--device-type", "IPHONE_65",
+		"--output", "json",
+	})
+
+	if stdout != "" {
+		t.Fatalf("expected empty stdout, got %q", stdout)
+	}
+	if runErr == nil {
+		t.Fatal("expected path error, got nil")
+	}
+	if !strings.Contains(runErr.Error(), "screenshots validate:") {
+		t.Fatalf("expected validate command context, got %v", runErr)
+	}
+	if !strings.Contains(runErr.Error(), "not a directory") {
+		t.Fatalf("expected not-a-directory error, got %v", runErr)
+	}
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+}
