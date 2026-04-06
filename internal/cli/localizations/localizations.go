@@ -471,7 +471,7 @@ Examples:
 				if sharedVersionLocalizationValuesNeedUpdateContext(valuesByLocale) {
 					submitOpts = shared.ResolveSubmitReadinessOptionsForVersionBestEffort(requestCtx, client, strings.TrimSpace(*versionID), "", "")
 				}
-				results, warnings, err := shared.UploadVersionLocalizationsWithWarnings(requestCtx, client, strings.TrimSpace(*versionID), valuesByLocale, *dryRun, submitOpts)
+				results, warnings, err := shared.UploadPrevalidatedVersionLocalizationsWithWarnings(requestCtx, client, strings.TrimSpace(*versionID), valuesByLocale, *dryRun, submitOpts)
 				if err != nil {
 					return fmt.Errorf("localizations upload: %w", err)
 				}

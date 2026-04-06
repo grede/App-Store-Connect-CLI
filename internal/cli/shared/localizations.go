@@ -54,7 +54,7 @@ func ValidateVersionLocalizationKeys(locale string, values map[string]string) er
 
 // ValidateVersionLocalizationAttributes validates version localization field limits.
 func ValidateVersionLocalizationAttributes(attrs asc.AppStoreVersionLocalizationAttributes) error {
-	return validation.ValidateKeywordField(strings.TrimSpace(attrs.Keywords))
+	return validation.ValidateKeywordField(attrs.Keywords)
 }
 
 // ValidateVersionLocalizationValues validates .strings keys and value limits for one locale.
@@ -62,7 +62,10 @@ func ValidateVersionLocalizationValues(locale string, values map[string]string) 
 	if err := ValidateVersionLocalizationKeys(locale, values); err != nil {
 		return err
 	}
-	return ValidateVersionLocalizationAttributes(buildVersionLocalizationAttributes(locale, values, false))
+	if err := ValidateVersionLocalizationAttributes(buildVersionLocalizationAttributes(locale, values, false)); err != nil {
+		return fmt.Errorf("locale %q: %w", locale, err)
+	}
+	return nil
 }
 
 // ValidateVersionLocalizationValueSet validates value maps for all locales.
@@ -75,7 +78,7 @@ func ValidateVersionLocalizationValueSet(valuesByLocale map[string]map[string]st
 
 	for _, locale := range locales {
 		if err := ValidateVersionLocalizationValues(locale, valuesByLocale[locale]); err != nil {
-			return fmt.Errorf("locale %q: %w", locale, err)
+			return err
 		}
 	}
 	return nil
@@ -338,7 +341,12 @@ func UploadVersionLocalizationsWithWarnings(ctx context.Context, client versionL
 	if err := ValidateVersionLocalizationValueSet(valuesByLocale); err != nil {
 		return nil, nil, err
 	}
+	return UploadPrevalidatedVersionLocalizationsWithWarnings(ctx, client, versionID, valuesByLocale, dryRun, submitOpts)
+}
 
+// UploadPrevalidatedVersionLocalizationsWithWarnings uploads version localizations
+// after the caller has already validated the input value set.
+func UploadPrevalidatedVersionLocalizationsWithWarnings(ctx context.Context, client versionLocalizationClient, versionID string, valuesByLocale map[string]map[string]string, dryRun bool, submitOpts SubmitReadinessOptions) ([]asc.LocalizationUploadLocaleResult, []SubmitReadinessCreateWarning, error) {
 	existing, err := client.GetAppStoreVersionLocalizations(ctx, versionID, asc.WithAppStoreVersionLocalizationsLimit(200))
 	if err != nil {
 		return nil, nil, err
