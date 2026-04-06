@@ -165,7 +165,7 @@ func TestMetadataKeywordsImportJSONDryRun(t *testing.T) {
 func TestMetadataKeywordsImportDryRunReportsOverLimitIssue(t *testing.T) {
 	dir := t.TempDir()
 	inputPath := filepath.Join(t.TempDir(), "keywords.txt")
-	// 101 runes, above the App Store keyword limit.
+	// 101 bytes, above the App Store keyword limit.
 	if err := os.WriteFile(inputPath, []byte(strings.Repeat("k", 101)), 0o644); err != nil {
 		t.Fatalf("write input: %v", err)
 	}
@@ -216,10 +216,72 @@ func TestMetadataKeywordsImportDryRunReportsOverLimitIssue(t *testing.T) {
 	if payload.Valid {
 		t.Fatalf("expected invalid preview payload, got %+v", payload)
 	}
-	if len(payload.Issues) != 1 || payload.Issues[0].Locale != "en-US" || payload.Issues[0].Message != "keywords exceed 100 characters" || payload.Issues[0].Length != 101 || payload.Issues[0].Limit != 100 {
+	if len(payload.Issues) != 1 || payload.Issues[0].Locale != "en-US" || payload.Issues[0].Message != "keywords exceed 100 bytes" || payload.Issues[0].Length != 101 || payload.Issues[0].Limit != 100 {
 		t.Fatalf("unexpected issues payload: %+v", payload.Issues)
 	}
-	if len(payload.Results) != 1 || payload.Results[0].Action != "invalid" || payload.Results[0].Reason != "keywords exceed 100 characters" {
+	if len(payload.Results) != 1 || payload.Results[0].Action != "invalid" || payload.Results[0].Reason != "keywords exceed 100 bytes" {
+		t.Fatalf("unexpected result payload: %+v", payload.Results)
+	}
+}
+
+func TestMetadataKeywordsImportDryRunReportsOverLimitByteIssue(t *testing.T) {
+	dir := t.TempDir()
+	inputPath := filepath.Join(t.TempDir(), "keywords.txt")
+	keywords := strings.Repeat("語", 34)
+	if err := os.WriteFile(inputPath, []byte(keywords), 0o644); err != nil {
+		t.Fatalf("write input: %v", err)
+	}
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	var runErr error
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{
+			"metadata", "keywords", "import",
+			"--dir", dir,
+			"--version", "1.2.3",
+			"--input", inputPath,
+			"--format", "text",
+			"--locale", "ja",
+			"--dry-run",
+		}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		runErr = root.Run(context.Background())
+	})
+	if runErr == nil {
+		t.Fatal("expected non-nil run error for invalid preview")
+	}
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+
+	var payload struct {
+		Valid  bool `json:"valid"`
+		Issues []struct {
+			Locale       string `json:"locale"`
+			Message      string `json:"message"`
+			KeywordField string `json:"keywordField"`
+			Length       int    `json:"length"`
+			Limit        int    `json:"limit"`
+		} `json:"issues"`
+		Results []struct {
+			Locale string `json:"locale"`
+			Action string `json:"action"`
+			Reason string `json:"reason"`
+		} `json:"results"`
+	}
+	if err := json.Unmarshal([]byte(stdout), &payload); err != nil {
+		t.Fatalf("unmarshal output: %v\nstdout=%q", err, stdout)
+	}
+	if payload.Valid {
+		t.Fatalf("expected invalid preview payload, got %+v", payload)
+	}
+	if len(payload.Issues) != 1 || payload.Issues[0].Locale != "ja" || payload.Issues[0].Message != "keywords exceed 100 bytes" || payload.Issues[0].Length != len(keywords) || payload.Issues[0].Limit != 100 {
+		t.Fatalf("unexpected issues payload: %+v", payload.Issues)
+	}
+	if len(payload.Results) != 1 || payload.Results[0].Action != "invalid" || payload.Results[0].Reason != "keywords exceed 100 bytes" {
 		t.Fatalf("unexpected result payload: %+v", payload.Results)
 	}
 }

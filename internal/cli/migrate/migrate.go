@@ -820,15 +820,14 @@ func validateVersionLocalization(loc FastlaneLocalization) []ValidationIssue {
 		})
 	}
 
-	keywordsLength := utf8.RuneCountInString(loc.Keywords)
-	if keywordsLength > validation.LimitKeywords {
+	if issue := validation.KeywordFieldLengthIssue(loc.Keywords); issue != nil {
 		issues = append(issues, ValidationIssue{
 			Locale:   loc.Locale,
 			Field:    "keywords",
 			Severity: "error",
-			Message:  fmt.Sprintf("exceeds %d character limit", validation.LimitKeywords),
-			Length:   keywordsLength,
-			Limit:    validation.LimitKeywords,
+			Message:  fmt.Sprintf("exceeds %d %s limit", issue.Limit, issue.Unit),
+			Length:   issue.Length,
+			Limit:    issue.Limit,
 		})
 	}
 

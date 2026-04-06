@@ -11,6 +11,7 @@ import (
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/validation"
 )
 
 // LocalizationsCreateCommand returns the create localizations subcommand.
@@ -77,6 +78,9 @@ Examples:
 				PromotionalText: strings.TrimSpace(*promotionalText),
 				SupportURL:      strings.TrimSpace(*supportURL),
 				MarketingURL:    strings.TrimSpace(*marketingURL),
+			}
+			if err := validation.ValidateKeywordField(attrs.Keywords); err != nil {
+				return shared.UsageError(err.Error())
 			}
 
 			resp, err := client.CreateAppStoreVersionLocalization(requestCtx, vid, attrs)

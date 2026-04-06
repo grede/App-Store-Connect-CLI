@@ -12,6 +12,7 @@ import (
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/validation"
 )
 
 // LocalizationsUpdateCommand returns the update localizations subcommand.
@@ -193,6 +194,9 @@ func updateVersionLocalization(ctx context.Context, p updateVersionParams) error
 	if vid == "" {
 		fmt.Fprintln(os.Stderr, "Error: --version is required for version localizations")
 		return flag.ErrHelp
+	}
+	if err := validation.ValidateKeywordField(p.keywords); err != nil {
+		return shared.UsageError(err.Error())
 	}
 
 	client, err := shared.GetASCClient()
