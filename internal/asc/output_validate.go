@@ -16,6 +16,14 @@ func init() {
 		return nil
 	})
 
+	registerDirect(func(v *validation.RemediationReport, render func([]string, [][]string)) error {
+		h, r := remediationSummaryRows(v)
+		render(h, r)
+		oh, or := remediationStepRows(v)
+		render(oh, or)
+		return nil
+	})
+
 	registerDirect(func(v *validation.TestFlightReport, render func([]string, [][]string)) error {
 		h, r := testflightValidationSummaryRows(v)
 		render(h, r)
@@ -75,6 +83,51 @@ func validationCheckRows(report *validation.Report) ([]string, [][]string) {
 			formatResource(check.ResourceType, check.ResourceID),
 			check.Message,
 			check.Remediation,
+		})
+	}
+	return headers, rows
+}
+
+func remediationSummaryRows(report *validation.RemediationReport) ([]string, [][]string) {
+	headers := []string{"App ID", "Version ID", "Version", "Platform", "Mode", "Actionable", "Errors", "Warnings", "Infos", "Blocking", "Strict"}
+	if report == nil {
+		return headers, [][]string{{"", "", "", "", "", "0", "0", "0", "0", "0", "false"}}
+	}
+
+	rows := [][]string{{
+		report.AppID,
+		report.VersionID,
+		report.VersionString,
+		report.Platform,
+		string(report.Mode),
+		fmt.Sprintf("%d", report.TotalActionable),
+		fmt.Sprintf("%d", report.Summary.Errors),
+		fmt.Sprintf("%d", report.Summary.Warnings),
+		fmt.Sprintf("%d", report.Summary.Infos),
+		fmt.Sprintf("%d", report.Summary.Blocking),
+		formatBool(report.Strict),
+	}}
+	return headers, rows
+}
+
+func remediationStepRows(report *validation.RemediationReport) ([]string, [][]string) {
+	headers := []string{"Order", "Severity", "Blocking", "Check ID", "Locale", "Field", "Resource", "Message", "Remediation"}
+	if report == nil || len(report.Steps) == 0 {
+		return headers, [][]string{{"0", "info", "false", "validation.ok", "", "", "", "No remediation steps required", ""}}
+	}
+
+	rows := make([][]string, 0, len(report.Steps))
+	for _, step := range report.Steps {
+		rows = append(rows, []string{
+			fmt.Sprintf("%d", step.Order),
+			string(step.Severity),
+			formatBool(step.Blocking),
+			step.CheckID,
+			step.Locale,
+			step.Field,
+			formatResource(step.ResourceType, step.ResourceID),
+			step.Message,
+			step.Remediation,
 		})
 	}
 	return headers, rows

@@ -368,6 +368,193 @@ func TestValidateVersionAndVersionIDMutuallyExclusive(t *testing.T) {
 	}
 }
 
+func TestValidateNextOutputsHighestPriorityRemediation(t *testing.T) {
+	fixture := validValidateFixture()
+	fixture.version = strings.Replace(fixture.version, `"versionString":"1.0"`, `"versionString":"1.2.3"`, 1)
+	fixture.versions = strings.Replace(fixture.versions, `"versionString":"1.0"`, `"versionString":"1.2.3"`, 1)
+	fixture.versionLocs = `{"data":[{"type":"appStoreVersionLocalizations","id":"ver-loc-1","attributes":{"locale":"en-US","description":"","keywords":"keyword","whatsNew":"","promotionalText":"Promo","supportUrl":"https://support.example.com","marketingUrl":"https://marketing.example.com"}}]}`
+	fixture.primaryCategory = ""
+	fixture.build = ""
+
+	client := newValidateTestClient(t, fixture)
+	restore := validate.SetClientFactory(func() (*asc.Client, error) {
+		return client, nil
+	})
+	defer restore()
+
+	root := RootCommand("1.2.3")
+
+	var runErr error
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{"validate", "--app", "app-1", "--version-id", "ver-1", "--next"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		runErr = root.Run(context.Background())
+	})
+
+	if runErr == nil {
+		t.Fatal("expected blocking remediation output to return an error")
+	}
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+
+	var report validation.RemediationReport
+	if err := json.Unmarshal([]byte(stdout), &report); err != nil {
+		t.Fatalf("failed to parse JSON output: %v", err)
+	}
+	if report.Mode != validation.RemediationModeNext {
+		t.Fatalf("expected next remediation mode, got %q", report.Mode)
+	}
+	if report.TotalActionable < 3 {
+		t.Fatalf("expected multiple actionable steps, got %d", report.TotalActionable)
+	}
+	if len(report.Steps) != 1 {
+		t.Fatalf("expected a single remediation step, got %d", len(report.Steps))
+	}
+	if report.Steps[0].CheckID != "metadata.required.description" {
+		t.Fatalf("expected description remediation first, got %+v", report.Steps[0])
+	}
+	if report.Steps[0].Order != 1 {
+		t.Fatalf("expected first remediation order to be 1, got %d", report.Steps[0].Order)
+	}
+	if !report.Steps[0].Blocking {
+		t.Fatalf("expected first remediation to be blocking, got %+v", report.Steps[0])
+	}
+}
+
+func TestValidateFixPlanOutputsOrderedRemediationSteps(t *testing.T) {
+	fixture := validValidateFixture()
+	fixture.version = strings.Replace(fixture.version, `"versionString":"1.0"`, `"versionString":"1.2.3"`, 1)
+	fixture.versions = strings.Replace(fixture.versions, `"versionString":"1.0"`, `"versionString":"1.2.3"`, 1)
+	fixture.versionLocs = `{"data":[{"type":"appStoreVersionLocalizations","id":"ver-loc-1","attributes":{"locale":"en-US","description":"","keywords":"keyword","whatsNew":"","promotionalText":"Promo","supportUrl":"https://support.example.com","marketingUrl":"https://marketing.example.com"}}]}`
+	fixture.primaryCategory = ""
+	fixture.build = ""
+
+	client := newValidateTestClient(t, fixture)
+	restore := validate.SetClientFactory(func() (*asc.Client, error) {
+		return client, nil
+	})
+	defer restore()
+
+	root := RootCommand("1.2.3")
+
+	var runErr error
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{"validate", "--app", "app-1", "--version-id", "ver-1", "--fix-plan"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		runErr = root.Run(context.Background())
+	})
+
+	if runErr == nil {
+		t.Fatal("expected blocking remediation output to return an error")
+	}
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+
+	var report validation.RemediationReport
+	if err := json.Unmarshal([]byte(stdout), &report); err != nil {
+		t.Fatalf("failed to parse JSON output: %v", err)
+	}
+	if report.Mode != validation.RemediationModeFixPlan {
+		t.Fatalf("expected fix-plan remediation mode, got %q", report.Mode)
+	}
+	if len(report.Steps) < 4 {
+		t.Fatalf("expected multiple remediation steps, got %+v", report.Steps)
+	}
+	if report.Steps[0].CheckID != "metadata.required.description" {
+		t.Fatalf("expected description remediation first, got %+v", report.Steps[0])
+	}
+	if report.Steps[1].CheckID != "categories.primary_missing" {
+		t.Fatalf("expected category remediation second, got %+v", report.Steps[1])
+	}
+	if report.Steps[2].CheckID != "build.required.missing" {
+		t.Fatalf("expected build remediation third, got %+v", report.Steps[2])
+	}
+
+	var whatsNewStep validation.RemediationStep
+	foundWhatsNew := false
+	for _, step := range report.Steps {
+		if step.CheckID == "metadata.required.whats_new" {
+			whatsNewStep = step
+			foundWhatsNew = true
+			break
+		}
+	}
+	if !foundWhatsNew {
+		t.Fatalf("expected what's new remediation in plan, got %+v", report.Steps)
+	}
+	if whatsNewStep.Blocking {
+		t.Fatalf("expected what's new remediation to be non-blocking by default, got %+v", whatsNewStep)
+	}
+	if whatsNewStep.Order <= report.Steps[2].Order {
+		t.Fatalf("expected warning remediation after blocking errors, got %+v", report.Steps)
+	}
+}
+
+func TestValidateFixPlanOutputsTable(t *testing.T) {
+	fixture := validValidateFixture()
+	fixture.version = strings.Replace(fixture.version, `"versionString":"1.0"`, `"versionString":"1.2.3"`, 1)
+	fixture.versions = strings.Replace(fixture.versions, `"versionString":"1.0"`, `"versionString":"1.2.3"`, 1)
+	fixture.versionLocs = `{"data":[{"type":"appStoreVersionLocalizations","id":"ver-loc-1","attributes":{"locale":"en-US","description":"","keywords":"keyword","whatsNew":"","promotionalText":"Promo","supportUrl":"https://support.example.com","marketingUrl":"https://marketing.example.com"}}]}`
+	fixture.primaryCategory = ""
+	fixture.build = ""
+
+	client := newValidateTestClient(t, fixture)
+	restore := validate.SetClientFactory(func() (*asc.Client, error) {
+		return client, nil
+	})
+	defer restore()
+
+	root := RootCommand("1.2.3")
+
+	var runErr error
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{"validate", "--app", "app-1", "--version-id", "ver-1", "--fix-plan", "--output", "table"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		runErr = root.Run(context.Background())
+	})
+
+	if runErr == nil {
+		t.Fatal("expected blocking remediation output to return an error")
+	}
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+	if !strings.Contains(stdout, "Actionable") {
+		t.Fatalf("expected remediation summary table, got %q", stdout)
+	}
+	if !strings.Contains(stdout, "Order") {
+		t.Fatalf("expected remediation step table, got %q", stdout)
+	}
+	if !strings.Contains(stdout, "metadata.required.description") {
+		t.Fatalf("expected description remediation row, got %q", stdout)
+	}
+}
+
+func TestValidateNextAndFixPlanMutuallyExclusive(t *testing.T) {
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	var runErr error
+	_, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{"validate", "--app", "app-1", "--version-id", "ver-1", "--next", "--fix-plan"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		runErr = root.Run(context.Background())
+	})
+
+	if !errors.Is(runErr, flag.ErrHelp) {
+		t.Fatalf("expected ErrHelp, got %v", runErr)
+	}
+	if !strings.Contains(stderr, "mutually exclusive") {
+		t.Fatalf("expected mutually exclusive error, got %q", stderr)
+	}
+}
+
 func TestValidateOutputsJSONAndTable(t *testing.T) {
 	fixture := validValidateFixture()
 	client := newValidateTestClient(t, fixture)

@@ -20,6 +20,8 @@ type validateOptions struct {
 	VersionID string
 	Platform  string
 	Strict    bool
+	Next      bool
+	FixPlan   bool
 	Output    string
 	Pretty    bool
 }
@@ -38,6 +40,8 @@ func ValidateCommand() *ffcli.Command {
 	versionID := fs.String("version-id", "", "App Store version ID")
 	platform := fs.String("platform", "", "Platform: IOS, MAC_OS, TV_OS, VISION_OS")
 	strict := fs.Bool("strict", false, "Treat warnings as errors (exit non-zero)")
+	next := fs.Bool("next", false, "Show only the highest-priority remediation step")
+	fixPlan := fs.Bool("fix-plan", false, "Show an ordered remediation plan instead of the full report")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -67,6 +71,8 @@ Examples:
   asc validate --app "APP_ID" --version "1.0.0" --platform IOS
   asc validate --app "APP_ID" --version-id "VERSION_ID" --platform IOS --output table
   asc validate --app "APP_ID" --version-id "VERSION_ID" --strict
+  asc validate --app "APP_ID" --version-id "VERSION_ID" --next
+  asc validate --app "APP_ID" --version-id "VERSION_ID" --fix-plan --output markdown
 
 TestFlight:
   asc validate testflight --app "APP_ID" --build "BUILD_ID"
@@ -97,6 +103,9 @@ Subscriptions:
 			if trimmedVersion != "" && trimmedVersionID != "" {
 				return shared.UsageError("--version and --version-id are mutually exclusive")
 			}
+			if *next && *fixPlan {
+				return shared.UsageError("--next and --fix-plan are mutually exclusive")
+			}
 
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {
@@ -119,6 +128,8 @@ Subscriptions:
 				VersionID: trimmedVersionID,
 				Platform:  normalizedPlatform,
 				Strict:    *strict,
+				Next:      *next,
+				FixPlan:   *fixPlan,
 				Output:    *output.Output,
 				Pretty:    *output.Pretty,
 			})
@@ -138,8 +149,19 @@ func runValidate(ctx context.Context, opts validateOptions) error {
 		return fmt.Errorf("validate: %w", err)
 	}
 
-	if err := shared.PrintOutput(&report, opts.Output, opts.Pretty); err != nil {
-		return err
+	if opts.Next || opts.FixPlan {
+		mode := validation.RemediationModeFixPlan
+		if opts.Next {
+			mode = validation.RemediationModeNext
+		}
+		remediationReport := validation.BuildRemediationReport(report, mode)
+		if err := shared.PrintOutput(&remediationReport, opts.Output, opts.Pretty); err != nil {
+			return err
+		}
+	} else {
+		if err := shared.PrintOutput(&report, opts.Output, opts.Pretty); err != nil {
+			return err
+		}
 	}
 
 	if report.Summary.Blocking > 0 {
