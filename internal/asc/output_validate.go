@@ -11,15 +11,11 @@ func init() {
 	registerDirect(func(v *validation.Report, render func([]string, [][]string)) error {
 		h, r := validationSummaryRows(v)
 		render(h, r)
+		if len(v.Remediation.Steps) > 0 {
+			rh, rr := validationRemediationRows(v)
+			render(rh, rr)
+		}
 		oh, or := validationCheckRows(v)
-		render(oh, or)
-		return nil
-	})
-
-	registerDirect(func(v *validation.RemediationReport, render func([]string, [][]string)) error {
-		h, r := remediationSummaryRows(v)
-		render(h, r)
-		oh, or := remediationStepRows(v)
 		render(oh, or)
 		return nil
 	})
@@ -52,7 +48,7 @@ func init() {
 }
 
 func validationSummaryRows(report *validation.Report) ([]string, [][]string) {
-	headers := []string{"App ID", "Version ID", "Version", "Platform", "Errors", "Warnings", "Infos", "Blocking", "Strict"}
+	headers := []string{"App ID", "Version ID", "Version", "Platform", "Errors", "Warnings", "Infos", "Blocking", "Actionable", "Strict"}
 	rows := [][]string{{
 		report.AppID,
 		report.VersionID,
@@ -62,6 +58,7 @@ func validationSummaryRows(report *validation.Report) ([]string, [][]string) {
 		fmt.Sprintf("%d", report.Summary.Warnings),
 		fmt.Sprintf("%d", report.Summary.Infos),
 		fmt.Sprintf("%d", report.Summary.Blocking),
+		fmt.Sprintf("%d", report.Remediation.TotalActionable),
 		formatBool(report.Strict),
 	}}
 	return headers, rows
@@ -88,36 +85,14 @@ func validationCheckRows(report *validation.Report) ([]string, [][]string) {
 	return headers, rows
 }
 
-func remediationSummaryRows(report *validation.RemediationReport) ([]string, [][]string) {
-	headers := []string{"App ID", "Version ID", "Version", "Platform", "Mode", "Actionable", "Errors", "Warnings", "Infos", "Blocking", "Strict"}
-	if report == nil {
-		return headers, [][]string{{"", "", "", "", "", "0", "0", "0", "0", "0", "false"}}
-	}
-
-	rows := [][]string{{
-		report.AppID,
-		report.VersionID,
-		report.VersionString,
-		report.Platform,
-		string(report.Mode),
-		fmt.Sprintf("%d", report.TotalActionable),
-		fmt.Sprintf("%d", report.Summary.Errors),
-		fmt.Sprintf("%d", report.Summary.Warnings),
-		fmt.Sprintf("%d", report.Summary.Infos),
-		fmt.Sprintf("%d", report.Summary.Blocking),
-		formatBool(report.Strict),
-	}}
-	return headers, rows
-}
-
-func remediationStepRows(report *validation.RemediationReport) ([]string, [][]string) {
+func validationRemediationRows(report *validation.Report) ([]string, [][]string) {
 	headers := []string{"Order", "Severity", "Blocking", "Check ID", "Locale", "Field", "Resource", "Message", "Remediation"}
-	if report == nil || len(report.Steps) == 0 {
-		return headers, [][]string{{"0", "info", "false", "validation.ok", "", "", "", "No remediation steps required", ""}}
+	if report == nil || len(report.Remediation.Steps) == 0 {
+		return headers, nil
 	}
 
-	rows := make([][]string, 0, len(report.Steps))
-	for _, step := range report.Steps {
+	rows := make([][]string, 0, len(report.Remediation.Steps))
+	for _, step := range report.Remediation.Steps {
 		rows = append(rows, []string{
 			fmt.Sprintf("%d", step.Order),
 			string(step.Severity),

@@ -2,14 +2,6 @@ package validation
 
 import "sort"
 
-// RemediationMode identifies the remediation-oriented validate output shape.
-type RemediationMode string
-
-const (
-	RemediationModeNext    RemediationMode = "next"
-	RemediationModeFixPlan RemediationMode = "fix-plan"
-)
-
 // RemediationStep represents one actionable item derived from a validation check.
 type RemediationStep struct {
 	Order        int      `json:"order"`
@@ -24,36 +16,11 @@ type RemediationStep struct {
 	ResourceID   string   `json:"resourceId,omitempty"`
 }
 
-// RemediationReport is the top-level output for validate remediation modes.
-type RemediationReport struct {
-	AppID           string            `json:"appId"`
-	VersionID       string            `json:"versionId"`
-	VersionString   string            `json:"versionString,omitempty"`
-	Platform        string            `json:"platform,omitempty"`
-	Summary         Summary           `json:"summary"`
-	Strict          bool              `json:"strict,omitempty"`
-	Mode            RemediationMode   `json:"mode"`
-	TotalActionable int               `json:"totalActionable"`
-	Steps           []RemediationStep `json:"steps"`
-}
-
-// BuildRemediationReport derives a remediation-oriented view from a validation report.
-func BuildRemediationReport(report Report, mode RemediationMode) RemediationReport {
-	allSteps := RemediationSteps(report.Checks, report.Strict)
-	steps := allSteps
-	if mode == RemediationModeNext && len(steps) > 1 {
-		steps = steps[:1]
-	}
-
-	return RemediationReport{
-		AppID:           report.AppID,
-		VersionID:       report.VersionID,
-		VersionString:   report.VersionString,
-		Platform:        report.Platform,
-		Summary:         report.Summary,
-		Strict:          report.Strict,
-		Mode:            mode,
-		TotalActionable: len(allSteps),
+// BuildRemediation derives an ordered remediation plan from validation checks.
+func BuildRemediation(checks []CheckResult, strict bool) Remediation {
+	steps := RemediationSteps(checks, strict)
+	return Remediation{
+		TotalActionable: len(steps),
 		Steps:           steps,
 	}
 }

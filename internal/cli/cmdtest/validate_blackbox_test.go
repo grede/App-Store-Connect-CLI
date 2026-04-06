@@ -24,20 +24,23 @@ func buildASCBlackBoxBinary(t *testing.T) string {
 	return binaryPath
 }
 
-func TestValidateRemediationFlagsRejectInvalidBooleanValues(t *testing.T) {
+func TestValidateRemovedRemediationFlagsReturnUsageExitCode(t *testing.T) {
 	binaryPath := buildASCBlackBoxBinary(t)
 
 	tests := []struct {
-		name string
-		args []string
+		name    string
+		args    []string
+		wantErr string
 	}{
 		{
-			name: "next invalid value",
-			args: []string{"validate", "--app", "app-1", "--version-id", "ver-1", "--next=maybe"},
+			name:    "next removed",
+			args:    []string{"validate", "--app", "app-1", "--version-id", "ver-1", "--next"},
+			wantErr: "flag provided but not defined",
 		},
 		{
-			name: "fix-plan invalid value",
-			args: []string{"validate", "--app", "app-1", "--version-id", "ver-1", "--fix-plan=maybe"},
+			name:    "fix-plan removed",
+			args:    []string{"validate", "--app", "app-1", "--version-id", "ver-1", "--fix-plan"},
+			wantErr: "flag provided but not defined",
 		},
 	}
 
@@ -61,8 +64,8 @@ func TestValidateRemediationFlagsRejectInvalidBooleanValues(t *testing.T) {
 			if stdout.String() != "" {
 				t.Fatalf("expected empty stdout, got %q", stdout.String())
 			}
-			if !strings.Contains(stderr.String(), "invalid boolean value") {
-				t.Fatalf("expected invalid boolean value error, got %q", stderr.String())
+			if !strings.Contains(stderr.String(), test.wantErr) {
+				t.Fatalf("expected error %q, got %q", test.wantErr, stderr.String())
 			}
 		})
 	}
@@ -77,9 +80,9 @@ func TestValidateSubcommandsRejectParentValidateFlagsExitCode(t *testing.T) {
 		wantErr string
 	}{
 		{
-			name:    "next before subcommand",
-			args:    []string{"validate", "--next", "testflight", "--app", "app-1", "--build", "build-1"},
-			wantErr: "--next is only valid for asc validate",
+			name:    "version-id before subcommand",
+			args:    []string{"validate", "--version-id", "ver-1", "testflight", "--app", "app-1", "--build", "build-1"},
+			wantErr: "--version-id is only valid for asc validate",
 		},
 		{
 			name:    "strict before subcommand",
