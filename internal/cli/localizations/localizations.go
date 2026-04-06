@@ -530,10 +530,7 @@ Examples:
 
 func sharedVersionLocalizationValuesNeedUpdateContext(valuesByLocale map[string]map[string]string) bool {
 	for _, values := range valuesByLocale {
-		if strings.TrimSpace(values["whatsNew"]) == "" &&
-			strings.TrimSpace(values["description"]) != "" &&
-			strings.TrimSpace(values["keywords"]) != "" &&
-			strings.TrimSpace(values["supportUrl"]) != "" {
+		if strings.TrimSpace(values["whatsNew"]) == "" {
 			return true
 		}
 	}

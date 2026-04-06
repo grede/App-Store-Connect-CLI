@@ -44,7 +44,7 @@ func versionCreateWarningsNeedUpdateContext(local map[string]versionLocalPatch, 
 			continue
 		}
 		attrs := versionAttributes(locale, effectiveVersionCreateLocalization(local[locale]), true)
-		if strings.TrimSpace(attrs.WhatsNew) == "" && len(shared.MissingSubmitRequiredLocalizationFields(attrs)) == 0 {
+		if strings.TrimSpace(attrs.WhatsNew) == "" {
 			return true
 		}
 	}

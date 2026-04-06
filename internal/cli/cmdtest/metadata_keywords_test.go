@@ -1099,7 +1099,12 @@ func TestMetadataKeywordsPlanBuildsKeywordOnlyRemotePlan(t *testing.T) {
 		}
 		switch req.URL.Path {
 		case "/v1/apps/app-1/appStoreVersions":
+			if req.URL.Query().Get("filter[appStoreState]") != "" {
+				return metadataKeywordsJSONResponse(`{"data":[],"links":{"next":""}}`)
+			}
 			return metadataKeywordsJSONResponse(`{"data":[{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.3","platform":"IOS"}}],"links":{"next":""}}`)
+		case "/v1/appStoreVersions/version-1":
+			return metadataKeywordsJSONResponse(`{"data":{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.3","platform":"IOS"},"relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}}}`)
 		case "/v1/appStoreVersions/version-1/appStoreVersionLocalizations":
 			return metadataKeywordsJSONResponse(`{
 				"data":[
@@ -1195,6 +1200,9 @@ func TestMetadataKeywordsPlanDoesNotWarnForExistingLocaleUpdate(t *testing.T) {
 		}
 		switch req.URL.Path {
 		case "/v1/apps/app-1/appStoreVersions":
+			if req.URL.Query().Get("filter[appStoreState]") != "" {
+				return metadataKeywordsJSONResponse(`{"data":[],"links":{"next":""}}`)
+			}
 			return metadataKeywordsJSONResponse(`{"data":[{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.3","platform":"IOS"}}],"links":{"next":""}}`)
 		case "/v1/appStoreVersions/version-1/appStoreVersionLocalizations":
 			return metadataKeywordsJSONResponse(`{
@@ -1271,7 +1279,12 @@ func TestMetadataKeywordsDiffIncludesCreateWarnings(t *testing.T) {
 		}
 		switch req.URL.Path {
 		case "/v1/apps/app-1/appStoreVersions":
+			if req.URL.Query().Get("filter[appStoreState]") != "" {
+				return metadataKeywordsJSONResponse(`{"data":[],"links":{"next":""}}`)
+			}
 			return metadataKeywordsJSONResponse(`{"data":[{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.3","platform":"IOS"}}],"links":{"next":""}}`)
+		case "/v1/appStoreVersions/version-1":
+			return metadataKeywordsJSONResponse(`{"data":{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.3","platform":"IOS"},"relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}}}`)
 		case "/v1/appStoreVersions/version-1/appStoreVersionLocalizations":
 			return metadataKeywordsJSONResponse(`{"data":[],"links":{"next":""}}`)
 		default:
@@ -1786,6 +1799,8 @@ func TestMetadataKeywordsSyncPropagatesCreateWarnings(t *testing.T) {
 		switch req.URL.Path {
 		case "/v1/apps/app-1/appStoreVersions":
 			return metadataKeywordsJSONResponse(`{"data":[{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.3","platform":"IOS"}}],"links":{"next":""}}`)
+		case "/v1/appStoreVersions/version-1":
+			return metadataKeywordsJSONResponse(`{"data":{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.3","platform":"IOS"},"relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}}}`)
 		case "/v1/appStoreVersions/version-1/appStoreVersionLocalizations":
 			return metadataKeywordsJSONResponse(`{"data":[],"links":{"next":""}}`)
 		default:

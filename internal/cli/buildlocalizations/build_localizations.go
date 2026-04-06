@@ -238,7 +238,7 @@ Examples:
 			}
 
 			submitOpts := shared.SubmitReadinessOptions{}
-			if strings.TrimSpace(attrs.WhatsNew) == "" && len(shared.MissingSubmitRequiredLocalizationFields(attrs)) == 0 {
+			if strings.TrimSpace(attrs.WhatsNew) == "" {
 				submitOpts = shared.ResolveSubmitReadinessOptionsForVersionBestEffort(requestCtx, client, versionID, "", "")
 			}
 			warnings := make([]shared.SubmitReadinessCreateWarning, 0, 1)

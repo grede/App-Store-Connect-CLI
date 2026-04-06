@@ -198,6 +198,13 @@ func TestMetadataPushDryRunBuildsPlanWithoutMutations(t *testing.T) {
 				Body:       io.NopCloser(strings.NewReader(body)),
 				Header:     http.Header{"Content-Type": []string{"application/json"}},
 			}, nil
+		case "/v1/appStoreVersions/version-1":
+			body := `{"data":{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.3","platform":"IOS"},"relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}}}`
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(body)),
+				Header:     http.Header{"Content-Type": []string{"application/json"}},
+			}, nil
 		default:
 			t.Fatalf("unexpected path: %s", req.URL.Path)
 			return nil, nil
@@ -1043,6 +1050,15 @@ func TestMetadataPushApplyWarnsForIncompleteCreate(t *testing.T) {
 		case "/v1/appStoreVersions/version-1/appStoreVersionLocalizations":
 			if req.Method == http.MethodGet {
 				body := `{"data":[],"links":{"next":""}}`
+				return &http.Response{
+					StatusCode: http.StatusOK,
+					Body:       io.NopCloser(strings.NewReader(body)),
+					Header:     http.Header{"Content-Type": []string{"application/json"}},
+				}, nil
+			}
+		case "/v1/appStoreVersions/version-1":
+			if req.Method == http.MethodGet {
+				body := `{"data":{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.3","platform":"IOS"},"relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}}}`
 				return &http.Response{
 					StatusCode: http.StatusOK,
 					Body:       io.NopCloser(strings.NewReader(body)),

@@ -277,14 +277,7 @@ func migrateVersionLocalizationsNeedUpdateContext(localizations []FastlaneLocali
 		if strings.TrimSpace(localeToID[loc.Locale]) != "" {
 			continue
 		}
-		attrs := asc.AppStoreVersionLocalizationAttributes{
-			Locale:      loc.Locale,
-			Description: loc.Description,
-			Keywords:    loc.Keywords,
-			SupportURL:  loc.SupportURL,
-			WhatsNew:    loc.WhatsNew,
-		}
-		if strings.TrimSpace(loc.WhatsNew) == "" && len(shared.MissingSubmitRequiredLocalizationFields(attrs)) == 0 {
+		if strings.TrimSpace(loc.WhatsNew) == "" {
 			return true
 		}
 	}

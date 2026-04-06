@@ -510,9 +510,7 @@ func runAppInfoSetSingleLocale(
 	)
 
 	if !targetExists {
-		if !submitOpts.RequireWhatsNew &&
-			!appInfoSetValuesNeedUpdateContext(attrs) &&
-			appInfoSetValuesNeedUpdateContext(effectiveAttrs) {
+		if !submitOpts.RequireWhatsNew && strings.TrimSpace(effectiveAttrs.WhatsNew) == "" {
 			submitOpts = shared.ResolveSubmitReadinessOptionsForVersionBestEffort(ctx, client, versionID, "", "")
 		}
 		updateAttrs.Locale = locale
@@ -709,7 +707,7 @@ func appInfoSetHasAnyUpdates(attrs asc.AppStoreVersionLocalizationAttributes) bo
 }
 
 func appInfoSetValuesNeedUpdateContext(attrs asc.AppStoreVersionLocalizationAttributes) bool {
-	return strings.TrimSpace(attrs.WhatsNew) == "" && len(shared.MissingSubmitRequiredLocalizationFields(attrs)) == 0
+	return strings.TrimSpace(attrs.WhatsNew) == ""
 }
 
 func appInfoSetBatchNeedsUpdateContext(valuesByLocale map[string]asc.AppStoreVersionLocalizationAttributes) bool {
@@ -893,17 +891,12 @@ func shouldBackfillAppInfoSetField(explicitValue string, targetExists bool, targ
 }
 
 func warnAppInfoSetSubmitIncompleteLocale(locale string, attrs asc.AppStoreVersionLocalizationAttributes) {
-	missing := shared.MissingSubmitRequiredLocalizationFields(attrs)
-	if len(missing) == 0 {
+	warning := shared.SubmitIncompleteLocaleWarning(locale, attrs)
+	if warning == "" {
 		return
 	}
 
-	fmt.Fprintf(
-		os.Stderr,
-		"Warning: locale %s is missing submit-required fields: %s. This may block `asc publish appstore --submit`.\n",
-		locale,
-		strings.Join(missing, ", "),
-	)
+	fmt.Fprint(os.Stderr, warning)
 }
 
 func resolveAppStoreVersionForAppInfo(

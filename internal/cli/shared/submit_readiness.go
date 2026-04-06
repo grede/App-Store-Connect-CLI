@@ -122,9 +122,10 @@ func SubmitReadinessCreateWarningForLocaleWithOptions(locale string, attrs asc.A
 	}, true
 }
 
-// IsAppUpdate returns true if the target platform has ever been released,
-// meaning new localizations for the current version must include whatsNew.
-func IsAppUpdate(ctx context.Context, client *asc.Client, appID, platform string) (bool, error) {
+// AppUpdateRequiresWhatsNew returns true when the target app/platform has a
+// previously released App Store version, which means whatsNew is required on
+// every localization for update submissions.
+func AppUpdateRequiresWhatsNew(ctx context.Context, client *asc.Client, appID, platform string) (bool, error) {
 	opts := []asc.AppStoreVersionsOption{
 		asc.WithAppStoreVersionsStates([]string{
 			"READY_FOR_SALE",
@@ -180,7 +181,7 @@ func ResolveSubmitReadinessOptionsForVersion(ctx context.Context, client *asc.Cl
 		return SubmitReadinessOptions{}, fmt.Errorf("could not resolve app update context for version %q", strings.TrimSpace(versionID))
 	}
 
-	requireWhatsNew, err := IsAppUpdate(ctx, client, resolvedAppID, resolvedPlatform)
+	requireWhatsNew, err := AppUpdateRequiresWhatsNew(ctx, client, resolvedAppID, resolvedPlatform)
 	if err != nil {
 		return SubmitReadinessOptions{}, err
 	}
@@ -361,4 +362,30 @@ func submitReadinessMissingFieldSortKey(field string) int {
 	default:
 		return 4
 	}
+}
+
+// SubmitIncompleteLocaleWarning returns a user-facing warning when a locale is
+// missing submit-required metadata fields.
+func SubmitIncompleteLocaleWarning(locale string, attrs asc.AppStoreVersionLocalizationAttributes) string {
+	return SubmitIncompleteLocaleWarningWithOptions(locale, attrs, SubmitReadinessOptions{})
+}
+
+// SubmitIncompleteLocaleWarningWithOptions returns a user-facing warning when a
+// locale is missing submit-required metadata fields under the provided rules.
+func SubmitIncompleteLocaleWarningWithOptions(locale string, attrs asc.AppStoreVersionLocalizationAttributes, opts SubmitReadinessOptions) string {
+	missing := MissingSubmitRequiredLocalizationFieldsWithOptions(attrs, opts)
+	if len(missing) == 0 {
+		return ""
+	}
+
+	trimmedLocale := strings.TrimSpace(locale)
+	if trimmedLocale == "" {
+		trimmedLocale = "<unknown>"
+	}
+
+	return fmt.Sprintf(
+		"Warning: locale %s is missing submit-required fields: %s. This may block `asc publish appstore --submit`.\n",
+		trimmedLocale,
+		strings.Join(missing, ", "),
+	)
 }

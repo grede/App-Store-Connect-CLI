@@ -437,7 +437,7 @@ func submitCreateReadinessCheckLabel(check validation.CheckResult) string {
 // READY_FOR_SALE as well as removed-from-sale states, since apps that were
 // previously published then removed are still considered updates by Apple.
 func isAppUpdate(ctx context.Context, client *asc.Client, appID, platform string) (bool, error) {
-	return shared.IsAppUpdate(ctx, client, appID, platform)
+	return shared.AppUpdateRequiresWhatsNew(ctx, client, appID, platform)
 }
 
 func SubmitStatusCommand() *ffcli.Command {

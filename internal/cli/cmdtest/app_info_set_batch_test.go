@@ -459,7 +459,12 @@ func TestRunAppInfoSetBatchPartialFailureReturnsExitError(t *testing.T) {
 	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		switch req.URL.Path {
 		case "/v1/apps/app-1/appStoreVersions":
-			return appInfoSetBatchJSONResponse(http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"ver-1","attributes":{"createdDate":"2026-02-01T00:00:00Z"}}]}`), nil
+			if req.URL.Query().Get("filter[appStoreState]") != "" {
+				return appInfoSetBatchJSONResponse(http.StatusOK, `{"data":[]}`), nil
+			}
+			return appInfoSetBatchJSONResponse(http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"ver-1","attributes":{"createdDate":"2026-02-01T00:00:00Z","platform":"IOS"}}]}`), nil
+		case "/v1/appStoreVersions/ver-1":
+			return appInfoSetBatchJSONResponse(http.StatusOK, `{"data":{"type":"appStoreVersions","id":"ver-1","attributes":{"createdDate":"2026-02-01T00:00:00Z","platform":"IOS"},"relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}}}`), nil
 		case "/v1/appStoreVersions/ver-1/appStoreVersionLocalizations":
 			return appInfoSetBatchJSONResponse(http.StatusOK, `{"data":[{"type":"appStoreVersionLocalizations","id":"loc-en","attributes":{"locale":"en-US"}}]}`), nil
 		case "/v1/appStoreVersionLocalizations/loc-en":

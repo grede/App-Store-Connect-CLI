@@ -83,8 +83,12 @@ Examples:
 			}
 
 			submitOpts := shared.SubmitReadinessOptions{}
-			if strings.TrimSpace(attrs.WhatsNew) == "" && len(shared.MissingSubmitRequiredLocalizationFields(attrs)) == 0 {
-				submitOpts = shared.ResolveSubmitReadinessOptionsForVersionBestEffort(requestCtx, client, vid, "", "")
+			var submitWarningLookupErr error
+			if strings.TrimSpace(attrs.WhatsNew) == "" {
+				submitOpts, submitWarningLookupErr = shared.ResolveSubmitReadinessOptionsForVersion(requestCtx, client, vid, "", "")
+				if submitWarningLookupErr != nil {
+					submitOpts = shared.SubmitReadinessOptions{}
+				}
 			}
 			warnings := make([]shared.SubmitReadinessCreateWarning, 0, 1)
 			if warning, ok := shared.SubmitReadinessCreateWarningForLocaleWithOptions(localeValue, attrs, shared.SubmitReadinessCreateModeApplied, submitOpts); ok {
@@ -94,7 +98,27 @@ Examples:
 			if err := shared.PrintOutput(resp, *output.Output, *output.Pretty); err != nil {
 				return err
 			}
-			return shared.PrintSubmitReadinessCreateWarnings(os.Stderr, warnings)
+			if err := shared.PrintSubmitReadinessCreateWarnings(os.Stderr, warnings); err != nil {
+				return err
+			}
+			if submitWarningLookupErr == nil || len(warnings) > 0 {
+				return nil
+			}
+
+			localeLabel := strings.TrimSpace(resp.Data.Attributes.Locale)
+			if localeLabel == "" {
+				localeLabel = localeValue
+			}
+			if localeLabel == "" {
+				localeLabel = "<unknown>"
+			}
+			_, err = fmt.Fprintf(
+				os.Stderr,
+				"Warning: locale %s was created without whatsNew, but the CLI could not determine whether this version is an app update: %v\n",
+				localeLabel,
+				submitWarningLookupErr,
+			)
+			return err
 		},
 	}
 }
