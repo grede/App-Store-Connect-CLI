@@ -209,6 +209,55 @@ func TestSubscriptionsPricingEqualize_DryRunMatchesBasePriceNumerically(t *testi
 	}
 }
 
+func TestSubscriptionsPricingEqualize_NormalizesBaseTerritory(t *testing.T) {
+	setupAuth(t)
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+
+	basePricePointID := testSubscriptionPricePointID("USA")
+
+	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		switch {
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/territories":
+			return jsonHTTPResponse(http.StatusOK, `{"data":[{"type":"territories","id":"USA"}],"links":{}}`), nil
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/subscriptions/8000000001/subscriptionAvailability":
+			return jsonHTTPResponse(http.StatusOK, `{"data":{"type":"subscriptionAvailabilities","id":"avail-1","attributes":{"availableInNewTerritories":true}}}`), nil
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/subscriptionAvailabilities/avail-1/availableTerritories":
+			return jsonHTTPResponse(http.StatusOK, `{"data":[{"type":"territories","id":"USA"}],"links":{}}`), nil
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/subscriptions/8000000001/pricePoints":
+			if got := req.URL.Query().Get("filter[territory]"); got != "USA" {
+				t.Fatalf("expected normalized filter[territory]=USA, got %q", got)
+			}
+			body := `{"data":[{"type":"subscriptionPricePoints","id":"` + basePricePointID + `","attributes":{"customerPrice":"3.50"}}],"links":{}}`
+			return jsonHTTPResponse(http.StatusOK, body), nil
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/subscriptionPricePoints/"+basePricePointID+"/equalizations":
+			return jsonHTTPResponse(http.StatusOK, `{"data":[],"links":{}}`), nil
+		default:
+			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
+			return nil, nil
+		}
+	})
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	if err := root.Parse([]string{
+		"subscriptions", "pricing", "equalize",
+		"--subscription-id", "8000000001",
+		"--base-territory", "United States",
+		"--base-price", "3.5",
+		"--dry-run",
+	}); err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	if err := root.Run(context.Background()); err != nil {
+		t.Fatalf("run error: %v", err)
+	}
+}
+
 func TestSubscriptionsPricingEqualize_DryRunUsesTerritoryRelationshipForOpaquePricePointIDs(t *testing.T) {
 	setupAuth(t)
 

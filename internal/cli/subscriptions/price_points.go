@@ -10,6 +10,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/ascterritory"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
@@ -46,7 +47,7 @@ func SubscriptionsPricePointsListCommand() *ffcli.Command {
 
 	subscriptionID := fs.String("subscription-id", "", "Subscription ID, product ID, or exact current name")
 	appID := addSubscriptionLookupAppFlag(fs)
-	territory := fs.String("territory", "", "Filter by territory (e.g., USA) to reduce results")
+	territory := fs.String("territory", "", "Filter by territory (accepts alpha-2, alpha-3, or exact English country name) to reduce results")
 	price := fs.String("price", "", "Filter by exact customer price (e.g., 4.99)")
 	minPrice := fs.String("min-price", "", "Filter by minimum customer price")
 	maxPrice := fs.String("max-price", "", "Filter by maximum customer price")
@@ -76,10 +77,10 @@ reduces memory usage for very large result sets.
 
 Examples:
   asc subscriptions price-points list --subscription-id "SUB_ID"
-  asc subscriptions price-points list --subscription-id "SUB_ID" --territory "USA"
-  asc subscriptions price-points list --subscription-id "SUB_ID" --territory "USA" --paginate
-  asc subscriptions price-points list --subscription-id "SUB_ID" --territory "USA" --paginate --price "4.99"
-  asc subscriptions price-points list --subscription-id "SUB_ID" --territory "USA" --paginate --min-price "1.00" --max-price "9.99"
+  asc subscriptions price-points list --subscription-id "SUB_ID" --territory "United States"
+  asc subscriptions price-points list --subscription-id "SUB_ID" --territory "US" --paginate
+  asc subscriptions price-points list --subscription-id "SUB_ID" --territory "France" --paginate --price "4.99"
+  asc subscriptions price-points list --subscription-id "SUB_ID" --territory "DE" --paginate --min-price "1.00" --max-price "9.99"
   asc subscriptions price-points list --subscription-id "SUB_ID" --paginate --stream`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
@@ -126,8 +127,16 @@ Examples:
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
+			territoryFilter := strings.TrimSpace(*territory)
+			if territoryFilter != "" {
+				territoryFilter, err = ascterritory.Normalize(territoryFilter)
+				if err != nil {
+					return shared.UsageError(err.Error())
+				}
+			}
+
 			opts := []asc.SubscriptionPricePointsOption{
-				asc.WithSubscriptionPricePointsTerritory(*territory),
+				asc.WithSubscriptionPricePointsTerritory(territoryFilter),
 				asc.WithSubscriptionPricePointsLimit(*limit),
 				asc.WithSubscriptionPricePointsNextURL(*next),
 			}

@@ -10,6 +10,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/ascterritory"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
@@ -44,7 +45,7 @@ func IAPPricePointsListCommand() *ffcli.Command {
 
 	iapID := fs.String("iap-id", "", "In-app purchase ID, product ID, or exact current name")
 	appID := addIAPLookupAppFlag(fs)
-	territory := fs.String("territory", "", "Territory ID (e.g., USA)")
+	territory := fs.String("territory", "", "Territory input (accepts alpha-2, alpha-3, or exact English country name)")
 	price := fs.String("price", "", "Filter by exact customer price (e.g., 4.99)")
 	minPrice := fs.String("min-price", "", "Filter by minimum customer price")
 	maxPrice := fs.String("max-price", "", "Filter by maximum customer price")
@@ -64,8 +65,8 @@ a range. These filters are applied client-side after fetching.
 
 Examples:
   asc iap pricing price-points list --iap-id "IAP_ID"
-  asc iap pricing price-points list --iap-id "IAP_ID" --territory "USA"
-  asc iap pricing price-points list --iap-id "IAP_ID" --territory "USA" --paginate --price "4.99"
+  asc iap pricing price-points list --iap-id "IAP_ID" --territory "United States"
+  asc iap pricing price-points list --iap-id "IAP_ID" --territory "FR" --paginate --price "4.99"
   asc iap pricing price-points list --iap-id "IAP_ID" --paginate`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
@@ -111,8 +112,12 @@ Examples:
 				asc.WithIAPPricePointsLimit(*limit),
 				asc.WithIAPPricePointsNextURL(*next),
 			}
-			territoryID := strings.ToUpper(strings.TrimSpace(*territory))
+			territoryID := strings.TrimSpace(*territory)
 			if territoryID != "" {
+				territoryID, err = ascterritory.Normalize(territoryID)
+				if err != nil {
+					return shared.UsageError(err.Error())
+				}
 				opts = append(opts, asc.WithIAPPricePointsTerritory(territoryID))
 			}
 

@@ -483,7 +483,7 @@ func TestSubscriptionsPricePointsListTerritoryFilter(t *testing.T) {
 		if err := root.Parse([]string{
 			"subscriptions", "pricing", "price-points", "list",
 			"--subscription-id", "8000000001",
-			"--territory", "USA",
+			"--territory", "United States",
 			"--output", "json",
 		}); err != nil {
 			t.Fatalf("parse error: %v", err)

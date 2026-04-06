@@ -15,6 +15,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/ascterritory"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
@@ -28,7 +29,7 @@ func SubscriptionsPricingEqualizeCommand() *ffcli.Command {
 
 	subscriptionID := fs.String("subscription-id", "", "Subscription ID, product ID, or exact current name (required)")
 	appID := addSubscriptionLookupAppFlag(fs)
-	baseTerritory := fs.String("base-territory", "USA", "Territory to use as the pricing base")
+	baseTerritory := fs.String("base-territory", "USA", "Pricing base territory (accepts alpha-2, alpha-3, or exact English country name)")
 	basePrice := fs.String("base-price", "", "Customer price in the base territory (required)")
 	dryRun := fs.Bool("dry-run", false, "Show equalized prices without applying them")
 	confirm := fs.Bool("confirm", false, "Confirm applying equalized prices (required unless --dry-run)")
@@ -48,7 +49,7 @@ importing a CSV.
 
 Examples:
   asc subscriptions pricing equalize --subscription-id "SUB_ID" --base-price "3.49" --confirm
-  asc subscriptions pricing equalize --subscription-id "SUB_ID" --base-price "38.49" --base-territory "USA" --confirm
+  asc subscriptions pricing equalize --subscription-id "SUB_ID" --base-price "38.49" --base-territory "United States" --confirm
   asc subscriptions pricing equalize --subscription-id "SUB_ID" --base-price "3.49" --dry-run
   asc subscriptions pricing equalize --subscription-id "SUB_ID" --base-price "3.49" --confirm --workers 16`,
 		FlagSet:   fs,
@@ -70,9 +71,13 @@ Examples:
 			if err := shared.ValidateFinitePriceFlag("--base-price", price); err != nil {
 				return shared.UsageError(err.Error())
 			}
-			territory := strings.ToUpper(strings.TrimSpace(*baseTerritory))
-			if territory == "" {
-				territory = "USA"
+			territoryInput := strings.TrimSpace(*baseTerritory)
+			if territoryInput == "" {
+				territoryInput = "USA"
+			}
+			territory, err := ascterritory.Normalize(territoryInput)
+			if err != nil {
+				return shared.UsageError(err.Error())
 			}
 			if !*dryRun && !*confirm {
 				return shared.UsageError("--confirm is required unless --dry-run is set")
