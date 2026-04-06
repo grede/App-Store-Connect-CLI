@@ -13,8 +13,9 @@ import (
 )
 
 type stubVersionLocalizationClient struct {
-	getResp *asc.AppStoreVersionLocalizationsResponse
-	getErr  error
+	getResp  *asc.AppStoreVersionLocalizationsResponse
+	getErr   error
+	getCalls int
 
 	createCalls []asc.AppStoreVersionLocalizationAttributes
 	updateErrs  []error
@@ -22,6 +23,7 @@ type stubVersionLocalizationClient struct {
 }
 
 func (s *stubVersionLocalizationClient) GetAppStoreVersionLocalizations(_ context.Context, _ string, _ ...asc.AppStoreVersionLocalizationsOption) (*asc.AppStoreVersionLocalizationsResponse, error) {
+	s.getCalls++
 	if s.getErr != nil {
 		return nil, s.getErr
 	}
@@ -188,6 +190,34 @@ func TestUploadVersionLocalizations_DoesNotRetryWhenWhatsNewIsEmpty(t *testing.T
 	}
 	if len(client.updateCalls) != 1 {
 		t.Fatalf("expected a single update attempt, got %d", len(client.updateCalls))
+	}
+}
+
+func TestUploadVersionLocalizationsWithWarnings_RejectsOverLimitKeywordBytesBeforeFetch(t *testing.T) {
+	client := &stubVersionLocalizationClient{}
+
+	valuesByLocale := map[string]map[string]string{
+		"ja": {
+			"description": "日本語説明",
+			"keywords":    strings.Repeat("語", 34),
+		},
+	}
+
+	_, _, err := UploadVersionLocalizationsWithWarnings(context.Background(), client, "version-id", valuesByLocale, true, SubmitReadinessOptions{})
+	if err == nil {
+		t.Fatal("expected upload validation error")
+	}
+	if !strings.Contains(err.Error(), "keywords exceed 100 bytes") {
+		t.Fatalf("expected keyword byte-limit error, got %v", err)
+	}
+	if client.getCalls != 0 {
+		t.Fatalf("expected no fetch calls, got %d", client.getCalls)
+	}
+	if len(client.createCalls) != 0 {
+		t.Fatalf("expected no create calls, got %d", len(client.createCalls))
+	}
+	if len(client.updateCalls) != 0 {
+		t.Fatalf("expected no update calls, got %d", len(client.updateCalls))
 	}
 }
 

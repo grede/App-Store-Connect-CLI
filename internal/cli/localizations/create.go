@@ -73,14 +73,6 @@ Examples:
 			}
 			localeValue = normalizedLocale
 
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("localizations create: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
 			attrs := asc.AppStoreVersionLocalizationAttributes{
 				Locale:          localeValue,
 				Description:     strings.TrimSpace(*description),
@@ -90,6 +82,17 @@ Examples:
 				SupportURL:      strings.TrimSpace(*supportURL),
 				MarketingURL:    strings.TrimSpace(*marketingURL),
 			}
+			if err := shared.ValidateVersionLocalizationAttributes(attrs); err != nil {
+				return shared.UsageError(err.Error())
+			}
+
+			client, err := shared.GetASCClient()
+			if err != nil {
+				return fmt.Errorf("localizations create: %w", err)
+			}
+
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			defer cancel()
 
 			resp, err := client.CreateAppStoreVersionLocalization(requestCtx, vid, attrs)
 			if err != nil {

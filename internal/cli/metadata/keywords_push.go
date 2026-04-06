@@ -263,6 +263,9 @@ func readMetadataKeywordsPushEntries(path string) ([]metadataKeywordsPushEntry, 
 		if trimmedKeywords == "" {
 			return nil, fmt.Errorf("invalid entry for locale %q: keywords must not be empty", canonicalLocale)
 		}
+		if err := shared.ValidateVersionLocalizationAttributes(asc.AppStoreVersionLocalizationAttributes{Keywords: trimmedKeywords}); err != nil {
+			return nil, fmt.Errorf("invalid entry for locale %q: %w", canonicalLocale, err)
+		}
 
 		entries = append(entries, metadataKeywordsPushEntry{
 			Locale:   canonicalLocale,

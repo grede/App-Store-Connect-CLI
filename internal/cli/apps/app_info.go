@@ -327,6 +327,20 @@ Examples:
 				fmt.Fprintln(os.Stderr, "Error: at least one update flag is required")
 				return flag.ErrHelp
 			}
+			if err := shared.ValidateVersionLocalizationAttributes(inlineAttrs); err != nil {
+				return shared.UsageError(err.Error())
+			}
+
+			var valuesByLocale map[string]asc.AppStoreVersionLocalizationAttributes
+			if fromDirValue != "" {
+				valuesByLocale, err = readAppInfoSetLocalesFromDir(fromDirValue)
+				if err != nil {
+					return shared.UsageError(err.Error())
+				}
+				if err := shared.ValidateVersionLocalizationAttributesByLocale(valuesByLocale); err != nil {
+					return shared.UsageError(err.Error())
+				}
+			}
 
 			client, err := shared.GetASCClient()
 			if err != nil {
@@ -373,13 +387,7 @@ Examples:
 				)
 			}
 
-			var valuesByLocale map[string]asc.AppStoreVersionLocalizationAttributes
-			if fromDirValue != "" {
-				valuesByLocale, err = readAppInfoSetLocalesFromDir(fromDirValue)
-				if err != nil {
-					return shared.UsageError(err.Error())
-				}
-			} else {
+			if fromDirValue == "" {
 				targetLocales := make([]string, 0, len(localesValue)+1)
 				if localeValue != "" {
 					targetLocales = append(targetLocales, localeValue)

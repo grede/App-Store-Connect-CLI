@@ -21,6 +21,7 @@ import (
 	"testing"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 type migrateUploadRoundTripFunc func(*http.Request) (*http.Response, error)
@@ -108,6 +109,41 @@ func TestUploadScreenshots_ReordersPlannedFilesBeforeUntouchedRemoteExtras(t *te
 	}
 	if !relationshipPatchCalled {
 		t.Fatal("expected screenshot relationship reorder PATCH to be called")
+	}
+}
+
+func TestUploadVersionLocalizations_RejectsOverLimitKeywordBytesBeforeRequests(t *testing.T) {
+	origTransport := http.DefaultTransport
+	requestCount := 0
+	http.DefaultTransport = migrateUploadRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+		requestCount++
+		t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
+		return nil, nil
+	})
+	t.Cleanup(func() {
+		http.DefaultTransport = origTransport
+	})
+
+	client := newMigrateUploadTestClient(t)
+	_, _, err := uploadVersionLocalizations(
+		context.Background(),
+		client,
+		"version-1",
+		[]FastlaneLocalization{{
+			Locale:   "ja",
+			Keywords: strings.Repeat("語", 34),
+		}},
+		map[string]string{},
+		shared.SubmitReadinessOptions{},
+	)
+	if err == nil {
+		t.Fatal("expected upload validation error")
+	}
+	if !strings.Contains(err.Error(), "keywords exceed 100 bytes") {
+		t.Fatalf("expected keyword byte-limit error, got %v", err)
+	}
+	if requestCount != 0 {
+		t.Fatalf("expected no HTTP requests, got %d", requestCount)
 	}
 }
 

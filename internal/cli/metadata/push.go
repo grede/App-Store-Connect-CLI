@@ -470,8 +470,13 @@ func readVersionLocalizationPatchFromFile(path string) (versionLocalPatch, error
 		return versionLocalPatch{}, fmt.Errorf("at least one version metadata field is required")
 	}
 
+	normalized := NormalizeVersionLocalization(loc)
+	if err := shared.ValidateVersionLocalizationAttributes(versionAttributes("", normalized, false)); err != nil {
+		return versionLocalPatch{}, err
+	}
+
 	return versionLocalPatch{
-		localization: NormalizeVersionLocalization(loc),
+		localization: normalized,
 		setFields:    setFields,
 	}, nil
 }

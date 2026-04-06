@@ -12,7 +12,6 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
-	"unicode/utf8"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
 
@@ -167,7 +166,6 @@ type keywordImportPayload struct {
 type metadataKeywordFieldDetails struct {
 	field      string
 	count      int
-	length     int
 	duplicates []string
 }
 
@@ -1719,8 +1717,8 @@ func buildMetadataKeywordField(keywords []string) (string, int, error) {
 	if err != nil {
 		return "", 0, err
 	}
-	if details.length > validation.LimitKeywords {
-		return "", 0, fmt.Errorf("keywords exceed %d characters", validation.LimitKeywords)
+	if err := validation.ValidateKeywordField(details.field); err != nil {
+		return "", 0, err
 	}
 	return details.field, details.count, nil
 }
@@ -1734,7 +1732,6 @@ func buildMetadataKeywordFieldDetails(keywords []string) (metadataKeywordFieldDe
 	return metadataKeywordFieldDetails{
 		field:      field,
 		count:      len(normalized),
-		length:     utf8.RuneCountInString(field),
 		duplicates: duplicates,
 	}, nil
 }
@@ -1745,13 +1742,13 @@ func buildMetadataKeywordPreview(keywords []string) (string, int, int, []string,
 		return "", 0, 0, nil, nil, err
 	}
 	issues := make([]MetadataKeywordIssue, 0, 1)
-	if details.length > validation.LimitKeywords {
+	if issue := validation.KeywordFieldLengthIssue(details.field); issue != nil {
 		issues = append(issues, MetadataKeywordIssue{
 			Severity:     "error",
-			Message:      fmt.Sprintf("keywords exceed %d characters", validation.LimitKeywords),
+			Message:      fmt.Sprintf("keywords exceed %d %s", issue.Limit, issue.Unit),
 			KeywordField: details.field,
-			Length:       details.length,
-			Limit:        validation.LimitKeywords,
+			Length:       issue.Length,
+			Limit:        issue.Limit,
 		})
 	}
 	return details.field, details.count, len(details.duplicates), details.duplicates, issues, nil
@@ -1763,8 +1760,8 @@ func parseMetadataKeywordField(field string) ([]string, error) {
 		return nil, err
 	}
 	joined := strings.Join(normalized, ",")
-	if utf8.RuneCountInString(joined) > validation.LimitKeywords {
-		return nil, fmt.Errorf("keywords exceed %d characters", validation.LimitKeywords)
+	if err := validation.ValidateKeywordField(joined); err != nil {
+		return nil, err
 	}
 	return normalized, nil
 }

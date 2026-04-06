@@ -209,6 +209,9 @@ func updateVersionLocalization(ctx context.Context, p updateVersionParams) error
 		fmt.Fprintln(os.Stderr, "Error: --version is required for version localizations")
 		return flag.ErrHelp
 	}
+	if err := shared.ValidateVersionLocalizationAttributes(asc.AppStoreVersionLocalizationAttributes{Keywords: p.keywords}); err != nil {
+		return shared.UsageError(err.Error())
+	}
 
 	client, err := shared.GetASCClient()
 	if err != nil {

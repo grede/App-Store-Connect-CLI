@@ -127,6 +127,95 @@ func TestRunAppInfoSetFromDirConflictReturnsUsageExitCode(t *testing.T) {
 	}
 }
 
+func TestRunAppInfoSetRejectsOverLimitKeywordBytesBeforeAuthResolution(t *testing.T) {
+	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
+	t.Setenv("ASC_KEY_ID", "")
+	t.Setenv("ASC_ISSUER_ID", "")
+	t.Setenv("ASC_PRIVATE_KEY_PATH", "")
+	t.Setenv("ASC_PRIVATE_KEY", "")
+	t.Setenv("ASC_PRIVATE_KEY_B64", "")
+	t.Setenv("ASC_APP_ID", "")
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "config.json"))
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+
+	requestCount := 0
+	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		requestCount++
+		t.Fatalf("unexpected request: %s %s", req.Method, req.URL.Path)
+		return nil, nil
+	})
+
+	_, stderr := captureOutput(t, func() {
+		code := cmd.Run([]string{
+			"apps", "info", "edit",
+			"--app", "APP_ID",
+			"--locale", "ja",
+			"--keywords", strings.Repeat("語", 34),
+		}, "1.2.3")
+		if code != cmd.ExitUsage {
+			t.Fatalf("expected exit code %d, got %d", cmd.ExitUsage, code)
+		}
+	})
+
+	if !strings.Contains(stderr, "keywords exceed 100 bytes") {
+		t.Fatalf("expected keyword byte-limit error, got %q", stderr)
+	}
+	if requestCount != 0 {
+		t.Fatalf("expected no HTTP requests, got %d", requestCount)
+	}
+}
+
+func TestRunAppInfoSetFromDirRejectsOverLimitKeywordBytesBeforeAuthResolution(t *testing.T) {
+	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
+	t.Setenv("ASC_KEY_ID", "")
+	t.Setenv("ASC_ISSUER_ID", "")
+	t.Setenv("ASC_PRIVATE_KEY_PATH", "")
+	t.Setenv("ASC_PRIVATE_KEY", "")
+	t.Setenv("ASC_PRIVATE_KEY_B64", "")
+	t.Setenv("ASC_APP_ID", "")
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "config.json"))
+
+	inputDir := t.TempDir()
+	content := `{"description":"Japanese description","keywords":"` + strings.Repeat("語", 34) + `"}`
+	if err := os.WriteFile(filepath.Join(inputDir, "ja.json"), []byte(content), 0o644); err != nil {
+		t.Fatalf("write ja file: %v", err)
+	}
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+
+	requestCount := 0
+	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		requestCount++
+		t.Fatalf("unexpected request: %s %s", req.Method, req.URL.Path)
+		return nil, nil
+	})
+
+	_, stderr := captureOutput(t, func() {
+		code := cmd.Run([]string{
+			"apps", "info", "edit",
+			"--app", "APP_ID",
+			"--from-dir", inputDir,
+		}, "1.2.3")
+		if code != cmd.ExitUsage {
+			t.Fatalf("expected exit code %d, got %d", cmd.ExitUsage, code)
+		}
+	})
+
+	if !strings.Contains(stderr, "keywords exceed 100 bytes") {
+		t.Fatalf("expected keyword byte-limit error, got %q", stderr)
+	}
+	if requestCount != 0 {
+		t.Fatalf("expected no HTTP requests, got %d", requestCount)
+	}
+}
+
 func TestAppInfoSetBatchDryRunInlineLocales(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))

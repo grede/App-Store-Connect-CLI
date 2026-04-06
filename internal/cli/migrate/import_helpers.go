@@ -149,6 +149,9 @@ func uploadVersionLocalizations(ctx context.Context, client *asc.Client, version
 			SupportURL:      loc.SupportURL,
 			MarketingURL:    loc.MarketingURL,
 		}
+		if err := shared.ValidateVersionLocalizationAttributes(attrs); err != nil {
+			return nil, nil, fmt.Errorf("migrate import: locale %q: %w", loc.Locale, err)
+		}
 		action := "create"
 		localizationID := localeToID[loc.Locale]
 		if localizationID != "" {

@@ -451,6 +451,14 @@ Examples:
 					return flag.ErrHelp
 				}
 
+				valuesByLocale, err := shared.ReadLocalizationStrings(*path, locales)
+				if err != nil {
+					return fmt.Errorf("localizations upload: %w", err)
+				}
+				if err := shared.ValidateVersionLocalizationValueSet(valuesByLocale); err != nil {
+					return shared.UsageError(err.Error())
+				}
+
 				client, err := shared.GetASCClient()
 				if err != nil {
 					return fmt.Errorf("localizations upload: %w", err)
@@ -459,16 +467,11 @@ Examples:
 				requestCtx, cancel := shared.ContextWithTimeout(ctx)
 				defer cancel()
 
-				valuesByLocale, err := shared.ReadLocalizationStrings(*path, locales)
-				if err != nil {
-					return fmt.Errorf("localizations upload: %w", err)
-				}
-
 				submitOpts := shared.SubmitReadinessOptions{}
 				if sharedVersionLocalizationValuesNeedUpdateContext(valuesByLocale) {
 					submitOpts = shared.ResolveSubmitReadinessOptionsForVersionBestEffort(requestCtx, client, strings.TrimSpace(*versionID), "", "")
 				}
-				results, warnings, err := shared.UploadVersionLocalizationsWithWarnings(requestCtx, client, strings.TrimSpace(*versionID), valuesByLocale, *dryRun, submitOpts)
+				results, warnings, err := shared.UploadPrevalidatedVersionLocalizationsWithWarnings(requestCtx, client, strings.TrimSpace(*versionID), valuesByLocale, *dryRun, submitOpts)
 				if err != nil {
 					return fmt.Errorf("localizations upload: %w", err)
 				}
