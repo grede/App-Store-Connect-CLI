@@ -213,6 +213,7 @@ relationship APIs. Those low-level surfaces remain available under:
 
 Examples:
   asc metadata keywords import --dir "./metadata" --version "1.2.3" --locale "en-US" --input "./keywords.csv"
+  asc metadata keywords audit --app "APP_ID" --version "1.2.3"
   asc metadata keywords plan --app "APP_ID" --version "1.2.3" --dir "./metadata"
   asc metadata keywords localize --dir "./metadata" --version "1.2.3" --from-locale "en-US" --to-locales "fr-FR,de-DE"
   asc metadata keywords apply --app "APP_ID" --version "1.2.3" --dir "./metadata" --confirm
@@ -222,6 +223,7 @@ Examples:
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			MetadataKeywordsImportCommand(),
+			MetadataKeywordsAuditCommand(),
 			MetadataKeywordsPlanCommand(),
 			MetadataKeywordsDiffCommand(),
 			MetadataKeywordsLocalizeCommand(),

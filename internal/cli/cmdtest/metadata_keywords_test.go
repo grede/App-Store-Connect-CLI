@@ -34,7 +34,7 @@ func TestMetadataHelpShowsKeywordsWorkflow(t *testing.T) {
 		t.Fatal("expected metadata keywords command")
 	}
 	keywordsUsage := keywordsCmd.UsageFunc(keywordsCmd)
-	for _, subcommand := range []string{"import", "plan", "diff", "localize", "apply", "push", "sync"} {
+	for _, subcommand := range []string{"import", "audit", "plan", "diff", "localize", "apply", "push", "sync"} {
 		if !usageListsSubcommand(keywordsUsage, subcommand) {
 			t.Fatalf("expected metadata keywords help to list %s, got %q", subcommand, keywordsUsage)
 		}

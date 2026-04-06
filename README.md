@@ -235,8 +235,14 @@ asc review doctor --app "123456789"
 ```bash
 asc localizations list --app "123456789"
 asc metadata apply --app "123456789" --version "1.2.3" --dir "./metadata" --dry-run
+asc metadata keywords audit --app "123456789" --version "1.2.3" --blocked-terms-file "./blocked-terms.txt"
 asc apps info view --app "123456789" --output json --pretty
 ```
+
+Use `asc metadata keywords audit` before `sync` or `apply` when you want an ASO-focused
+review of live keyword metadata across locales. It reports duplicate phrases, repeated
+terms across locales, overlap with localized app name or subtitle, byte-budget usage,
+and optional blocked terms from repeated `--blocked-term` flags or a text file.
 
 ### Screenshots and media
 
