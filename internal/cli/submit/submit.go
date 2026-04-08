@@ -49,11 +49,11 @@ Use:
 
 func RemovedSubmitCreateCommand() *ffcli.Command {
 	cmd := SubmitCreateCommand()
-	cmd.ShortHelp = "DEPRECATED: removed; use `asc publish appstore --submit` or review submission commands."
-	cmd.LongHelp = "Removed legacy command. Use `asc publish appstore --submit` for the canonical high-level flow, or `asc versions attach-build` + `asc review submissions-*` when the build is already uploaded and the version is already prepared."
+	cmd.ShortHelp = "DEPRECATED: removed; use `asc publish appstore --submit` or `asc review submit`."
+	cmd.LongHelp = "Removed legacy command. Use `asc publish appstore --submit` for the canonical high-level flow, or `asc review submit` when the build is already uploaded and the version is already prepared."
 	cmd.UsageFunc = shared.DeprecatedUsageFunc
 	cmd.Exec = func(ctx context.Context, args []string) error {
-		fmt.Fprintln(os.Stderr, "Error: `asc submit create` was removed. Use `asc publish appstore --submit` or `asc versions attach-build` + `asc review submissions-*` instead.")
+		fmt.Fprintln(os.Stderr, "Error: `asc submit create` was removed. Use `asc publish appstore --submit` or `asc review submit` instead.")
 		return flag.ErrHelp
 	}
 	return cmd
@@ -73,14 +73,11 @@ func SubmitCreateCommand() *ffcli.Command {
 	return &ffcli.Command{
 		Name:       "create",
 		ShortUsage: "asc submit create [flags]",
-		ShortHelp:  "DEPRECATED: use `asc versions attach-build` + `asc review submissions-*`.",
+		ShortHelp:  "DEPRECATED: use `asc review submit`.",
 		LongHelp: `Deprecated compatibility path for lower-level direct submission.
 
 For already-uploaded builds, use:
-  - ` + "`asc versions attach-build --version-id \"VERSION_ID\" --build \"BUILD_ID\"`" + `
-  - ` + "`asc review submissions-create --app \"APP_ID\" --platform \"PLATFORM\"`" + `
-  - ` + "`asc review items-add --submission \"SUBMISSION_ID\" --item-type appStoreVersions --item-id \"VERSION_ID\"`" + `
-  - ` + "`asc review submissions-submit --id \"SUBMISSION_ID\" --confirm`" + `
+  - ` + "`asc review submit --app \"APP_ID\" --version-id \"VERSION_ID\" --build \"BUILD_ID\" --confirm`" + `
 
 Use ` + "`asc publish appstore --submit`" + ` only when you are starting from
 an IPA upload or local build.
@@ -88,11 +85,11 @@ an IPA upload or local build.
 Keep ` + "`asc submit create`" + ` only for older automation that already prepared
 the version and just needs the final review-submission step. For newly scripted
 direct submission on an already-prepared version, prefer the
-nondeprecated commands above instead of extending this alias.`,
+nondeprecated command above instead of extending this alias.`,
 		FlagSet:   fs,
 		UsageFunc: shared.DeprecatedUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			fmt.Fprintln(os.Stderr, "Warning: `asc submit create` is deprecated. Use `asc versions attach-build` + `asc review submissions-*` for already-uploaded builds, or `asc publish appstore --submit` when starting from an IPA.")
+			fmt.Fprintln(os.Stderr, "Warning: `asc submit create` is deprecated. Use `asc review submit` for already-uploaded builds, or `asc publish appstore --submit` when starting from an IPA.")
 			if !*confirm {
 				fmt.Fprintln(os.Stderr, "Error: --confirm is required to submit for review")
 				return flag.ErrHelp
