@@ -14,6 +14,21 @@ The App Store Connect CLI follows semantic versioning. All releases are availabl
 
 No unreleased changes yet.
 
+### 1.2.1
+
+**Highlights**:
+
+* `asc migrate import` is more resilient with fastlane screenshot directories: hidden junk like `.DS_Store` is skipped, empty locale folders no longer abort metadata imports, and metadata-only runs can explicitly use `--skip-screenshots`
+* Fastlane `snapshot` output works better out of the box for modern device-name-prefixed screenshots, including the 13-inch iPad Pro family
+* Submission regression coverage and the Wall of Apps continue to grow with Terraforge: Alchemy Craft Game, SiteCalc: Trades Calculator, and Moda: Driving Permit Hours Log
+
+**Changes**:
+
+* `fix(migrate)`: Skip unsupported screenshot files, allow empty screenshot locale directories, and add `--skip-screenshots` for metadata-only fastlane imports
+* `fix(migrate)`: Apply screenshot skipping during path resolution so metadata-only fastlane layouts without a `screenshots/` directory still import cleanly
+* `test(submit)`: Cover build attachment and existing submission lookup branches more aggressively
+* `build(community)`: Refresh the installs badge and add Terraforge: Alchemy Craft Game, SiteCalc: Trades Calculator, and Moda: Driving Permit Hours Log to the Wall of Apps
+
 ### 1.2.0
 
 **Highlights**:
